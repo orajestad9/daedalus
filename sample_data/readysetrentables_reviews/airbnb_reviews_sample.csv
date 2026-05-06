@@ -1,0 +1,9 @@
+review_id,property_id,reviewer_name,review_date,rating,review_text,language,country
+rr_syn_0001,prop_syn_101,Maya Chen,2025-01-14,5,"Bright apartment with a spotless kitchen and an easy self check-in. The host responded quickly when we asked about parking.",en,United States
+rr_syn_0002,prop_syn_101,Luca Marin,2025-02-03,4,"Comfortable stay near cafes and transit. The bedroom was quiet, though the hallway lights made the entry feel a little dim at night.",en,Canada
+rr_syn_0003,prop_syn_204,Sofia Alvarez,2025-02-18,5,"La casa estaba muy limpia y la terraza fue perfecta para desayunar. Las instrucciones de llegada fueron claras.",es,Spain
+rr_syn_0004,prop_syn_204,Amara Okafor,2025-03-06,3,"Good location and friendly communication, but the Wi-Fi dropped during two video calls and the extra towels were hard to find.",en,United Kingdom
+rr_syn_0005,prop_syn_317,Nina Patel,2025-03-22,5,"The space felt newly renovated, with comfortable beds and thoughtful labels on the appliances. Great fit for a short work trip.",en,Australia
+rr_syn_0006,prop_syn_317,Jonas Weber,2025-04-02,4,"Sehr gute Lage und einfache Anreise. Ein paar mehr Kaffeekapseln waeren schoen gewesen, aber insgesamt war alles gepflegt.",de,Germany
+rr_syn_0007,prop_syn_422,Claire Dubois,2025-04-19,4,"Appartement propre et bien equipe. La rue etait animee le soir, mais les fenetres isolaient assez bien le bruit.",fr,France
+rr_syn_0008,prop_syn_422,Ethan Brooks,2025-05-11,5,"Great natural light, reliable hot water, and a very smooth checkout. The guidebook made it easy to find groceries nearby.",en,New Zealand

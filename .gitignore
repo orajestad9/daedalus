@@ -31,6 +31,19 @@ logs/
 data/raw/
 data/processed/
 
+# Local/private datasets
+data/private/
+data/local/
+private_data/
+local_data/
+*.private.csv
+*_private.csv
+sample_data/**/private/
+sample_data/**/local/
+sample_data/**/*.private.csv
+sample_data/**/*_private.csv
+# Synthetic sample datasets under sample_data/ are intentionally committed.
+
 # Docker/logs
 *.log
 
