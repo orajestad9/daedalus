@@ -12,6 +12,7 @@ SAMPLE_CSV_PATH = (
     / "readysetrentables_reviews"
     / "airbnb_reviews_sample.csv"
 )
+EXPECTED_SAMPLE_REVIEW_COUNT = 8
 
 
 def test_writes_review_batch_json_artifact(tmp_path: Path) -> None:
@@ -33,7 +34,7 @@ def test_review_batch_json_contains_expected_content(tmp_path: Path) -> None:
     data = cast(dict[str, Any], json.loads(output_path.read_text(encoding="utf-8")))
 
     assert data["source"] == "airbnb"
-    assert len(data["reviews"]) == 8
+    assert len(data["reviews"]) == EXPECTED_SAMPLE_REVIEW_COUNT
 
     first_review = data["reviews"][0]
     assert first_review["review_id"] == "rr_syn_0001"

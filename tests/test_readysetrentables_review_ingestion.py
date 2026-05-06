@@ -12,12 +12,13 @@ SAMPLE_CSV_PATH = (
     / "readysetrentables_reviews"
     / "airbnb_reviews_sample.csv"
 )
+EXPECTED_SAMPLE_REVIEW_COUNT = 8
 
 
 def test_loads_committed_sample_csv() -> None:
     batch = load_airbnb_reviews_csv(SAMPLE_CSV_PATH)
 
-    assert batch.review_count == 8
+    assert batch.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
 
 
 def test_normalizes_first_sample_review_fields() -> None:

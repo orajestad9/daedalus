@@ -7,6 +7,7 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
+EXPECTED_SAMPLE_REVIEW_COUNT = 8
 
 
 def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) -> None:
@@ -19,7 +20,7 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
 
     assert result.source_csv_path == SAMPLE_CSV_PATH
     assert result.output_json_path == output_path
-    assert result.review_count == 6
+    assert result.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
     assert output_path.exists()
 
 
@@ -34,5 +35,5 @@ def test_run_review_normalization_workflow_artifact_contains_reviews(tmp_path: P
     artifact = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert artifact["source"] == "airbnb"
-    assert len(artifact["reviews"]) == 6
-    assert artifact["reviews"][0]["review_id"] == "r-001"
+    assert len(artifact["reviews"]) == EXPECTED_SAMPLE_REVIEW_COUNT
+    assert artifact["reviews"][0]["review_id"] == "rr_syn_0001"
