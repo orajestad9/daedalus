@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from daedalus.cli import main
+from daedalus.config import PostgresSettings
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -139,6 +140,28 @@ def test_run_workflow_command_succeeds_when_approval_supplied(
     assert (tmp_path / "normalized_reviews.metadata.json").is_file()
     assert (tmp_path / "normalized_reviews.summary.md").is_file()
     assert (tmp_path / "normalized_reviews.run.json").is_file()
+
+
+def test_migrate_db_command_succeeds_with_mocked_migration_runner(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    applied_migrations = [Path("sql/migrations/001_create_workflow_tables.sql")]
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.apply_migrations", lambda _: applied_migrations)
+
+    exit_code = main(["migrate-db"])
+
+    assert exit_code == 0
+    assert "Applied 1 migration files" in capsys.readouterr().out
 
 
 def _write_readysetrentables_manifest(
