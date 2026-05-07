@@ -27,6 +27,7 @@ class WorkflowRunRecord(BaseModel):
     output_artifact_path: Path
     metadata_artifact_path: Path
     summary_artifact_path: Path
+    run_record_artifact_path: Path
     review_count: int
     approval_required: bool
     approved: bool

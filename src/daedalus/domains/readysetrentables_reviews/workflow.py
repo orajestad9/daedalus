@@ -106,6 +106,7 @@ def run_review_normalization_workflow(
         output_artifact_path=artifact_path,
         metadata_artifact_path=metadata_path,
         summary_artifact_path=summary_path,
+        run_record_artifact_path=run_record_path,
         review_count=batch.review_count,
         approval_required=approval_required,
         approved=approved,
