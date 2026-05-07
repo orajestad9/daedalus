@@ -34,6 +34,8 @@ systems.
 - [x] Approval status recorded in workflow results and summaries.
 - [x] Shared `WorkflowStatus`, `ArtifactType`, `WorkflowName`, and
   `WorkflowDomain` enums.
+- [x] GitHub Actions CI runs `make check` on pushes and pull requests targeting
+  `main`.
 
 ## Runnable Commands
 
@@ -88,6 +90,8 @@ captures workflow execution state for future persistence.
 - Approval enforcement is handled by the orchestrator for manifest-driven
   workflows.
 - Generated artifacts are written under ignored local artifact paths.
+- CI runs the same `make check` command used locally, keeping human and agent
+  quality gates aligned.
 
 ## Intentionally Deferred
 

@@ -1,3 +1,11 @@
+"""Artifact writers for the ReadySetRentables review workflow.
+
+The normalized JSON and metadata artifacts are machine-readable contracts for
+later validators, storage, and agents. The markdown summary is intentionally
+human-readable so a reviewer or future review agent can understand a run without
+opening the full JSON payload.
+"""
+
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
@@ -9,7 +17,7 @@ from daedalus.orchestrator.artifact_type import ArtifactType
 
 
 class ReviewBatchArtifactMetadata(BaseModel):
-    """Metadata describing a generated normalized review batch artifact."""
+    """Trace metadata for the normalized review JSON artifact."""
 
     run_id: UUID
     workflow_name: str
@@ -21,7 +29,7 @@ class ReviewBatchArtifactMetadata(BaseModel):
 
 
 def write_review_batch_json(batch: ReviewBatch, output_path: Path) -> Path:
-    """Write a normalized review batch as a pretty-formatted JSON artifact."""
+    """Write the normalized reviews artifact consumed by downstream automation."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(batch.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return output_path
@@ -31,7 +39,7 @@ def write_review_batch_metadata_json(
     metadata: ReviewBatchArtifactMetadata,
     output_path: Path,
 ) -> Path:
-    """Write normalized review batch metadata as a pretty-formatted JSON artifact."""
+    """Write metadata that connects the review artifact to a workflow run."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(metadata.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return output_path
@@ -48,7 +56,7 @@ def write_review_normalization_summary_markdown(
     approval_required: bool,
     approved: bool,
 ) -> Path:
-    """Write a human-readable markdown summary for a review normalization run."""
+    """Write the compact human-readable run summary artifact."""
     summary_markdown_path.parent.mkdir(parents=True, exist_ok=True)
     markdown = "\n".join(
         [

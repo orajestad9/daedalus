@@ -1,3 +1,10 @@
+"""Deterministic ReadySetRentables review normalization workflow.
+
+This module is the domain boundary for the Phase 0 review workflow. It performs
+only deterministic parsing and artifact writing: no agents, model clients,
+database writes, or graph orchestration live here yet.
+"""
+
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,11 +19,11 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
     write_review_normalization_summary_markdown,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
     write_workflow_run_record_json,
 )
-from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.status import WorkflowStatus
 from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 
@@ -47,7 +54,14 @@ def run_review_normalization_workflow(
     approval_required: bool = False,
     approved: bool = False,
 ) -> ReviewNormalizationWorkflowResult:
-    """Run the deterministic review normalization workflow."""
+    """Run the deterministic review normalization workflow and write artifacts.
+
+    The workflow emits separate artifacts for separate audiences: normalized JSON
+    for downstream machines, metadata for artifact tracing, markdown for human
+    review, and a generic run record for future persistence. Approval status is
+    carried through the result and summary, but Phase 0 deliberately does not
+    create a persistent approval-record artifact or database row.
+    """
     run_id = uuid4()
     started_at_utc = datetime.now(UTC)
 

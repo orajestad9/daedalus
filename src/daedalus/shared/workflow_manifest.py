@@ -1,3 +1,10 @@
+"""Workflow manifest loading and validation.
+
+Manifests are the bridge between local Python calls and repeatable automation.
+Docker containers, Kubernetes jobs, GitHub Actions, and future agents can all
+point at the same YAML file instead of rebuilding workflow arguments by hand.
+"""
+
 from pathlib import Path
 from typing import Any, cast
 
@@ -6,7 +13,7 @@ from pydantic import BaseModel
 
 
 class WorkflowManifest(BaseModel):
-    """Declarative configuration for running a Daedalus workflow."""
+    """Validated declarative configuration for running a Daedalus workflow."""
 
     workflow_name: str
     domain: str
@@ -17,7 +24,11 @@ class WorkflowManifest(BaseModel):
 
 
 def load_workflow_manifest(manifest_path: Path) -> WorkflowManifest:
-    """Load and validate a workflow manifest from YAML."""
+    """Load YAML and validate it with Pydantic before orchestration.
+
+    Pydantic keeps path and boolean handling consistent at the platform boundary,
+    which is important once manifests are produced by humans, CI jobs, or agents.
+    """
     if not manifest_path.exists():
         raise FileNotFoundError(manifest_path)
 

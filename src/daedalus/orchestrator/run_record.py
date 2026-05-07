@@ -1,3 +1,10 @@
+"""Workflow execution records shared across Daedalus workflows.
+
+Phase 0 stores run records as local JSON artifacts. The model is intentionally
+generic so the same shape can later back a Postgres `workflow_runs` table without
+forcing each domain workflow to invent its own execution schema.
+"""
+
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
@@ -8,7 +15,7 @@ from daedalus.orchestrator.status import WorkflowStatus
 
 
 class WorkflowRunRecord(BaseModel):
-    """Machine-readable record of a Daedalus workflow execution."""
+    """Machine-readable record of one workflow execution."""
 
     run_id: UUID
     workflow_name: str
@@ -26,7 +33,7 @@ class WorkflowRunRecord(BaseModel):
 
 
 def write_workflow_run_record_json(record: WorkflowRunRecord, output_path: Path) -> Path:
-    """Write a workflow run record as a pretty-formatted JSON artifact."""
+    """Write a local JSON run record artifact for auditing and future persistence."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(record.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return output_path

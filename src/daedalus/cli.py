@@ -1,3 +1,11 @@
+"""Command-line entry point for Daedalus.
+
+The CLI is intentionally thin: it parses user intent, configures process-level
+logging, and delegates workflow execution to domain or orchestrator functions.
+Routing and approval enforcement live outside this module so future automation
+can reuse the same behavior without shelling out to the CLI.
+"""
+
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
@@ -14,6 +22,7 @@ from daedalus.telemetry.logging import configure_logging
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Run the Daedalus CLI and return a process exit code."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     configure_logging(args.log_level)

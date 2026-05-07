@@ -1,19 +1,27 @@
+"""Manifest-driven workflow routing for Daedalus.
+
+The CLI, future jobs, API handlers, and agents should all call this layer rather
+than owning routing decisions themselves. Keeping routing in the orchestrator
+gives Daedalus one place to enforce platform rules such as approval gates and
+unsupported-workflow failures.
+"""
+
 from pathlib import Path
 
 from daedalus.domains.readysetrentables_reviews.workflow import (
     ReviewNormalizationWorkflowResult,
     run_review_normalization_workflow,
 )
-from daedalus.shared.workflow_manifest import WorkflowManifest, load_workflow_manifest
 from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
+from daedalus.shared.workflow_manifest import WorkflowManifest, load_workflow_manifest
 
 
 class UnsupportedWorkflowError(ValueError):
-    """Raised when a workflow manifest cannot be routed to an implementation."""
+    """Raised when a manifest names a workflow Daedalus cannot run yet."""
 
 
 class WorkflowApprovalRequiredError(PermissionError):
-    """Raised when a workflow manifest requires human approval before execution."""
+    """Raised when a manifest requires approval and no approval was supplied."""
 
 
 def run_workflow_from_manifest_path(
@@ -21,7 +29,13 @@ def run_workflow_from_manifest_path(
     *,
     approved: bool = False,
 ) -> ReviewNormalizationWorkflowResult:
-    """Load a workflow manifest and route it to the matching workflow implementation."""
+    """Load a manifest, enforce platform gates, and run the routed workflow.
+
+    Approval is checked before workflow routing so a manifest cannot trigger
+    domain work until the human-approved intent is explicit. Unsupported
+    manifests fail loudly because silent no-ops would hide bad automation,
+    mistyped manifests, or incomplete Phase 1 routing work.
+    """
     manifest = load_workflow_manifest(manifest_path)
     if manifest.requires_human_approval and not approved:
         msg = (
