@@ -18,7 +18,6 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 from daedalus.memory.migrations import apply_migrations
 from daedalus.memory.workflow_persistence import (
     WorkflowPersistenceError,
-    WorkflowRunDetails,
     WorkflowRunNotFoundError,
     load_recent_workflow_runs,
     load_workflow_run_details,
@@ -28,8 +27,8 @@ from daedalus.memory.workflow_run_repository import (
     MAX_LIST_RECENT_LIMIT,
     MIN_LIST_RECENT_LIMIT,
 )
+from daedalus.orchestrator.run_inspection_formatter import format_run_inspection
 from daedalus.orchestrator.run_record import WorkflowRunRecord
-from daedalus.orchestrator.step_record import WorkflowStepRecord
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
     WorkflowApprovalRequiredError,
@@ -104,7 +103,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (ValueError, WorkflowPersistenceError, WorkflowRunNotFoundError) as exc:
             parser.error(str(exc))
 
-        print(_format_workflow_run_details(details))
+        print(
+            format_run_inspection(
+                record=details.run_record,
+                artifacts=details.artifact_records,
+                steps=details.step_records,
+            )
+        )
         return 0
 
     if args.command == "list-runs":
@@ -233,53 +238,6 @@ def _list_limit_arg(value: str) -> int:
         raise argparse.ArgumentTypeError(msg)
 
     return limit
-
-
-def _format_workflow_run_details(details: WorkflowRunDetails) -> str:
-    run = details.run_record
-    lines = [
-        f"Workflow run {run.run_id}",
-        f"workflow_name: {run.workflow_name}",
-        f"domain: {run.domain}",
-        f"status: {run.status.value}",
-        f"started_at_utc: {run.started_at_utc.isoformat()}",
-        f"completed_at_utc: {run.completed_at_utc.isoformat()}",
-        f"duration_ms: {run.duration_ms}",
-        f"review_count: {run.review_count}",
-        f"approval_required: {run.approval_required}",
-        f"approved: {run.approved}",
-        f"source_input_path: {run.source_input_path}",
-        f"output_artifact_path: {run.output_artifact_path}",
-        f"metadata_artifact_path: {run.metadata_artifact_path}",
-        f"summary_artifact_path: {run.summary_artifact_path}",
-        f"run_record_artifact_path: {run.run_record_artifact_path}",
-        "artifacts:",
-    ]
-    if not details.artifact_records:
-        lines.append("- none")
-    else:
-        lines.extend(
-            f"- {artifact.artifact_type.value}: {artifact.artifact_path}"
-            for artifact in details.artifact_records
-        )
-    lines.append("steps:")
-    lines.extend(_format_workflow_steps(details.step_records))
-
-    return "\n".join(lines)
-
-
-def _format_workflow_steps(steps: Sequence[WorkflowStepRecord]) -> list[str]:
-    if not steps:
-        return ["No workflow steps recorded."]
-
-    lines: list[str] = []
-    for step in steps:
-        line = f"- {step.step_name}: status={step.status.value} duration_ms={step.duration_ms}"
-        if step.error_message:
-            line = f"{line} error_message={step.error_message}"
-        lines.append(line)
-
-    return lines
 
 
 def _format_workflow_run_list(runs: Sequence[WorkflowRunRecord]) -> str:
