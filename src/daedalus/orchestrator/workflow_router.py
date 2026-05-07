@@ -5,10 +5,7 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
 from daedalus.shared.workflow_manifest import WorkflowManifest, load_workflow_manifest
-
-
-READYSETRENTABLES_REVIEW_WORKFLOW_NAME = "readysetrentables_review_normalization"
-READYSETRENTABLES_REVIEW_DOMAIN = "readysetrentables_reviews"
+from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 
 
 class UnsupportedWorkflowError(ValueError):
@@ -50,6 +47,6 @@ def run_workflow_from_manifest_path(
 
 def _is_readysetrentables_review_manifest(manifest: WorkflowManifest) -> bool:
     return (
-        manifest.workflow_name == READYSETRENTABLES_REVIEW_WORKFLOW_NAME
-        or manifest.domain == READYSETRENTABLES_REVIEW_DOMAIN
+        manifest.workflow_name == WorkflowName.READYSETRENTABLES_REVIEW_NORMALIZATION
+        or manifest.domain == WorkflowDomain.READYSETRENTABLES_REVIEWS
     )

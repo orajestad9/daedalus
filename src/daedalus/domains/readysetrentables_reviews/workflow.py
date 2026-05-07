@@ -18,11 +18,12 @@ from daedalus.orchestrator.run_record import (
 )
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.status import WorkflowStatus
+from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 
 
 logger = logging.getLogger(__name__)
-WORKFLOW_NAME = "readysetrentables_review_normalization"
-DOMAIN = "readysetrentables_reviews"
+WORKFLOW_NAME = WorkflowName.READYSETRENTABLES_REVIEW_NORMALIZATION
+DOMAIN = WorkflowDomain.READYSETRENTABLES_REVIEWS
 
 
 class ReviewNormalizationWorkflowResult(BaseModel):

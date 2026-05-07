@@ -10,6 +10,7 @@ from daedalus.orchestrator.run_record import (
 )
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.status import WorkflowStatus
+from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 
 
 def test_writes_workflow_run_record_json(tmp_path: Path) -> None:
@@ -60,3 +61,11 @@ def test_artifact_type_values_are_stable() -> None:
     assert ArtifactType.APPROVAL_RECORD.value == "approval_record"
     assert ArtifactType.AGENT_OUTPUT.value == "agent_output"
     assert ArtifactType.VALIDATION_REPORT.value == "validation_report"
+
+
+def test_workflow_identity_values_are_stable() -> None:
+    assert (
+        WorkflowName.READYSETRENTABLES_REVIEW_NORMALIZATION.value
+        == "readysetrentables_review_normalization"
+    )
+    assert WorkflowDomain.READYSETRENTABLES_REVIEWS.value == "readysetrentables_reviews"
