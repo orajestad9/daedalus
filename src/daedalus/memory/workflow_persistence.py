@@ -38,6 +38,7 @@ class WorkflowRunDetails(BaseModel):
 
     run_record: WorkflowRunRecord
     artifact_records: list[ArtifactRecord]
+    step_records: list[WorkflowStepRecord]
 
 
 class WorkflowPersistenceService:
@@ -129,6 +130,7 @@ def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
     try:
         workflow_run_repository = WorkflowRunRepository(connection)
         artifact_repository = ArtifactRepository(connection)
+        workflow_step_repository = WorkflowStepRepository(connection)
         run_record = workflow_run_repository.get_by_run_id(run_id)
         if run_record is None:
             msg = f"Workflow run not found: run_id={run_id}"
@@ -137,6 +139,7 @@ def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
         return WorkflowRunDetails(
             run_record=run_record,
             artifact_records=artifact_repository.list_for_run(run_id),
+            step_records=workflow_step_repository.list_for_run(run_id),
         )
     except WorkflowRunNotFoundError:
         raise
