@@ -99,6 +99,8 @@ cp .env.example .env
 ```
 
 Edit `.env` locally and replace placeholders. Never commit `.env`.
+Keep the `POSTGRES_*` values used by the Python CLI aligned with the
+`DAEDALUS_POSTGRES_*` values used by Docker Compose.
 
 Start Postgres:
 

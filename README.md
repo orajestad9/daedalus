@@ -62,6 +62,8 @@ cp .env.example .env
 ```
 
 Edit `.env` and replace every `change_me_*` placeholder with local-only values.
+Keep the `POSTGRES_*` values aligned with the `DAEDALUS_POSTGRES_*` values used
+by Docker Compose.
 Never commit `.env`, real passwords, connection strings, hostnames, tokens, or
 machine-specific values.
 
