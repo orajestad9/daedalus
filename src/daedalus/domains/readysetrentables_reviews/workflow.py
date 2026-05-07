@@ -25,6 +25,7 @@ from daedalus.orchestrator.run_record import (
     write_workflow_run_record_json,
 )
 from daedalus.orchestrator.status import WorkflowStatus
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 
 
@@ -45,6 +46,7 @@ class ReviewNormalizationWorkflowResult(BaseModel):
     run_id: UUID
     approval_required: bool
     approved: bool
+    steps: list[WorkflowStepRecord]
 
 
 def run_review_normalization_workflow(
@@ -69,9 +71,17 @@ def run_review_normalization_workflow(
     logger.info("Input CSV path: %s run_id=%s", input_csv_path, run_id)
     logger.info("Output JSON path: %s run_id=%s", output_json_path, run_id)
 
+    steps: list[WorkflowStepRecord] = []
+    step = WorkflowStepRecord.start(run_id=run_id, step_name="load_reviews")
     batch = load_airbnb_reviews_csv(input_csv_path)
+    steps.append(step.complete())
+
+    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_normalized_artifact")
     artifact_path = write_review_batch_json(batch, output_json_path)
+    steps.append(step.complete())
+
     metadata_path = _metadata_path_for(artifact_path)
+    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_metadata_artifact")
     metadata = ReviewBatchArtifactMetadata(
         run_id=run_id,
         workflow_name=WORKFLOW_NAME,
@@ -82,7 +92,10 @@ def run_review_normalization_workflow(
         review_count=batch.review_count,
     )
     write_review_batch_metadata_json(metadata, metadata_path)
+    steps.append(step.complete())
+
     summary_path = _summary_path_for(artifact_path)
+    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_summary_artifact")
     write_review_normalization_summary_markdown(
         run_id=run_id,
         source_csv_path=input_csv_path,
@@ -93,6 +106,8 @@ def run_review_normalization_workflow(
         approval_required=approval_required,
         approved=approved,
     )
+    steps.append(step.complete())
+
     completed_at_utc = utc_now()
     run_record_path = _run_record_path_for(artifact_path)
     duration_ms = calculate_duration_ms(started_at_utc, completed_at_utc)
@@ -113,7 +128,9 @@ def run_review_normalization_workflow(
         approval_required=approval_required,
         approved=approved,
     )
+    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_run_record_artifact")
     write_workflow_run_record_json(run_record, run_record_path)
+    steps.append(step.complete())
 
     logger.info("Review count: %s run_id=%s", batch.review_count, run_id)
     logger.info("Metadata JSON path: %s run_id=%s", metadata_path, run_id)
@@ -131,6 +148,7 @@ def run_review_normalization_workflow(
         run_id=run_id,
         approval_required=approval_required,
         approved=approved,
+        steps=steps,
     )
 
 

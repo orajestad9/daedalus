@@ -18,9 +18,11 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 from daedalus.memory.artifact_repository import ArtifactRepository
 from daedalus.memory.postgres import connect_postgres
 from daedalus.memory.workflow_run_repository import WorkflowRunRepository
+from daedalus.memory.workflow_step_repository import WorkflowStepRepository
 from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
 class WorkflowPersistenceError(RuntimeError):
@@ -45,9 +47,11 @@ class WorkflowPersistenceService:
         self,
         workflow_run_repository: WorkflowRunRepository,
         artifact_repository: ArtifactRepository,
+        workflow_step_repository: WorkflowStepRepository | None = None,
     ) -> None:
         self._workflow_run_repository = workflow_run_repository
         self._artifact_repository = artifact_repository
+        self._workflow_step_repository = workflow_step_repository
 
     def persist_completed_workflow(
         self,
@@ -61,6 +65,27 @@ class WorkflowPersistenceService:
             self._artifact_repository.save(artifact_record)
 
         return len(artifact_records)
+
+    def save_review_normalization_run(
+        self,
+        record: WorkflowRunRecord,
+        steps: list[WorkflowStepRecord] | None = None,
+    ) -> list[ArtifactRecord]:
+        """Save a review normalization run, optional steps, and artifact records."""
+        if steps and self._workflow_step_repository is None:
+            msg = "Step persistence requires WorkflowStepRepository"
+            raise ValueError(msg)
+
+        self._workflow_run_repository.save(record)
+        for step in steps or []:
+            if self._workflow_step_repository is not None:
+                self._workflow_step_repository.save(step)
+
+        artifact_records = _artifact_records_from_run_record(record)
+        for artifact_record in artifact_records:
+            self._artifact_repository.save(artifact_record)
+
+        return artifact_records
 
 
 def persist_review_normalization_workflow_result(
@@ -79,10 +104,11 @@ def persist_review_normalization_workflow_result(
         service = WorkflowPersistenceService(
             workflow_run_repository=WorkflowRunRepository(connection),
             artifact_repository=ArtifactRepository(connection),
+            workflow_step_repository=WorkflowStepRepository(connection),
         )
-        artifact_count = service.persist_completed_workflow(
-            run_record=_run_record_from_result(result),
-            artifact_records=_artifact_records_from_result(result),
+        artifact_records = service.save_review_normalization_run(
+            record=_run_record_from_result(result),
+            steps=result.steps,
         )
         connection.commit()
     except Exception as exc:
@@ -92,7 +118,7 @@ def persist_review_normalization_workflow_result(
     finally:
         connection.close()
 
-    return artifact_count
+    return len(artifact_records)
 
 
 def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
@@ -175,5 +201,30 @@ def _artifact_records_from_result(
             run_id=result.run_id,
             artifact_type=ArtifactType.WORKFLOW_RUN_RECORD,
             artifact_path=result.run_record_json_path,
+        ),
+    ]
+
+
+def _artifact_records_from_run_record(record: WorkflowRunRecord) -> list[ArtifactRecord]:
+    return [
+        ArtifactRecord.create(
+            run_id=record.run_id,
+            artifact_type=ArtifactType.NORMALIZED_REVIEWS,
+            artifact_path=record.output_artifact_path,
+        ),
+        ArtifactRecord.create(
+            run_id=record.run_id,
+            artifact_type=ArtifactType.REVIEW_METADATA,
+            artifact_path=record.metadata_artifact_path,
+        ),
+        ArtifactRecord.create(
+            run_id=record.run_id,
+            artifact_type=ArtifactType.WORKFLOW_SUMMARY,
+            artifact_path=record.summary_artifact_path,
+        ),
+        ArtifactRecord.create(
+            run_id=record.run_id,
+            artifact_type=ArtifactType.WORKFLOW_RUN_RECORD,
+            artifact_path=record.run_record_artifact_path,
         ),
     ]

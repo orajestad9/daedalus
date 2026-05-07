@@ -17,6 +17,7 @@ from daedalus.orchestrator.run_record import (
     write_workflow_run_record_json,
 )
 from daedalus.orchestrator.status import WorkflowStatus
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
 def test_persist_review_normalization_workflow_result_commits_transaction(
@@ -37,7 +38,8 @@ def test_persist_review_normalization_workflow_result_commits_transaction(
     artifact_count = persist_review_normalization_workflow_result(result)
 
     assert artifact_count == 4
-    assert len(connection.executed_sql) == 5
+    assert len(connection.executed_sql) == 7
+    assert _insert_count(connection.executed_sql, "workflow_steps") == 2
     assert connection.committed is True
     assert connection.rolled_back is False
     assert connection.closed is True
@@ -113,6 +115,10 @@ def _workflow_result(tmp_path: Path) -> ReviewNormalizationWorkflowResult:
         run_id=run_id,
         approval_required=False,
         approved=False,
+        steps=[
+            _workflow_step_record(run_id=run_id, step_name="load_reviews"),
+            _workflow_step_record(run_id=run_id, step_name="write_normalized_artifact"),
+        ],
     )
 
 
@@ -151,4 +157,25 @@ def _postgres_settings() -> PostgresSettings:
         database="placeholder-db",
         user="placeholder-user",
         password="placeholder-password",
+    )
+
+
+def _insert_count(executed_sql: list[str], table_name: str) -> int:
+    return sum(1 for sql in executed_sql if f"insert into {table_name}" in sql.lower())
+
+
+def _workflow_step_record(
+    *,
+    run_id: UUID,
+    step_name: str,
+) -> WorkflowStepRecord:
+    return WorkflowStepRecord(
+        step_id=uuid4(),
+        run_id=run_id,
+        step_name=step_name,
+        status=WorkflowStatus.COMPLETED,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
+        duration_ms=60_000,
+        error_message=None,
     )
