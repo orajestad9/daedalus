@@ -107,6 +107,8 @@ def test_run_review_normalization_workflow_writes_run_record(tmp_path: Path) -> 
     assert run_record["metadata_artifact_path"] == str(result.metadata_json_path)
     assert run_record["summary_artifact_path"] == str(result.summary_markdown_path)
     assert run_record["run_record_artifact_path"] == str(result.run_record_json_path)
+    assert isinstance(run_record["duration_ms"], int)
+    assert run_record["duration_ms"] >= 0
     assert run_record["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT
     assert run_record["approval_required"] is False
     assert run_record["approved"] is False

@@ -44,13 +44,14 @@ class WorkflowRunRepository:
                 metadata_artifact_path,
                 summary_artifact_path,
                 run_record_artifact_path,
+                duration_ms,
                 review_count,
                 approval_required,
                 approved
             )
             VALUES (
                 %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s
             )
             """,
             _params_from_record(record),
@@ -72,6 +73,7 @@ class WorkflowRunRepository:
                 metadata_artifact_path,
                 summary_artifact_path,
                 run_record_artifact_path,
+                duration_ms,
                 review_count,
                 approval_required,
                 approved
@@ -123,6 +125,7 @@ class WorkflowRunRepository:
                 metadata_artifact_path,
                 summary_artifact_path,
                 run_record_artifact_path,
+                duration_ms,
                 review_count,
                 approval_required,
                 approved
@@ -149,6 +152,7 @@ def _params_from_record(record: WorkflowRunRecord) -> tuple[object, ...]:
         str(record.metadata_artifact_path),
         str(record.summary_artifact_path),
         str(record.run_record_artifact_path),
+        record.duration_ms,
         record.review_count,
         record.approval_required,
         record.approved,
@@ -168,9 +172,10 @@ def _record_from_row(row: Sequence[Any]) -> WorkflowRunRecord:
         metadata_artifact_path=Path(str(row[8])),
         summary_artifact_path=Path(str(row[9])),
         run_record_artifact_path=Path(str(row[10])),
-        review_count=int(row[11]),
-        approval_required=bool(row[12]),
-        approved=bool(row[13]),
+        duration_ms=int(row[11]),
+        review_count=int(row[12]),
+        approval_required=bool(row[13]),
+        approved=bool(row[14]),
     )
 
 

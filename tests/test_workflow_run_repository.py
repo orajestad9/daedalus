@@ -26,7 +26,8 @@ def test_workflow_run_repository_save_inserts_record_with_parameterized_sql() ->
     assert connection.params[3] == "completed"
     assert connection.params[6] == str(record.source_input_path)
     assert connection.params[10] == str(record.run_record_artifact_path)
-    assert connection.params[11] == record.review_count
+    assert connection.params[11] == record.duration_ms
+    assert connection.params[12] == record.review_count
     assert connection.committed is False
 
 
@@ -49,6 +50,7 @@ def test_workflow_run_repository_get_by_run_id_maps_row_to_record() -> None:
     assert record.metadata_artifact_path == Path("normalized_reviews.metadata.json")
     assert record.summary_artifact_path == Path("normalized_reviews.summary.md")
     assert record.run_record_artifact_path == Path("normalized_reviews.run.json")
+    assert record.duration_ms == 60_000
     assert record.review_count == 8
     assert record.approval_required is True
     assert record.approved is True
@@ -88,6 +90,7 @@ def test_workflow_run_repository_list_recent_uses_parameterized_sql() -> None:
     assert "limit %s" in sql
     assert connection.params == ("readysetrentables_reviews", "completed", 5)
     assert [record.run_id for record in records] == [first_run_id, second_run_id]
+    assert [record.duration_ms for record in records] == [60_000, 60_000]
 
 
 def test_workflow_run_repository_list_recent_rejects_invalid_limit() -> None:
@@ -149,6 +152,7 @@ def _workflow_run_record() -> WorkflowRunRecord:
         metadata_artifact_path=Path("normalized_reviews.metadata.json"),
         summary_artifact_path=Path("normalized_reviews.summary.md"),
         run_record_artifact_path=Path("normalized_reviews.run.json"),
+        duration_ms=60_000,
         review_count=8,
         approval_required=True,
         approved=True,
@@ -168,6 +172,7 @@ def _workflow_run_row(run_id: UUID) -> tuple[Any, ...]:
         "normalized_reviews.metadata.json",
         "normalized_reviews.summary.md",
         "normalized_reviews.run.json",
+        60_000,
         8,
         True,
         True,

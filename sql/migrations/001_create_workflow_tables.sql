@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS workflow_runs (
     metadata_artifact_path TEXT NOT NULL,
     summary_artifact_path TEXT NOT NULL,
     run_record_artifact_path TEXT NOT NULL,
+    duration_ms INTEGER NOT NULL,
     review_count INTEGER NOT NULL,
     approval_required BOOLEAN NOT NULL,
     approved BOOLEAN NOT NULL,

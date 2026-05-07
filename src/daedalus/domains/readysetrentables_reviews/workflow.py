@@ -95,6 +95,7 @@ def run_review_normalization_workflow(
     )
     completed_at_utc = datetime.now(UTC)
     run_record_path = _run_record_path_for(artifact_path)
+    duration_ms = _duration_ms_between(started_at_utc, completed_at_utc)
     run_record = WorkflowRunRecord(
         run_id=run_id,
         workflow_name=WORKFLOW_NAME,
@@ -107,6 +108,7 @@ def run_review_normalization_workflow(
         metadata_artifact_path=metadata_path,
         summary_artifact_path=summary_path,
         run_record_artifact_path=run_record_path,
+        duration_ms=duration_ms,
         review_count=batch.review_count,
         approval_required=approval_required,
         approved=approved,
@@ -142,3 +144,7 @@ def _summary_path_for(output_json_path: Path) -> Path:
 
 def _run_record_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.run.json")
+
+
+def _duration_ms_between(started_at_utc: datetime, completed_at_utc: datetime) -> int:
+    return max(0, int((completed_at_utc - started_at_utc).total_seconds() * 1000))

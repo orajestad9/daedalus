@@ -136,6 +136,7 @@ def _write_run_record(
         metadata_artifact_path=metadata_path,
         summary_artifact_path=summary_path,
         run_record_artifact_path=run_record_path,
+        duration_ms=60_000,
         review_count=8,
         approval_required=False,
         approved=False,

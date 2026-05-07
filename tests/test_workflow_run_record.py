@@ -28,6 +28,7 @@ def test_writes_workflow_run_record_json(tmp_path: Path) -> None:
         metadata_artifact_path=Path("normalized_reviews.metadata.json"),
         summary_artifact_path=Path("normalized_reviews.summary.md"),
         run_record_artifact_path=Path("normalized_reviews.run.json"),
+        duration_ms=60_000,
         review_count=8,
         approval_required=True,
         approved=True,
@@ -42,6 +43,7 @@ def test_writes_workflow_run_record_json(tmp_path: Path) -> None:
     assert data["domain"] == "readysetrentables_reviews"
     assert data["status"] == "completed"
     assert data["run_record_artifact_path"] == "normalized_reviews.run.json"
+    assert data["duration_ms"] == 60_000
     assert data["review_count"] == 8
     assert data["approval_required"] is True
     assert data["approved"] is True

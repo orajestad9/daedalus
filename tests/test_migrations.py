@@ -32,6 +32,7 @@ def test_initial_workflow_migration_contains_expected_columns() -> None:
         "metadata_artifact_path text not null",
         "summary_artifact_path text not null",
         "run_record_artifact_path text not null",
+        "duration_ms integer not null",
         "review_count integer not null",
         "approval_required boolean not null",
         "approved boolean not null",

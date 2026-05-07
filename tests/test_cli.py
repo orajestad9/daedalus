@@ -291,6 +291,7 @@ def test_show_run_command_succeeds_with_mocked_persistence(
     assert str(run_id) in output
     assert "workflow_name: readysetrentables_review_normalization" in output
     assert "status: completed" in output
+    assert "duration_ms: 60000" in output
     assert "output_artifact_path: normalized_reviews.json" in output
     assert "- normalized_reviews: normalized_reviews.json" in output
     assert "- workflow_summary: normalized_reviews.summary.md" in output
@@ -361,6 +362,7 @@ def test_list_runs_command_succeeds_with_mocked_persistence(
     assert str(second_run_id) in output
     assert "workflow_name=readysetrentables_review_normalization" in output
     assert "status=completed" in output
+    assert "duration_ms=60000" in output
 
 
 def test_list_runs_command_prints_message_when_no_runs_exist(
@@ -425,6 +427,7 @@ def _workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
         metadata_artifact_path=Path("normalized_reviews.metadata.json"),
         summary_artifact_path=Path("normalized_reviews.summary.md"),
         run_record_artifact_path=Path("normalized_reviews.run.json"),
+        duration_ms=60_000,
         review_count=8,
         approval_required=False,
         approved=False,

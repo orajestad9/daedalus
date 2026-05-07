@@ -243,6 +243,7 @@ def _format_workflow_run_details(details: WorkflowRunDetails) -> str:
         f"status: {run.status.value}",
         f"started_at_utc: {run.started_at_utc.isoformat()}",
         f"completed_at_utc: {run.completed_at_utc.isoformat()}",
+        f"duration_ms: {run.duration_ms}",
         f"review_count: {run.review_count}",
         f"approval_required: {run.approval_required}",
         f"approved: {run.approved}",
@@ -276,6 +277,7 @@ def _format_workflow_run_list(runs: Sequence[WorkflowRunRecord]) -> str:
                 f"workflow_name={run.workflow_name}",
                 f"domain={run.domain}",
                 f"status={run.status.value}",
+                f"duration_ms={run.duration_ms}",
                 f"review_count={run.review_count}",
                 f"completed_at_utc={run.completed_at_utc.isoformat()}",
             ]
