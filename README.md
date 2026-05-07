@@ -40,3 +40,40 @@ The sample run writes four ignored local artifacts under
 Workflows can be described by YAML manifests under `workflows/`. The sample
 ReadySetRentables manifest defines the workflow name, domain, input CSV path,
 output JSON path, and whether human approval is required.
+
+## Local Postgres
+
+Phase 1 starts with a Docker Compose Postgres service for local development.
+No real secrets are committed. To run it locally:
+
+```sh
+cp .env.example .env
+```
+
+Edit `.env` and replace every `change_me_*` placeholder with local-only values.
+Never commit `.env`, real passwords, connection strings, hostnames, tokens, or
+machine-specific values.
+
+Start Postgres:
+
+```sh
+make db-up
+```
+
+Inspect logs if needed:
+
+```sh
+make db-logs
+```
+
+Stop the service:
+
+```sh
+make db-down
+```
+
+To delete the local database volume, run the destructive reset target:
+
+```sh
+make db-reset
+```

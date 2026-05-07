@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${DAEDALUS_POSTGRES_CONTAINER_NAME:-daedalus-postgres-local}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DAEDALUS_POSTGRES_USER:-change_me_daedalus_user}
+      POSTGRES_PASSWORD: ${DAEDALUS_POSTGRES_PASSWORD:-change_me_daedalus_password}
+      POSTGRES_DB: ${DAEDALUS_POSTGRES_DB:-change_me_daedalus_db}
+    ports:
+      - "${DAEDALUS_POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: ${DAEDALUS_POSTGRES_VOLUME_NAME:-daedalus_postgres_data}
