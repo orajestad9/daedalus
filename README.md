@@ -15,6 +15,9 @@ Run the full local check suite:
 make check
 ```
 
+GitHub Actions runs the same `make check` quality gate on pushes and pull
+requests targeting `main`.
+
 Normalize the committed sample Airbnb review CSV into a JSON artifact:
 
 ```sh
