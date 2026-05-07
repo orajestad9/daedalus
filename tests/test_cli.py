@@ -320,6 +320,76 @@ def test_show_run_command_invalid_uuid_fails_cleanly() -> None:
     assert exc_info.value.code == 2
 
 
+def test_list_runs_command_succeeds_with_mocked_persistence(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    first_run_id = uuid4()
+    second_run_id = uuid4()
+    listed_calls: list[tuple[int, str | None, str | None]] = []
+
+    def fake_list(
+        *,
+        limit: int,
+        domain: str | None,
+        status: str | None,
+    ) -> list[WorkflowRunRecord]:
+        listed_calls.append((limit, domain, status))
+        return [
+            _workflow_run_details(first_run_id).run_record,
+            _workflow_run_details(second_run_id).run_record,
+        ]
+
+    monkeypatch.setattr("daedalus.cli.load_recent_workflow_runs", fake_list)
+
+    exit_code = main(
+        [
+            "list-runs",
+            "--limit",
+            "5",
+            "--domain",
+            "readysetrentables_reviews",
+            "--status",
+            "completed",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert listed_calls == [(5, "readysetrentables_reviews", "completed")]
+    assert str(first_run_id) in output
+    assert str(second_run_id) in output
+    assert "workflow_name=readysetrentables_review_normalization" in output
+    assert "status=completed" in output
+
+
+def test_list_runs_command_prints_message_when_no_runs_exist(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("daedalus.cli.load_recent_workflow_runs", lambda **_: [])
+
+    exit_code = main(["list-runs"])
+
+    assert exit_code == 0
+    assert "No workflow runs found." in capsys.readouterr().out
+
+
+def test_list_runs_command_invalid_limit_fails_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(**_: object) -> list[WorkflowRunRecord]:
+        msg = "DB should not be called for invalid limits"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_recent_workflow_runs", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["list-runs", "--limit", "0"])
+
+    assert exc_info.value.code == 2
+
+
 def _write_readysetrentables_manifest(
     tmp_path: Path,
     *,

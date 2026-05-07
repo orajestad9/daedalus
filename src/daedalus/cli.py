@@ -20,9 +20,15 @@ from daedalus.memory.workflow_persistence import (
     WorkflowPersistenceError,
     WorkflowRunDetails,
     WorkflowRunNotFoundError,
+    load_recent_workflow_runs,
     load_workflow_run_details,
     persist_review_normalization_workflow_result,
 )
+from daedalus.memory.workflow_run_repository import (
+    MAX_LIST_RECENT_LIMIT,
+    MIN_LIST_RECENT_LIMIT,
+)
+from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
     WorkflowApprovalRequiredError,
@@ -100,6 +106,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(_format_workflow_run_details(details))
         return 0
 
+    if args.command == "list-runs":
+        try:
+            runs = load_recent_workflow_runs(
+                limit=args.limit,
+                domain=args.domain,
+                status=args.status,
+            )
+        except (ValueError, WorkflowPersistenceError) as exc:
+            parser.error(str(exc))
+
+        print(_format_workflow_run_list(runs))
+        return 0
+
     parser.error("A command is required")
 
 
@@ -169,6 +188,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Workflow run UUID to inspect.",
     )
 
+    list_runs = subparsers.add_parser(
+        "list-runs",
+        help="List recent persisted workflow runs from Postgres.",
+    )
+    list_runs.add_argument(
+        "--limit",
+        default=10,
+        type=_list_limit_arg,
+        help="Maximum number of workflow runs to list.",
+    )
+    list_runs.add_argument(
+        "--domain",
+        default=None,
+        help="Optional workflow domain filter.",
+    )
+    list_runs.add_argument(
+        "--status",
+        default=None,
+        help="Optional workflow status filter.",
+    )
+
     return parser
 
 
@@ -178,6 +218,20 @@ def _uuid_arg(value: str) -> UUID:
     except ValueError as exc:
         msg = f"Invalid UUID: {value}"
         raise argparse.ArgumentTypeError(msg) from exc
+
+
+def _list_limit_arg(value: str) -> int:
+    try:
+        limit = int(value)
+    except ValueError as exc:
+        msg = f"Invalid limit: {value}"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+    if limit < MIN_LIST_RECENT_LIMIT or limit > MAX_LIST_RECENT_LIMIT:
+        msg = f"Limit must be between {MIN_LIST_RECENT_LIMIT} and {MAX_LIST_RECENT_LIMIT}"
+        raise argparse.ArgumentTypeError(msg)
+
+    return limit
 
 
 def _format_workflow_run_details(details: WorkflowRunDetails) -> str:
@@ -207,6 +261,27 @@ def _format_workflow_run_details(details: WorkflowRunDetails) -> str:
             for artifact in details.artifact_records
         )
 
+    return "\n".join(lines)
+
+
+def _format_workflow_run_list(runs: Sequence[WorkflowRunRecord]) -> str:
+    if not runs:
+        return "No workflow runs found."
+
+    lines = ["Workflow runs:"]
+    lines.extend(
+        " | ".join(
+            [
+                f"run_id={run.run_id}",
+                f"workflow_name={run.workflow_name}",
+                f"domain={run.domain}",
+                f"status={run.status.value}",
+                f"review_count={run.review_count}",
+                f"completed_at_utc={run.completed_at_utc.isoformat()}",
+            ]
+        )
+        for run in runs
+    )
     return "\n".join(lines)
 
 

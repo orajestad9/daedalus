@@ -121,6 +121,31 @@ def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
         connection.close()
 
 
+def load_recent_workflow_runs(
+    *,
+    limit: int = 10,
+    domain: str | None = None,
+    status: str | None = None,
+) -> list[WorkflowRunRecord]:
+    """Load recent persisted workflow runs from Postgres."""
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+
+    try:
+        return WorkflowRunRepository(connection).list_recent(
+            limit=limit,
+            domain=domain,
+            status=status,
+        )
+    except ValueError:
+        raise
+    except Exception as exc:
+        msg = "Failed to list workflow runs"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
+
+
 def _run_record_from_result(result: ReviewNormalizationWorkflowResult) -> WorkflowRunRecord:
     return WorkflowRunRecord.model_validate_json(
         result.run_record_json_path.read_text(encoding="utf-8")

@@ -18,6 +18,10 @@ from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.status import WorkflowStatus
 
 
+MAX_LIST_RECENT_LIMIT = 100
+MIN_LIST_RECENT_LIMIT = 1
+
+
 class WorkflowRunRepository:
     """Save and retrieve workflow run records using parameterized SQL."""
 
@@ -82,6 +86,55 @@ class WorkflowRunRepository:
 
         return _record_from_row(row)
 
+    def list_recent(
+        self,
+        limit: int = 10,
+        domain: str | None = None,
+        status: str | None = None,
+    ) -> list[WorkflowRunRecord]:
+        """List recent workflow runs, optionally filtered by domain and status."""
+        validated_limit = _validate_limit(limit)
+        conditions: list[str] = []
+        params: list[object] = []
+
+        if domain is not None:
+            conditions.append("domain = %s")
+            params.append(domain)
+        if status is not None:
+            conditions.append("status = %s")
+            params.append(status)
+
+        where_clause = ""
+        if conditions:
+            where_clause = f"WHERE {' AND '.join(conditions)}"
+
+        params.append(validated_limit)
+        cursor = self._connection.execute(
+            f"""
+            SELECT
+                run_id,
+                workflow_name,
+                domain,
+                status,
+                started_at_utc,
+                completed_at_utc,
+                source_input_path,
+                output_artifact_path,
+                metadata_artifact_path,
+                summary_artifact_path,
+                run_record_artifact_path,
+                review_count,
+                approval_required,
+                approved
+            FROM workflow_runs
+            {where_clause}
+            ORDER BY created_at_utc DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        )
+        return [_record_from_row(row) for row in cursor.fetchall()]
+
 
 def _params_from_record(record: WorkflowRunRecord) -> tuple[object, ...]:
     return (
@@ -119,6 +172,17 @@ def _record_from_row(row: Sequence[Any]) -> WorkflowRunRecord:
         approval_required=bool(row[12]),
         approved=bool(row[13]),
     )
+
+
+def _validate_limit(limit: int) -> int:
+    if limit < MIN_LIST_RECENT_LIMIT or limit > MAX_LIST_RECENT_LIMIT:
+        msg = (
+            "Workflow run list limit must be between "
+            f"{MIN_LIST_RECENT_LIMIT} and {MAX_LIST_RECENT_LIMIT}"
+        )
+        raise ValueError(msg)
+
+    return limit
 
 
 def _uuid_from_value(value: object) -> UUID:
