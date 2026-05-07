@@ -44,6 +44,8 @@ def write_review_normalization_summary_markdown(
     metadata_json_path: Path,
     summary_markdown_path: Path,
     review_count: int,
+    approval_required: bool,
+    approved: bool,
 ) -> Path:
     """Write a human-readable markdown summary for a review normalization run."""
     summary_markdown_path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,6 +58,8 @@ def write_review_normalization_summary_markdown(
             f"- Normalized JSON path: `{output_json_path}`",
             f"- Metadata JSON path: `{metadata_json_path}`",
             f"- Review count: {review_count}",
+            f"- Approval required: {approval_required}",
+            f"- Approved: {approved}",
             "- Status: Completed successfully.",
             "",
         ]

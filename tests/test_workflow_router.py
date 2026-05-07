@@ -20,6 +20,8 @@ def test_run_workflow_from_committed_manifest_succeeds() -> None:
     assert result.metadata_json_path.is_file()
     assert result.summary_markdown_path.is_file()
     assert result.review_count == 8
+    assert result.approval_required is False
+    assert result.approved is False
 
 
 def test_run_workflow_from_manifest_requires_approval(tmp_path: Path) -> None:
@@ -43,6 +45,12 @@ def test_run_workflow_from_approved_manifest_succeeds(tmp_path: Path) -> None:
     assert result.output_json_path.is_file()
     assert result.metadata_json_path.is_file()
     assert result.summary_markdown_path.is_file()
+    assert result.approval_required is True
+    assert result.approved is True
+
+    summary = result.summary_markdown_path.read_text(encoding="utf-8")
+    assert "Approval required: True" in summary
+    assert "Approved: True" in summary
 
 
 def test_run_workflow_from_manifest_rejects_unsupported_manifest(tmp_path: Path) -> None:

@@ -43,6 +43,8 @@ def run_workflow_from_manifest_path(
     return run_review_normalization_workflow(
         input_csv_path=manifest.input_csv_path,
         output_json_path=manifest.output_json_path,
+        approval_required=manifest.requires_human_approval,
+        approved=approved,
     )
 
 

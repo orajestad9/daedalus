@@ -28,11 +28,16 @@ class ReviewNormalizationWorkflowResult(BaseModel):
     summary_markdown_path: Path
     review_count: int
     run_id: UUID
+    approval_required: bool
+    approved: bool
 
 
 def run_review_normalization_workflow(
     input_csv_path: Path,
     output_json_path: Path,
+    *,
+    approval_required: bool = False,
+    approved: bool = False,
 ) -> ReviewNormalizationWorkflowResult:
     """Run the deterministic review normalization workflow."""
     run_id = uuid4()
@@ -62,6 +67,8 @@ def run_review_normalization_workflow(
         metadata_json_path=metadata_path,
         summary_markdown_path=summary_path,
         review_count=batch.review_count,
+        approval_required=approval_required,
+        approved=approved,
     )
 
     logger.info("Review count: %s run_id=%s", batch.review_count, run_id)
@@ -76,6 +83,8 @@ def run_review_normalization_workflow(
         summary_markdown_path=summary_path,
         review_count=batch.review_count,
         run_id=run_id,
+        approval_required=approval_required,
+        approved=approved,
     )
 
 

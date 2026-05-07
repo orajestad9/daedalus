@@ -26,6 +26,8 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
     assert result.summary_markdown_path == tmp_path / "normalized_reviews.summary.md"
     assert result.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
     assert isinstance(result.run_id, UUID)
+    assert result.approval_required is False
+    assert result.approved is False
     assert output_path.exists()
     assert result.metadata_json_path.exists()
     assert result.summary_markdown_path.exists()
@@ -80,3 +82,5 @@ def test_run_review_normalization_workflow_writes_summary_markdown(tmp_path: Pat
     assert str(result.run_id) in summary
     assert f"Review count: {EXPECTED_SAMPLE_REVIEW_COUNT}" in summary
     assert str(output_path) in summary
+    assert "Approval required: False" in summary
+    assert "Approved: False" in summary

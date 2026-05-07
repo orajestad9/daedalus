@@ -91,6 +91,8 @@ def test_writes_review_normalization_summary_markdown(tmp_path: Path) -> None:
         metadata_json_path=metadata_json_path,
         summary_markdown_path=summary_markdown_path,
         review_count=EXPECTED_SAMPLE_REVIEW_COUNT,
+        approval_required=True,
+        approved=True,
     )
 
     summary = summary_markdown_path.read_text(encoding="utf-8")
@@ -99,3 +101,5 @@ def test_writes_review_normalization_summary_markdown(tmp_path: Path) -> None:
     assert str(run_id) in summary
     assert str(output_json_path) in summary
     assert f"Review count: {EXPECTED_SAMPLE_REVIEW_COUNT}" in summary
+    assert "Approval required: True" in summary
+    assert "Approved: True" in summary
