@@ -60,6 +60,12 @@ Start Postgres:
 make db-up
 ```
 
+Apply committed SQL migrations:
+
+```sh
+make migrate-db
+```
+
 Inspect logs if needed:
 
 ```sh
@@ -77,3 +83,7 @@ To delete the local database volume, run the destructive reset target:
 ```sh
 make db-reset
 ```
+
+`make migrate-db` loads local settings from `.env`. If `.env` is missing, copy
+`.env.example` to `.env` and edit the values locally first. `.env` must never be
+committed.

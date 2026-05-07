@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample db-up db-down db-logs db-reset clean
+.PHONY: install test lint format format-check type-check check normalize-sample db-up db-down db-logs db-reset migrate-db clean
 
 PYTHON ?= .venv/bin/python
 
@@ -38,6 +38,10 @@ db-reset:
 	@echo "WARNING: This will stop Postgres and delete the local Docker volume."
 	@echo "All local Daedalus Postgres data will be lost."
 	docker compose down -v
+
+migrate-db:
+	@test -f .env || (echo "Missing .env. Copy .env.example to .env and edit it locally before running migrations."; exit 1)
+	@set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli migrate-db
 
 clean:
 	rm -rf artifacts/ logs/ .pytest_cache/ .mypy_cache/ .ruff_cache/
