@@ -90,3 +90,68 @@ def test_run_workflow_command_rejects_unsupported_manifest(tmp_path: Path) -> No
         )
 
     assert exc_info.value.code == 2
+
+
+def test_run_workflow_command_requires_approval_when_manifest_requires_it(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=True,
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-workflow",
+                "--manifest",
+                str(manifest_path),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_run_workflow_command_succeeds_when_approval_supplied(
+    tmp_path: Path,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=True,
+    )
+
+    exit_code = main(
+        [
+            "run-workflow",
+            "--manifest",
+            str(manifest_path),
+            "--approve",
+        ]
+    )
+
+    assert exit_code == 0
+    assert (tmp_path / "normalized_reviews.json").is_file()
+    assert (tmp_path / "normalized_reviews.metadata.json").is_file()
+    assert (tmp_path / "normalized_reviews.summary.md").is_file()
+
+
+def _write_readysetrentables_manifest(
+    tmp_path: Path,
+    *,
+    requires_human_approval: bool,
+) -> Path:
+    manifest_path = tmp_path / "readysetrentables.yaml"
+    manifest_path.write_text(
+        "\n".join(
+            [
+                "workflow_name: readysetrentables_review_normalization",
+                "domain: readysetrentables_reviews",
+                "description: Approval gate test workflow.",
+                f"input_csv_path: {SAMPLE_CSV_PATH}",
+                f"output_json_path: {tmp_path / 'normalized_reviews.json'}",
+                f"requires_human_approval: {str(requires_human_approval).lower()}",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return manifest_path

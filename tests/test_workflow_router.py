@@ -4,6 +4,7 @@ import pytest
 
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
+    WorkflowApprovalRequiredError,
     run_workflow_from_manifest_path,
 )
 
@@ -19,6 +20,29 @@ def test_run_workflow_from_committed_manifest_succeeds() -> None:
     assert result.metadata_json_path.is_file()
     assert result.summary_markdown_path.is_file()
     assert result.review_count == 8
+
+
+def test_run_workflow_from_manifest_requires_approval(tmp_path: Path) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=True,
+    )
+
+    with pytest.raises(WorkflowApprovalRequiredError, match="requires human approval"):
+        run_workflow_from_manifest_path(manifest_path)
+
+
+def test_run_workflow_from_approved_manifest_succeeds(tmp_path: Path) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=True,
+    )
+
+    result = run_workflow_from_manifest_path(manifest_path, approved=True)
+
+    assert result.output_json_path.is_file()
+    assert result.metadata_json_path.is_file()
+    assert result.summary_markdown_path.is_file()
 
 
 def test_run_workflow_from_manifest_rejects_unsupported_manifest(tmp_path: Path) -> None:
@@ -39,3 +63,26 @@ def test_run_workflow_from_manifest_rejects_unsupported_manifest(tmp_path: Path)
 
     with pytest.raises(UnsupportedWorkflowError, match="unsupported_workflow"):
         run_workflow_from_manifest_path(manifest_path)
+
+
+def _write_readysetrentables_manifest(
+    tmp_path: Path,
+    *,
+    requires_human_approval: bool,
+) -> Path:
+    output_path = tmp_path / "normalized_reviews.json"
+    manifest_path = tmp_path / "readysetrentables.yaml"
+    manifest_path.write_text(
+        "\n".join(
+            [
+                "workflow_name: readysetrentables_review_normalization",
+                "domain: readysetrentables_reviews",
+                "description: Approval gate test workflow.",
+                f"input_csv_path: {SAMPLE_CSV_PATH}",
+                f"output_json_path: {output_path}",
+                f"requires_human_approval: {str(requires_human_approval).lower()}",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return manifest_path

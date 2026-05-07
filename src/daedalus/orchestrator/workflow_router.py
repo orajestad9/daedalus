@@ -15,9 +15,24 @@ class UnsupportedWorkflowError(ValueError):
     """Raised when a workflow manifest cannot be routed to an implementation."""
 
 
-def run_workflow_from_manifest_path(manifest_path: Path) -> ReviewNormalizationWorkflowResult:
+class WorkflowApprovalRequiredError(PermissionError):
+    """Raised when a workflow manifest requires human approval before execution."""
+
+
+def run_workflow_from_manifest_path(
+    manifest_path: Path,
+    *,
+    approved: bool = False,
+) -> ReviewNormalizationWorkflowResult:
     """Load a workflow manifest and route it to the matching workflow implementation."""
     manifest = load_workflow_manifest(manifest_path)
+    if manifest.requires_human_approval and not approved:
+        msg = (
+            "Workflow requires human approval before execution: "
+            f"workflow_name={manifest.workflow_name!r} manifest_path={manifest_path}"
+        )
+        raise WorkflowApprovalRequiredError(msg)
+
     if not _is_readysetrentables_review_manifest(manifest):
         msg = (
             "Unsupported workflow manifest: "

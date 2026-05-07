@@ -7,6 +7,7 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 )
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
+    WorkflowApprovalRequiredError,
     run_workflow_from_manifest_path,
 )
 from daedalus.telemetry.logging import configure_logging
@@ -33,8 +34,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "run-workflow":
         try:
-            result = run_workflow_from_manifest_path(args.manifest)
-        except UnsupportedWorkflowError as exc:
+            result = run_workflow_from_manifest_path(
+                args.manifest,
+                approved=args.approve,
+            )
+        except (UnsupportedWorkflowError, WorkflowApprovalRequiredError) as exc:
             parser.error(str(exc))
         print(
             f"Ran workflow run_id={result.run_id} "
@@ -86,6 +90,11 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="Path to the workflow manifest YAML file.",
+    )
+    run_workflow.add_argument(
+        "--approve",
+        action="store_true",
+        help="Confirm approval for workflows that require human approval.",
     )
 
     return parser
