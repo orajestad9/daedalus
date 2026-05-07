@@ -18,6 +18,7 @@ from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.status import WorkflowStatus
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -295,6 +296,27 @@ def test_show_run_command_succeeds_with_mocked_persistence(
     assert "output_artifact_path: normalized_reviews.json" in output
     assert "- normalized_reviews: normalized_reviews.json" in output
     assert "- workflow_summary: normalized_reviews.summary.md" in output
+    assert "steps:" in output
+    assert "- load_reviews: status=completed duration_ms=50" in output
+    assert "- write_artifact: status=failed duration_ms=75 error_message=write failed" in output
+
+
+def test_show_run_command_handles_no_steps_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    details = _workflow_run_details(run_id, step_records=[])
+
+    monkeypatch.setattr("daedalus.cli.load_workflow_run_details", lambda _: details)
+
+    exit_code = main(["show-run", "--run-id", str(run_id)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "- normalized_reviews: normalized_reviews.json" in output
+    assert "steps:" in output
+    assert "No workflow steps recorded." in output
 
 
 def test_show_run_command_missing_run_fails_cleanly(
@@ -414,7 +436,10 @@ def _write_readysetrentables_manifest(
     return manifest_path
 
 
-def _workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
+def _workflow_run_details(
+    run_id: UUID,
+    step_records: list[WorkflowStepRecord] | None = None,
+) -> WorkflowRunDetails:
     run_record = WorkflowRunRecord(
         run_id=run_id,
         workflow_name="readysetrentables_review_normalization",
@@ -446,4 +471,41 @@ def _workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
                 artifact_path=Path("normalized_reviews.summary.md"),
             ),
         ],
+        step_records=step_records
+        if step_records is not None
+        else [
+            _workflow_step_record(
+                run_id=run_record.run_id,
+                step_name="load_reviews",
+                status=WorkflowStatus.COMPLETED,
+                duration_ms=50,
+            ),
+            _workflow_step_record(
+                run_id=run_record.run_id,
+                step_name="write_artifact",
+                status=WorkflowStatus.FAILED,
+                duration_ms=75,
+                error_message="write failed",
+            ),
+        ],
+    )
+
+
+def _workflow_step_record(
+    *,
+    run_id: UUID,
+    step_name: str,
+    status: WorkflowStatus,
+    duration_ms: int,
+    error_message: str | None = None,
+) -> WorkflowStepRecord:
+    return WorkflowStepRecord(
+        step_id=uuid4(),
+        run_id=run_id,
+        step_name=step_name,
+        status=status,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
+        duration_ms=duration_ms,
+        error_message=error_message,
     )

@@ -29,6 +29,7 @@ from daedalus.memory.workflow_run_repository import (
     MIN_LIST_RECENT_LIMIT,
 )
 from daedalus.orchestrator.run_record import WorkflowRunRecord
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
     WorkflowApprovalRequiredError,
@@ -261,8 +262,24 @@ def _format_workflow_run_details(details: WorkflowRunDetails) -> str:
             f"- {artifact.artifact_type.value}: {artifact.artifact_path}"
             for artifact in details.artifact_records
         )
+    lines.append("steps:")
+    lines.extend(_format_workflow_steps(details.step_records))
 
     return "\n".join(lines)
+
+
+def _format_workflow_steps(steps: Sequence[WorkflowStepRecord]) -> list[str]:
+    if not steps:
+        return ["No workflow steps recorded."]
+
+    lines: list[str] = []
+    for step in steps:
+        line = f"- {step.step_name}: status={step.status.value} duration_ms={step.duration_ms}"
+        if step.error_message:
+            line = f"{line} error_message={step.error_message}"
+        lines.append(line)
+
+    return lines
 
 
 def _format_workflow_run_list(runs: Sequence[WorkflowRunRecord]) -> str:
