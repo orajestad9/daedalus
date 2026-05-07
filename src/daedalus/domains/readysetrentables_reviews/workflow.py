@@ -6,7 +6,6 @@ database writes, or graph orchestration live here yet.
 """
 
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -20,6 +19,7 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 from daedalus.orchestrator.artifact_type import ArtifactType
+from daedalus.orchestrator.run_lifecycle import calculate_duration_ms, utc_now
 from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
     write_workflow_run_record_json,
@@ -63,7 +63,7 @@ def run_review_normalization_workflow(
     create a persistent approval-record artifact or database row.
     """
     run_id = uuid4()
-    started_at_utc = datetime.now(UTC)
+    started_at_utc = utc_now()
 
     logger.info("Starting review normalization workflow run_id=%s", run_id)
     logger.info("Input CSV path: %s run_id=%s", input_csv_path, run_id)
@@ -78,7 +78,7 @@ def run_review_normalization_workflow(
         artifact_type=ArtifactType.NORMALIZED_REVIEWS,
         source_csv_path=input_csv_path,
         output_json_path=artifact_path,
-        created_at_utc=datetime.now(UTC),
+        created_at_utc=utc_now(),
         review_count=batch.review_count,
     )
     write_review_batch_metadata_json(metadata, metadata_path)
@@ -93,9 +93,9 @@ def run_review_normalization_workflow(
         approval_required=approval_required,
         approved=approved,
     )
-    completed_at_utc = datetime.now(UTC)
+    completed_at_utc = utc_now()
     run_record_path = _run_record_path_for(artifact_path)
-    duration_ms = _duration_ms_between(started_at_utc, completed_at_utc)
+    duration_ms = calculate_duration_ms(started_at_utc, completed_at_utc)
     run_record = WorkflowRunRecord(
         run_id=run_id,
         workflow_name=WORKFLOW_NAME,
@@ -144,7 +144,3 @@ def _summary_path_for(output_json_path: Path) -> Path:
 
 def _run_record_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.run.json")
-
-
-def _duration_ms_between(started_at_utc: datetime, completed_at_utc: datetime) -> int:
-    return max(0, int((completed_at_utc - started_at_utc).total_seconds() * 1000))
