@@ -5,12 +5,11 @@ from pathlib import Path
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
-from daedalus.shared.workflow_manifest import WorkflowManifest, load_workflow_manifest
+from daedalus.orchestrator.workflow_router import (
+    UnsupportedWorkflowError,
+    run_workflow_from_manifest_path,
+)
 from daedalus.telemetry.logging import configure_logging
-
-
-READYSETRENTABLES_REVIEW_WORKFLOW_NAME = "readysetrentables_review_normalization"
-READYSETRENTABLES_REVIEW_DOMAIN = "readysetrentables_reviews"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -33,17 +32,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "run-workflow":
-        manifest = load_workflow_manifest(args.manifest)
-        if not _is_readysetrentables_review_manifest(manifest):
-            parser.error(
-                "Unsupported workflow manifest: "
-                f"workflow_name={manifest.workflow_name!r} domain={manifest.domain!r}"
-            )
-
-        result = run_review_normalization_workflow(
-            input_csv_path=manifest.input_csv_path,
-            output_json_path=manifest.output_json_path,
-        )
+        try:
+            result = run_workflow_from_manifest_path(args.manifest)
+        except UnsupportedWorkflowError as exc:
+            parser.error(str(exc))
         print(
             f"Ran workflow run_id={result.run_id} "
             f"review_count={result.review_count} "
@@ -97,13 +89,6 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
-
-
-def _is_readysetrentables_review_manifest(manifest: WorkflowManifest) -> bool:
-    return (
-        manifest.workflow_name == READYSETRENTABLES_REVIEW_WORKFLOW_NAME
-        or manifest.domain == READYSETRENTABLES_REVIEW_DOMAIN
-    )
 
 
 if __name__ == "__main__":
