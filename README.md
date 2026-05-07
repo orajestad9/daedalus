@@ -50,8 +50,12 @@ as first-class design constraints.
 
 ## Local Postgres
 
-Phase 1 starts with a Docker Compose Postgres service for local development.
-No real secrets are committed. To run it locally:
+Phase 1 includes optional local Postgres persistence for workflow run records
+and generated artifact records. See
+[`docs/phase-1-persistence.md`](docs/phase-1-persistence.md) for the full
+workflow.
+
+No real secrets are committed. To run Postgres locally:
 
 ```sh
 cp .env.example .env
@@ -71,6 +75,24 @@ Apply committed SQL migrations:
 
 ```sh
 make migrate-db
+```
+
+Run the workflow and persist the completed run:
+
+```sh
+daedalus run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --persist
+```
+
+List persisted runs:
+
+```sh
+daedalus list-runs
+```
+
+Inspect one persisted run:
+
+```sh
+daedalus show-run --run-id <workflow-run-uuid>
 ```
 
 Inspect logs if needed:
