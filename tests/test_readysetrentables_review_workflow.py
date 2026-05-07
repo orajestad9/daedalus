@@ -62,7 +62,7 @@ def test_run_review_normalization_workflow_writes_metadata_artifact(tmp_path: Pa
 
     assert metadata["run_id"] == str(result.run_id)
     assert metadata["workflow_name"] == "readysetrentables_review_normalization"
-    assert metadata["artifact_type"] == "normalized_review_batch"
+    assert metadata["artifact_type"] == "normalized_reviews"
     assert metadata["source_csv_path"] == str(SAMPLE_CSV_PATH)
     assert metadata["output_json_path"] == str(output_path)
     assert metadata["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT

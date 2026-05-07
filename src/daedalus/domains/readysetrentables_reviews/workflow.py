@@ -16,13 +16,13 @@ from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
     write_workflow_run_record_json,
 )
+from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.status import WorkflowStatus
 
 
 logger = logging.getLogger(__name__)
 WORKFLOW_NAME = "readysetrentables_review_normalization"
 DOMAIN = "readysetrentables_reviews"
-REVIEW_BATCH_ARTIFACT_TYPE = "normalized_review_batch"
 
 
 class ReviewNormalizationWorkflowResult(BaseModel):
@@ -60,7 +60,7 @@ def run_review_normalization_workflow(
     metadata = ReviewBatchArtifactMetadata(
         run_id=run_id,
         workflow_name=WORKFLOW_NAME,
-        artifact_type=REVIEW_BATCH_ARTIFACT_TYPE,
+        artifact_type=ArtifactType.NORMALIZED_REVIEWS,
         source_csv_path=input_csv_path,
         output_json_path=artifact_path,
         created_at_utc=datetime.now(UTC),

@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from daedalus.domains.readysetrentables_reviews.models import ReviewBatch
+from daedalus.orchestrator.artifact_type import ArtifactType
 
 
 class ReviewBatchArtifactMetadata(BaseModel):
@@ -12,7 +13,7 @@ class ReviewBatchArtifactMetadata(BaseModel):
 
     run_id: UUID
     workflow_name: str
-    artifact_type: str
+    artifact_type: ArtifactType
     source_csv_path: Path
     output_json_path: Path
     created_at_utc: datetime

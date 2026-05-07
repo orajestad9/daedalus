@@ -11,6 +11,7 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
     write_review_normalization_summary_markdown,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.orchestrator.artifact_type import ArtifactType
 
 
 SAMPLE_CSV_PATH = (
@@ -58,7 +59,7 @@ def test_writes_review_batch_metadata_json(tmp_path: Path) -> None:
     metadata = ReviewBatchArtifactMetadata(
         run_id=run_id,
         workflow_name="readysetrentables_review_normalization",
-        artifact_type="normalized_review_batch",
+        artifact_type=ArtifactType.NORMALIZED_REVIEWS,
         source_csv_path=SAMPLE_CSV_PATH,
         output_json_path=output_json_path,
         created_at_utc=datetime(2026, 5, 7, 12, 0, tzinfo=UTC),
@@ -71,7 +72,7 @@ def test_writes_review_batch_metadata_json(tmp_path: Path) -> None:
     assert returned_path == metadata_path
     assert data["run_id"] == str(run_id)
     assert data["workflow_name"] == "readysetrentables_review_normalization"
-    assert data["artifact_type"] == "normalized_review_batch"
+    assert data["artifact_type"] == "normalized_reviews"
     assert data["source_csv_path"] == str(SAMPLE_CSV_PATH)
     assert data["output_json_path"] == str(output_json_path)
     assert data["created_at_utc"] == "2026-05-07T12:00:00Z"
