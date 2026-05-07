@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from uuid import UUID
 
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
@@ -21,6 +22,7 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
     assert result.source_csv_path == SAMPLE_CSV_PATH
     assert result.output_json_path == output_path
     assert result.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
+    assert isinstance(result.run_id, UUID)
     assert output_path.exists()
 
 
