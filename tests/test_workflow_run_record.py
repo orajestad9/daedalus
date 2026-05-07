@@ -8,6 +8,7 @@ from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
     write_workflow_run_record_json,
 )
+from daedalus.orchestrator.status import WorkflowStatus
 
 
 def test_writes_workflow_run_record_json(tmp_path: Path) -> None:
@@ -17,7 +18,7 @@ def test_writes_workflow_run_record_json(tmp_path: Path) -> None:
         run_id=run_id,
         workflow_name="readysetrentables_review_normalization",
         domain="readysetrentables_reviews",
-        status="completed",
+        status=WorkflowStatus.COMPLETED,
         started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
         completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
         source_input_path=Path("sample.csv"),
@@ -40,3 +41,11 @@ def test_writes_workflow_run_record_json(tmp_path: Path) -> None:
     assert data["review_count"] == 8
     assert data["approval_required"] is True
     assert data["approved"] is True
+
+
+def test_workflow_status_values_are_stable() -> None:
+    assert WorkflowStatus.PENDING.value == "pending"
+    assert WorkflowStatus.RUNNING.value == "running"
+    assert WorkflowStatus.COMPLETED.value == "completed"
+    assert WorkflowStatus.FAILED.value == "failed"
+    assert WorkflowStatus.BLOCKED_APPROVAL_REQUIRED.value == "blocked_approval_required"

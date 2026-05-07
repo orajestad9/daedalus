@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from daedalus.orchestrator.status import WorkflowStatus
+
 
 class WorkflowRunRecord(BaseModel):
     """Machine-readable record of a Daedalus workflow execution."""
@@ -11,7 +13,7 @@ class WorkflowRunRecord(BaseModel):
     run_id: UUID
     workflow_name: str
     domain: str
-    status: str
+    status: WorkflowStatus
     started_at_utc: datetime
     completed_at_utc: datetime
     source_input_path: Path

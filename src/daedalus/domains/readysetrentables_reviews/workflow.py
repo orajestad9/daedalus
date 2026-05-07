@@ -16,13 +16,13 @@ from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
     write_workflow_run_record_json,
 )
+from daedalus.orchestrator.status import WorkflowStatus
 
 
 logger = logging.getLogger(__name__)
 WORKFLOW_NAME = "readysetrentables_review_normalization"
 DOMAIN = "readysetrentables_reviews"
 REVIEW_BATCH_ARTIFACT_TYPE = "normalized_review_batch"
-COMPLETED_STATUS = "completed"
 
 
 class ReviewNormalizationWorkflowResult(BaseModel):
@@ -84,7 +84,7 @@ def run_review_normalization_workflow(
         run_id=run_id,
         workflow_name=WORKFLOW_NAME,
         domain=DOMAIN,
-        status=COMPLETED_STATUS,
+        status=WorkflowStatus.COMPLETED,
         started_at_utc=started_at_utc,
         completed_at_utc=completed_at_utc,
         source_input_path=input_csv_path,
