@@ -9,6 +9,7 @@ can reuse the same behavior without shelling out to the CLI.
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
+from uuid import UUID
 
 from daedalus.config import load_postgres_settings
 from daedalus.domains.readysetrentables_reviews.workflow import (
@@ -17,6 +18,9 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 from daedalus.memory.migrations import apply_migrations
 from daedalus.memory.workflow_persistence import (
     WorkflowPersistenceError,
+    WorkflowRunDetails,
+    WorkflowRunNotFoundError,
+    load_workflow_run_details,
     persist_review_normalization_workflow_result,
 )
 from daedalus.orchestrator.workflow_router import (
@@ -87,6 +91,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Applied {len(applied_migrations)} migration files")
         return 0
 
+    if args.command == "show-run":
+        try:
+            details = load_workflow_run_details(args.run_id)
+        except (ValueError, WorkflowPersistenceError, WorkflowRunNotFoundError) as exc:
+            parser.error(str(exc))
+
+        print(_format_workflow_run_details(details))
+        return 0
+
     parser.error("A command is required")
 
 
@@ -145,7 +158,56 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Apply committed SQL migrations to Postgres.",
     )
 
+    show_run = subparsers.add_parser(
+        "show-run",
+        help="Inspect a persisted workflow run from Postgres.",
+    )
+    show_run.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Workflow run UUID to inspect.",
+    )
+
     return parser
+
+
+def _uuid_arg(value: str) -> UUID:
+    try:
+        return UUID(value)
+    except ValueError as exc:
+        msg = f"Invalid UUID: {value}"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+
+def _format_workflow_run_details(details: WorkflowRunDetails) -> str:
+    run = details.run_record
+    lines = [
+        f"Workflow run {run.run_id}",
+        f"workflow_name: {run.workflow_name}",
+        f"domain: {run.domain}",
+        f"status: {run.status.value}",
+        f"started_at_utc: {run.started_at_utc.isoformat()}",
+        f"completed_at_utc: {run.completed_at_utc.isoformat()}",
+        f"review_count: {run.review_count}",
+        f"approval_required: {run.approval_required}",
+        f"approved: {run.approved}",
+        f"source_input_path: {run.source_input_path}",
+        f"output_artifact_path: {run.output_artifact_path}",
+        f"metadata_artifact_path: {run.metadata_artifact_path}",
+        f"summary_artifact_path: {run.summary_artifact_path}",
+        f"run_record_artifact_path: {run.run_record_artifact_path}",
+        "artifacts:",
+    ]
+    if not details.artifact_records:
+        lines.append("- none")
+    else:
+        lines.extend(
+            f"- {artifact.artifact_type.value}: {artifact.artifact_path}"
+            for artifact in details.artifact_records
+        )
+
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

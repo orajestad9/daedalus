@@ -7,6 +7,9 @@ file-only unless the caller explicitly asks for Postgres persistence.
 """
 
 from collections.abc import Sequence
+from uuid import UUID
+
+from pydantic import BaseModel
 
 from daedalus.config import load_postgres_settings
 from daedalus.domains.readysetrentables_reviews.workflow import (
@@ -22,6 +25,17 @@ from daedalus.orchestrator.run_record import WorkflowRunRecord
 
 class WorkflowPersistenceError(RuntimeError):
     """Raised when an explicit workflow persistence attempt fails."""
+
+
+class WorkflowRunNotFoundError(LookupError):
+    """Raised when a persisted workflow run cannot be found."""
+
+
+class WorkflowRunDetails(BaseModel):
+    """Read model for a persisted workflow run and its artifact records."""
+
+    run_record: WorkflowRunRecord
+    artifact_records: list[ArtifactRecord]
 
 
 class WorkflowPersistenceService:
@@ -79,6 +93,32 @@ def persist_review_normalization_workflow_result(
         connection.close()
 
     return artifact_count
+
+
+def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
+    """Load a persisted workflow run and its artifacts from Postgres."""
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+
+    try:
+        workflow_run_repository = WorkflowRunRepository(connection)
+        artifact_repository = ArtifactRepository(connection)
+        run_record = workflow_run_repository.get_by_run_id(run_id)
+        if run_record is None:
+            msg = f"Workflow run not found: run_id={run_id}"
+            raise WorkflowRunNotFoundError(msg)
+
+        return WorkflowRunDetails(
+            run_record=run_record,
+            artifact_records=artifact_repository.list_for_run(run_id),
+        )
+    except WorkflowRunNotFoundError:
+        raise
+    except Exception as exc:
+        msg = "Failed to load workflow run"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
 
 
 def _run_record_from_result(result: ReviewNormalizationWorkflowResult) -> WorkflowRunRecord:

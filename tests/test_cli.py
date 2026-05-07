@@ -1,4 +1,6 @@
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -7,7 +9,15 @@ from daedalus.config import PostgresSettings
 from daedalus.domains.readysetrentables_reviews.workflow import (
     ReviewNormalizationWorkflowResult,
 )
-from daedalus.memory.workflow_persistence import WorkflowPersistenceError
+from daedalus.memory.workflow_persistence import (
+    WorkflowPersistenceError,
+    WorkflowRunDetails,
+    WorkflowRunNotFoundError,
+)
+from daedalus.orchestrator.artifact_record import ArtifactRecord
+from daedalus.orchestrator.artifact_type import ArtifactType
+from daedalus.orchestrator.run_record import WorkflowRunRecord
+from daedalus.orchestrator.status import WorkflowStatus
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -265,6 +275,51 @@ def test_migrate_db_command_succeeds_with_mocked_migration_runner(
     assert "Applied 1 migration files" in capsys.readouterr().out
 
 
+def test_show_run_command_succeeds_with_mocked_persistence(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    details = _workflow_run_details(run_id)
+
+    monkeypatch.setattr("daedalus.cli.load_workflow_run_details", lambda _: details)
+
+    exit_code = main(["show-run", "--run-id", str(run_id)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert str(run_id) in output
+    assert "workflow_name: readysetrentables_review_normalization" in output
+    assert "status: completed" in output
+    assert "output_artifact_path: normalized_reviews.json" in output
+    assert "- normalized_reviews: normalized_reviews.json" in output
+    assert "- workflow_summary: normalized_reviews.summary.md" in output
+
+
+def test_show_run_command_missing_run_fails_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = uuid4()
+
+    def fail_load(_: object) -> WorkflowRunDetails:
+        msg = f"Workflow run not found: run_id={run_id}"
+        raise WorkflowRunNotFoundError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_workflow_run_details", fail_load)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["show-run", "--run-id", str(run_id)])
+
+    assert exc_info.value.code == 2
+
+
+def test_show_run_command_invalid_uuid_fails_cleanly() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["show-run", "--run-id", "not-a-uuid"])
+
+    assert exc_info.value.code == 2
+
+
 def _write_readysetrentables_manifest(
     tmp_path: Path,
     *,
@@ -285,3 +340,37 @@ def _write_readysetrentables_manifest(
         encoding="utf-8",
     )
     return manifest_path
+
+
+def _workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
+    run_record = WorkflowRunRecord(
+        run_id=run_id,
+        workflow_name="readysetrentables_review_normalization",
+        domain="readysetrentables_reviews",
+        status=WorkflowStatus.COMPLETED,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
+        source_input_path=Path("sample.csv"),
+        output_artifact_path=Path("normalized_reviews.json"),
+        metadata_artifact_path=Path("normalized_reviews.metadata.json"),
+        summary_artifact_path=Path("normalized_reviews.summary.md"),
+        run_record_artifact_path=Path("normalized_reviews.run.json"),
+        review_count=8,
+        approval_required=False,
+        approved=False,
+    )
+    return WorkflowRunDetails(
+        run_record=run_record,
+        artifact_records=[
+            ArtifactRecord.create(
+                run_id=run_record.run_id,
+                artifact_type=ArtifactType.NORMALIZED_REVIEWS,
+                artifact_path=Path("normalized_reviews.json"),
+            ),
+            ArtifactRecord.create(
+                run_id=run_record.run_id,
+                artifact_type=ArtifactType.WORKFLOW_SUMMARY,
+                artifact_path=Path("normalized_reviews.summary.md"),
+            ),
+        ],
+    )
