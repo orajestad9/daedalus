@@ -9,6 +9,7 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
     ReviewBatchArtifactMetadata,
     write_review_batch_json,
     write_review_batch_metadata_json,
+    write_review_normalization_summary_markdown,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 
@@ -24,6 +25,7 @@ class ReviewNormalizationWorkflowResult(BaseModel):
     source_csv_path: Path
     output_json_path: Path
     metadata_json_path: Path
+    summary_markdown_path: Path
     review_count: int
     run_id: UUID
 
@@ -52,15 +54,26 @@ def run_review_normalization_workflow(
         review_count=batch.review_count,
     )
     write_review_batch_metadata_json(metadata, metadata_path)
+    summary_path = _summary_path_for(artifact_path)
+    write_review_normalization_summary_markdown(
+        run_id=run_id,
+        source_csv_path=input_csv_path,
+        output_json_path=artifact_path,
+        metadata_json_path=metadata_path,
+        summary_markdown_path=summary_path,
+        review_count=batch.review_count,
+    )
 
     logger.info("Review count: %s run_id=%s", batch.review_count, run_id)
     logger.info("Metadata JSON path: %s run_id=%s", metadata_path, run_id)
+    logger.info("Summary markdown path: %s run_id=%s", summary_path, run_id)
     logger.info("Completed review normalization workflow run_id=%s", run_id)
 
     return ReviewNormalizationWorkflowResult(
         source_csv_path=input_csv_path,
         output_json_path=artifact_path,
         metadata_json_path=metadata_path,
+        summary_markdown_path=summary_path,
         review_count=batch.review_count,
         run_id=run_id,
     )
@@ -68,3 +81,7 @@ def run_review_normalization_workflow(
 
 def _metadata_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.metadata.json")
+
+
+def _summary_path_for(output_json_path: Path) -> Path:
+    return output_json_path.with_name(f"{output_json_path.stem}.summary.md")

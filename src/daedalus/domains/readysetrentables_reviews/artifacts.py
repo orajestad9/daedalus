@@ -34,3 +34,31 @@ def write_review_batch_metadata_json(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(metadata.model_dump_json(indent=2) + "\n", encoding="utf-8")
     return output_path
+
+
+def write_review_normalization_summary_markdown(
+    *,
+    run_id: UUID,
+    source_csv_path: Path,
+    output_json_path: Path,
+    metadata_json_path: Path,
+    summary_markdown_path: Path,
+    review_count: int,
+) -> Path:
+    """Write a human-readable markdown summary for a review normalization run."""
+    summary_markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    markdown = "\n".join(
+        [
+            "# ReadySetRentables Review Normalization Summary",
+            "",
+            f"- Run ID: `{run_id}`",
+            f"- Source CSV path: `{source_csv_path}`",
+            f"- Normalized JSON path: `{output_json_path}`",
+            f"- Metadata JSON path: `{metadata_json_path}`",
+            f"- Review count: {review_count}",
+            "- Status: Completed successfully.",
+            "",
+        ]
+    )
+    summary_markdown_path.write_text(markdown, encoding="utf-8")
+    return summary_markdown_path

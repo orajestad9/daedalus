@@ -23,10 +23,12 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
     assert result.source_csv_path == SAMPLE_CSV_PATH
     assert result.output_json_path == output_path
     assert result.metadata_json_path == tmp_path / "normalized_reviews.metadata.json"
+    assert result.summary_markdown_path == tmp_path / "normalized_reviews.summary.md"
     assert result.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
     assert isinstance(result.run_id, UUID)
     assert output_path.exists()
     assert result.metadata_json_path.exists()
+    assert result.summary_markdown_path.exists()
 
 
 def test_run_review_normalization_workflow_artifact_contains_reviews(tmp_path: Path) -> None:
@@ -63,3 +65,18 @@ def test_run_review_normalization_workflow_writes_metadata_artifact(tmp_path: Pa
 
     created_at_utc = datetime.fromisoformat(metadata["created_at_utc"].replace("Z", "+00:00"))
     assert created_at_utc.tzinfo is not None
+
+
+def test_run_review_normalization_workflow_writes_summary_markdown(tmp_path: Path) -> None:
+    output_path = tmp_path / "normalized_reviews.json"
+
+    result = run_review_normalization_workflow(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_path,
+    )
+
+    summary = result.summary_markdown_path.read_text(encoding="utf-8")
+
+    assert str(result.run_id) in summary
+    assert f"Review count: {EXPECTED_SAMPLE_REVIEW_COUNT}" in summary
+    assert str(output_path) in summary

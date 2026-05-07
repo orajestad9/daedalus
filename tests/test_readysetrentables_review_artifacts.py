@@ -8,6 +8,7 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
     ReviewBatchArtifactMetadata,
     write_review_batch_json,
     write_review_batch_metadata_json,
+    write_review_normalization_summary_markdown,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 
@@ -75,3 +76,26 @@ def test_writes_review_batch_metadata_json(tmp_path: Path) -> None:
     assert data["output_json_path"] == str(output_json_path)
     assert data["created_at_utc"] == "2026-05-07T12:00:00Z"
     assert data["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT
+
+
+def test_writes_review_normalization_summary_markdown(tmp_path: Path) -> None:
+    run_id = uuid4()
+    output_json_path = tmp_path / "review_batch.json"
+    metadata_json_path = tmp_path / "review_batch.metadata.json"
+    summary_markdown_path = tmp_path / "summary" / "review_batch.summary.md"
+
+    returned_path = write_review_normalization_summary_markdown(
+        run_id=run_id,
+        source_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_json_path,
+        metadata_json_path=metadata_json_path,
+        summary_markdown_path=summary_markdown_path,
+        review_count=EXPECTED_SAMPLE_REVIEW_COUNT,
+    )
+
+    summary = summary_markdown_path.read_text(encoding="utf-8")
+    assert returned_path == summary_markdown_path
+    assert "# ReadySetRentables Review Normalization Summary" in summary
+    assert str(run_id) in summary
+    assert str(output_json_path) in summary
+    assert f"Review count: {EXPECTED_SAMPLE_REVIEW_COUNT}" in summary

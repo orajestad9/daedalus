@@ -27,6 +27,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"Normalized {result.review_count} reviews "
             f"to {result.output_json_path} "
             f"metadata={result.metadata_json_path} "
+            f"summary={result.summary_markdown_path} "
             f"run_id={result.run_id}"
         )
         return 0
@@ -47,7 +48,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"Ran workflow run_id={result.run_id} "
             f"review_count={result.review_count} "
             f"output={result.output_json_path} "
-            f"metadata={result.metadata_json_path}"
+            f"metadata={result.metadata_json_path} "
+            f"summary={result.summary_markdown_path}"
         )
         return 0
 
