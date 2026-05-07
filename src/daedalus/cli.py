@@ -10,9 +10,11 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from daedalus.config import load_postgres_settings
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
+from daedalus.memory.migrations import apply_migrations
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
     WorkflowApprovalRequiredError,
@@ -58,6 +60,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"summary={result.summary_markdown_path} "
             f"run_record={result.run_record_json_path}"
         )
+        return 0
+
+    if args.command == "migrate-db":
+        try:
+            settings = load_postgres_settings()
+        except ValueError as exc:
+            parser.error(str(exc))
+
+        applied_migrations = apply_migrations(settings)
+        print(f"Applied {len(applied_migrations)} migration files")
         return 0
 
     parser.error("A command is required")
@@ -106,6 +118,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--approve",
         action="store_true",
         help="Confirm approval for workflows that require human approval.",
+    )
+
+    subparsers.add_parser(
+        "migrate-db",
+        help="Apply committed SQL migrations to Postgres.",
     )
 
     return parser

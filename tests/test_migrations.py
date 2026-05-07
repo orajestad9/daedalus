@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from daedalus.memory.migrations import discover_migration_files
+
 
 MIGRATION_PATH = Path("sql/migrations/001_create_workflow_tables.sql")
 
@@ -56,3 +58,21 @@ def test_initial_workflow_migration_contains_expected_indexes() -> None:
 
     for expected_index in expected_indexes:
         assert expected_index in migration_sql
+
+
+def test_discover_migration_files_returns_only_sql_files(tmp_path: Path) -> None:
+    sql_migration = tmp_path / "001_create_tables.sql"
+    sql_migration.write_text("select 1;", encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text("Not a migration.", encoding="utf-8")
+
+    assert discover_migration_files(tmp_path) == [sql_migration]
+
+
+def test_discover_migration_files_sorts_by_filename(tmp_path: Path) -> None:
+    second_migration = tmp_path / "002_second.sql"
+    first_migration = tmp_path / "001_first.sql"
+    second_migration.write_text("select 2;", encoding="utf-8")
+    first_migration.write_text("select 1;", encoding="utf-8")
+
+    assert discover_migration_files(tmp_path) == [first_migration, second_migration]
