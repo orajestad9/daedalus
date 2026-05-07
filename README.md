@@ -41,6 +41,11 @@ Workflows can be described by YAML manifests under `workflows/`. The sample
 ReadySetRentables manifest defines the workflow name, domain, input CSV path,
 output JSON path, and whether human approval is required.
 
+Before adding agents or model clients, review
+[`docs/token-cost-governance.md`](docs/token-cost-governance.md). Daedalus
+treats token usage, cloud-model opt-in, model-call tracking, and prompt privacy
+as first-class design constraints.
+
 ## Local Postgres
 
 Phase 1 starts with a Docker Compose Postgres service for local development.

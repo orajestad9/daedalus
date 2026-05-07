@@ -21,3 +21,7 @@ The first Phase 1 foundation is a local Docker Compose Postgres service with
 placeholder-only environment configuration. Database dependencies, migrations,
 connection code, repositories, and app container builds remain intentionally
 deferred.
+
+Token and cost governance is a cross-cutting requirement for future phases. See
+`docs/token-cost-governance.md` before adding model clients, agents, LangGraph
+workflows, cloud-model calls, or model invocation persistence.
