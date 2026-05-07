@@ -4,6 +4,10 @@ import pytest
 
 from daedalus.cli import main
 from daedalus.config import PostgresSettings
+from daedalus.domains.readysetrentables_reviews.workflow import (
+    ReviewNormalizationWorkflowResult,
+)
+from daedalus.memory.workflow_persistence import WorkflowPersistenceError
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -140,6 +144,103 @@ def test_run_workflow_command_succeeds_when_approval_supplied(
     assert (tmp_path / "normalized_reviews.metadata.json").is_file()
     assert (tmp_path / "normalized_reviews.summary.md").is_file()
     assert (tmp_path / "normalized_reviews.run.json").is_file()
+
+
+def test_run_workflow_command_without_persist_does_not_call_persistence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=False,
+    )
+
+    def fail_if_called(_: ReviewNormalizationWorkflowResult) -> int:
+        msg = "Persistence should not run without --persist"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        "daedalus.cli.persist_review_normalization_workflow_result",
+        fail_if_called,
+    )
+
+    exit_code = main(
+        [
+            "run-workflow",
+            "--manifest",
+            str(manifest_path),
+        ]
+    )
+
+    assert exit_code == 0
+
+
+def test_run_workflow_command_with_persist_calls_persistence_flow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=False,
+    )
+    persisted_results: list[ReviewNormalizationWorkflowResult] = []
+
+    def fake_persist(result: ReviewNormalizationWorkflowResult) -> int:
+        persisted_results.append(result)
+        return 4
+
+    monkeypatch.setattr(
+        "daedalus.cli.persist_review_normalization_workflow_result",
+        fake_persist,
+    )
+
+    exit_code = main(
+        [
+            "run-workflow",
+            "--manifest",
+            str(manifest_path),
+            "--persist",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert len(persisted_results) == 1
+    assert persisted_results[0].run_record_json_path == tmp_path / "normalized_reviews.run.json"
+    assert "Persisted workflow run" in output
+    assert "with 4 artifact record(s)." in output
+
+
+def test_run_workflow_command_with_persist_failure_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=False,
+    )
+
+    def fail_persist(_: ReviewNormalizationWorkflowResult) -> int:
+        msg = "Failed to persist workflow run"
+        raise WorkflowPersistenceError(msg)
+
+    monkeypatch.setattr(
+        "daedalus.cli.persist_review_normalization_workflow_result",
+        fail_persist,
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-workflow",
+                "--manifest",
+                str(manifest_path),
+                "--persist",
+            ]
+        )
+
+    assert exc_info.value.code == 2
 
 
 def test_migrate_db_command_succeeds_with_mocked_migration_runner(

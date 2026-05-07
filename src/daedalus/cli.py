@@ -15,6 +15,10 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
 from daedalus.memory.migrations import apply_migrations
+from daedalus.memory.workflow_persistence import (
+    WorkflowPersistenceError,
+    persist_review_normalization_workflow_result,
+)
 from daedalus.orchestrator.workflow_router import (
     UnsupportedWorkflowError,
     WorkflowApprovalRequiredError,
@@ -52,6 +56,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         except (UnsupportedWorkflowError, WorkflowApprovalRequiredError) as exc:
             parser.error(str(exc))
+        persisted_artifact_count = None
+        if args.persist:
+            try:
+                persisted_artifact_count = persist_review_normalization_workflow_result(result)
+            except (ValueError, WorkflowPersistenceError) as exc:
+                parser.error(str(exc))
         print(
             f"Ran workflow run_id={result.run_id} "
             f"review_count={result.review_count} "
@@ -60,6 +70,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"summary={result.summary_markdown_path} "
             f"run_record={result.run_record_json_path}"
         )
+        if persisted_artifact_count is not None:
+            print(
+                f"Persisted workflow run {result.run_id} "
+                f"with {persisted_artifact_count} artifact record(s)."
+            )
         return 0
 
     if args.command == "migrate-db":
@@ -118,6 +133,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--approve",
         action="store_true",
         help="Confirm approval for workflows that require human approval.",
+    )
+    run_workflow.add_argument(
+        "--persist",
+        action="store_true",
+        help="Persist completed workflow run and artifact records to Postgres.",
     )
 
     subparsers.add_parser(
