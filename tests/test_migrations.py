@@ -15,6 +15,7 @@ def test_initial_workflow_migration_creates_expected_tables() -> None:
 
     assert "create table if not exists workflow_runs" in migration_sql
     assert "create table if not exists workflow_artifacts" in migration_sql
+    assert "create table if not exists workflow_steps" in migration_sql
 
 
 def test_initial_workflow_migration_contains_expected_columns() -> None:
@@ -39,6 +40,10 @@ def test_initial_workflow_migration_contains_expected_columns() -> None:
         "artifact_id uuid primary key",
         "artifact_type text not null",
         "artifact_path text not null",
+        "step_id uuid primary key",
+        "step_name text not null",
+        "duration_ms integer null",
+        "error_message text null",
     ]
 
     for expected_column in expected_columns:
@@ -55,6 +60,10 @@ def test_initial_workflow_migration_contains_expected_indexes() -> None:
         "on workflow_runs (status)",
         "on workflow_artifacts (run_id)",
         "on workflow_artifacts (artifact_type)",
+        "on workflow_steps (run_id)",
+        "on workflow_steps (status)",
+        "on workflow_steps (step_name)",
+        "on workflow_steps (created_at_utc desc)",
     ]
 
     for expected_index in expected_indexes:

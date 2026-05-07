@@ -28,6 +28,18 @@ CREATE TABLE IF NOT EXISTS workflow_artifacts (
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS workflow_steps (
+    step_id UUID PRIMARY KEY,
+    run_id UUID NOT NULL REFERENCES workflow_runs(run_id) ON DELETE CASCADE,
+    step_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at_utc TIMESTAMPTZ NOT NULL,
+    completed_at_utc TIMESTAMPTZ NULL,
+    duration_ms INTEGER NULL,
+    error_message TEXT NULL,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_created_at_utc_desc
     ON workflow_runs (created_at_utc DESC);
 
@@ -45,3 +57,15 @@ CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_run_id
 
 CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_artifact_type
     ON workflow_artifacts (artifact_type);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_run_id
+    ON workflow_steps (run_id);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_status
+    ON workflow_steps (status);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_step_name
+    ON workflow_steps (step_name);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_created_at_utc_desc
+    ON workflow_steps (created_at_utc DESC);
