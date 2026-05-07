@@ -24,6 +24,7 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
     assert result.output_json_path == output_path
     assert result.metadata_json_path == tmp_path / "normalized_reviews.metadata.json"
     assert result.summary_markdown_path == tmp_path / "normalized_reviews.summary.md"
+    assert result.run_record_json_path == tmp_path / "normalized_reviews.run.json"
     assert result.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
     assert isinstance(result.run_id, UUID)
     assert result.approval_required is False
@@ -31,6 +32,7 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
     assert output_path.exists()
     assert result.metadata_json_path.exists()
     assert result.summary_markdown_path.exists()
+    assert result.run_record_json_path.exists()
 
 
 def test_run_review_normalization_workflow_artifact_contains_reviews(tmp_path: Path) -> None:
@@ -84,3 +86,31 @@ def test_run_review_normalization_workflow_writes_summary_markdown(tmp_path: Pat
     assert str(output_path) in summary
     assert "Approval required: False" in summary
     assert "Approved: False" in summary
+
+
+def test_run_review_normalization_workflow_writes_run_record(tmp_path: Path) -> None:
+    output_path = tmp_path / "normalized_reviews.json"
+
+    result = run_review_normalization_workflow(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_path,
+    )
+
+    run_record = json.loads(result.run_record_json_path.read_text(encoding="utf-8"))
+
+    assert run_record["run_id"] == str(result.run_id)
+    assert run_record["workflow_name"] == "readysetrentables_review_normalization"
+    assert run_record["domain"] == "readysetrentables_reviews"
+    assert run_record["status"] == "completed"
+    assert run_record["source_input_path"] == str(SAMPLE_CSV_PATH)
+    assert run_record["output_artifact_path"] == str(output_path)
+    assert run_record["metadata_artifact_path"] == str(result.metadata_json_path)
+    assert run_record["summary_artifact_path"] == str(result.summary_markdown_path)
+    assert run_record["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT
+    assert run_record["approval_required"] is False
+    assert run_record["approved"] is False
+
+    started_at_utc = datetime.fromisoformat(run_record["started_at_utc"].replace("Z", "+00:00"))
+    completed_at_utc = datetime.fromisoformat(run_record["completed_at_utc"].replace("Z", "+00:00"))
+    assert started_at_utc.tzinfo is not None
+    assert completed_at_utc.tzinfo is not None

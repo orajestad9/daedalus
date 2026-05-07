@@ -12,11 +12,17 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
     write_review_normalization_summary_markdown,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.orchestrator.run_record import (
+    WorkflowRunRecord,
+    write_workflow_run_record_json,
+)
 
 
 logger = logging.getLogger(__name__)
 WORKFLOW_NAME = "readysetrentables_review_normalization"
+DOMAIN = "readysetrentables_reviews"
 REVIEW_BATCH_ARTIFACT_TYPE = "normalized_review_batch"
+COMPLETED_STATUS = "completed"
 
 
 class ReviewNormalizationWorkflowResult(BaseModel):
@@ -26,6 +32,7 @@ class ReviewNormalizationWorkflowResult(BaseModel):
     output_json_path: Path
     metadata_json_path: Path
     summary_markdown_path: Path
+    run_record_json_path: Path
     review_count: int
     run_id: UUID
     approval_required: bool
@@ -41,6 +48,7 @@ def run_review_normalization_workflow(
 ) -> ReviewNormalizationWorkflowResult:
     """Run the deterministic review normalization workflow."""
     run_id = uuid4()
+    started_at_utc = datetime.now(UTC)
 
     logger.info("Starting review normalization workflow run_id=%s", run_id)
     logger.info("Input CSV path: %s run_id=%s", input_csv_path, run_id)
@@ -70,10 +78,29 @@ def run_review_normalization_workflow(
         approval_required=approval_required,
         approved=approved,
     )
+    completed_at_utc = datetime.now(UTC)
+    run_record_path = _run_record_path_for(artifact_path)
+    run_record = WorkflowRunRecord(
+        run_id=run_id,
+        workflow_name=WORKFLOW_NAME,
+        domain=DOMAIN,
+        status=COMPLETED_STATUS,
+        started_at_utc=started_at_utc,
+        completed_at_utc=completed_at_utc,
+        source_input_path=input_csv_path,
+        output_artifact_path=artifact_path,
+        metadata_artifact_path=metadata_path,
+        summary_artifact_path=summary_path,
+        review_count=batch.review_count,
+        approval_required=approval_required,
+        approved=approved,
+    )
+    write_workflow_run_record_json(run_record, run_record_path)
 
     logger.info("Review count: %s run_id=%s", batch.review_count, run_id)
     logger.info("Metadata JSON path: %s run_id=%s", metadata_path, run_id)
     logger.info("Summary markdown path: %s run_id=%s", summary_path, run_id)
+    logger.info("Run record JSON path: %s run_id=%s", run_record_path, run_id)
     logger.info("Completed review normalization workflow run_id=%s", run_id)
 
     return ReviewNormalizationWorkflowResult(
@@ -81,6 +108,7 @@ def run_review_normalization_workflow(
         output_json_path=artifact_path,
         metadata_json_path=metadata_path,
         summary_markdown_path=summary_path,
+        run_record_json_path=run_record_path,
         review_count=batch.review_count,
         run_id=run_id,
         approval_required=approval_required,
@@ -94,3 +122,7 @@ def _metadata_path_for(output_json_path: Path) -> Path:
 
 def _summary_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.summary.md")
+
+
+def _run_record_path_for(output_json_path: Path) -> Path:
+    return output_json_path.with_name(f"{output_json_path.stem}.run.json")

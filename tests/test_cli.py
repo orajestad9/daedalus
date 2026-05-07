@@ -29,10 +29,12 @@ def test_normalize_reviews_command_succeeds_with_sample_csv(
     assert output_path.is_file()
     assert (tmp_path / "normalized_reviews.metadata.json").is_file()
     assert (tmp_path / "normalized_reviews.summary.md").is_file()
+    assert (tmp_path / "normalized_reviews.run.json").is_file()
 
     output = capsys.readouterr().out
     assert "metadata=" in output
     assert "summary=" in output
+    assert "run_record=" in output
     assert "run_id=" in output
 
 
@@ -50,11 +52,13 @@ def test_run_workflow_command_succeeds_with_sample_manifest(
     output_path = Path("artifacts/readysetrentables/normalized_reviews.json")
     metadata_path = Path("artifacts/readysetrentables/normalized_reviews.metadata.json")
     summary_path = Path("artifacts/readysetrentables/normalized_reviews.summary.md")
+    run_record_path = Path("artifacts/readysetrentables/normalized_reviews.run.json")
 
     assert exit_code == 0
     assert output_path.is_file()
     assert metadata_path.is_file()
     assert summary_path.is_file()
+    assert run_record_path.is_file()
 
     output = capsys.readouterr().out
     assert "run_id=" in output
@@ -62,6 +66,7 @@ def test_run_workflow_command_succeeds_with_sample_manifest(
     assert f"output={output_path}" in output
     assert f"metadata={metadata_path}" in output
     assert f"summary={summary_path}" in output
+    assert f"run_record={run_record_path}" in output
 
 
 def test_run_workflow_command_rejects_unsupported_manifest(tmp_path: Path) -> None:
@@ -133,6 +138,7 @@ def test_run_workflow_command_succeeds_when_approval_supplied(
     assert (tmp_path / "normalized_reviews.json").is_file()
     assert (tmp_path / "normalized_reviews.metadata.json").is_file()
     assert (tmp_path / "normalized_reviews.summary.md").is_file()
+    assert (tmp_path / "normalized_reviews.run.json").is_file()
 
 
 def _write_readysetrentables_manifest(
