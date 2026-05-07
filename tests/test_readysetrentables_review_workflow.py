@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -21,9 +22,11 @@ def test_run_review_normalization_workflow_writes_json_artifact(tmp_path: Path) 
 
     assert result.source_csv_path == SAMPLE_CSV_PATH
     assert result.output_json_path == output_path
+    assert result.metadata_json_path == tmp_path / "normalized_reviews.metadata.json"
     assert result.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
     assert isinstance(result.run_id, UUID)
     assert output_path.exists()
+    assert result.metadata_json_path.exists()
 
 
 def test_run_review_normalization_workflow_artifact_contains_reviews(tmp_path: Path) -> None:
@@ -39,3 +42,24 @@ def test_run_review_normalization_workflow_artifact_contains_reviews(tmp_path: P
     assert artifact["source"] == "airbnb"
     assert len(artifact["reviews"]) == EXPECTED_SAMPLE_REVIEW_COUNT
     assert artifact["reviews"][0]["review_id"] == "rr_syn_0001"
+
+
+def test_run_review_normalization_workflow_writes_metadata_artifact(tmp_path: Path) -> None:
+    output_path = tmp_path / "normalized_reviews.json"
+
+    result = run_review_normalization_workflow(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_path,
+    )
+
+    metadata = json.loads(result.metadata_json_path.read_text(encoding="utf-8"))
+
+    assert metadata["run_id"] == str(result.run_id)
+    assert metadata["workflow_name"] == "readysetrentables_review_normalization"
+    assert metadata["artifact_type"] == "normalized_review_batch"
+    assert metadata["source_csv_path"] == str(SAMPLE_CSV_PATH)
+    assert metadata["output_json_path"] == str(output_path)
+    assert metadata["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT
+
+    created_at_utc = datetime.fromisoformat(metadata["created_at_utc"].replace("Z", "+00:00"))
+    assert created_at_utc.tzinfo is not None

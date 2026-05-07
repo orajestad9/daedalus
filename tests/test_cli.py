@@ -26,4 +26,8 @@ def test_normalize_reviews_command_succeeds_with_sample_csv(
 
     assert exit_code == 0
     assert output_path.is_file()
-    assert "run_id=" in capsys.readouterr().out
+    assert (tmp_path / "normalized_reviews.metadata.json").is_file()
+
+    output = capsys.readouterr().out
+    assert "metadata=" in output
+    assert "run_id=" in output

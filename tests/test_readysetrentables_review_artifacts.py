@@ -1,8 +1,14 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
+from uuid import uuid4
 
-from daedalus.domains.readysetrentables_reviews.artifacts import write_review_batch_json
+from daedalus.domains.readysetrentables_reviews.artifacts import (
+    ReviewBatchArtifactMetadata,
+    write_review_batch_json,
+    write_review_batch_metadata_json,
+)
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 
 
@@ -42,3 +48,30 @@ def test_review_batch_json_contains_expected_content(tmp_path: Path) -> None:
     assert first_review["rating"] == 5.0
     assert first_review["raw_record"]["source_data"]["review_id"] == "rr_syn_0001"
     assert first_review["raw_record"]["source_data"]["rating"] == "5"
+
+
+def test_writes_review_batch_metadata_json(tmp_path: Path) -> None:
+    run_id = uuid4()
+    output_json_path = tmp_path / "review_batch.json"
+    metadata_path = tmp_path / "metadata" / "review_batch.metadata.json"
+    metadata = ReviewBatchArtifactMetadata(
+        run_id=run_id,
+        workflow_name="readysetrentables_review_normalization",
+        artifact_type="normalized_review_batch",
+        source_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_json_path,
+        created_at_utc=datetime(2026, 5, 7, 12, 0, tzinfo=UTC),
+        review_count=EXPECTED_SAMPLE_REVIEW_COUNT,
+    )
+
+    returned_path = write_review_batch_metadata_json(metadata, metadata_path)
+
+    data = cast(dict[str, Any], json.loads(metadata_path.read_text(encoding="utf-8")))
+    assert returned_path == metadata_path
+    assert data["run_id"] == str(run_id)
+    assert data["workflow_name"] == "readysetrentables_review_normalization"
+    assert data["artifact_type"] == "normalized_review_batch"
+    assert data["source_csv_path"] == str(SAMPLE_CSV_PATH)
+    assert data["output_json_path"] == str(output_json_path)
+    assert data["created_at_utc"] == "2026-05-07T12:00:00Z"
+    assert data["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT

@@ -20,7 +20,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(
             f"Normalized {result.review_count} reviews "
-            f"to {result.output_json_path} run_id={result.run_id}"
+            f"to {result.output_json_path} "
+            f"metadata={result.metadata_json_path} "
+            f"run_id={result.run_id}"
         )
         return 0
 
