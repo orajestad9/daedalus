@@ -2,7 +2,7 @@
 Daedalus is a local-first Python multi-agent orchestration platform for building
 observable, human-approved AI pipelines. The first workflow automates
 ReadySetRentables review processing from Airbnb CSV data into deterministic JSON
-artifacts. Postgres persistence is intentionally deferred to a later phase.
+artifacts, with optional local Postgres persistence for workflow run records.
 
 ## Development Commands
 
@@ -17,6 +17,8 @@ Run the full local check suite:
 ```sh
 make check
 ```
+
+`make check` is unit-only and does not require Docker or Postgres.
 
 GitHub Actions runs the same `make check` quality gate on pushes and pull
 requests targeting `main`.
@@ -92,3 +94,17 @@ make db-reset
 `make migrate-db` loads local settings from `.env`. If `.env` is missing, copy
 `.env.example` to `.env` and edit the values locally first. `.env` must never be
 committed.
+
+## Local Integration Check
+
+Run the local Postgres integration check:
+
+```sh
+make db-check
+```
+
+`make db-check` requires Docker and a local `.env`. It starts Postgres, applies
+committed SQL migrations, runs the ReadySetRentables workflow with
+Postgres-backed persistence, lists recent workflow runs, cleans generated local
+artifacts, and stops Postgres. This target is intentionally separate from
+`make check` so normal unit checks stay fast and database-free.

@@ -17,9 +17,10 @@ responsibilities out of their packages. Likely next steps include Postgres
 workflow persistence, richer observability, and additional workflow
 implementations.
 
-The first Phase 1 foundation is a local Docker Compose Postgres service with
-placeholder-only environment configuration. Database dependencies, migrations,
-connection code, repositories, and app container builds remain intentionally
+The first Phase 1 foundation includes a local Docker Compose Postgres service
+with placeholder-only environment configuration, SQL migrations, connection
+helpers, repositories, optional persisted workflow execution, and a local
+`make db-check` integration command. App container builds remain intentionally
 deferred.
 
 Token and cost governance is a cross-cutting requirement for future phases. See

@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample db-up db-down db-logs db-reset migrate-db clean
+.PHONY: install test lint format format-check type-check check normalize-sample db-up db-down db-logs db-reset migrate-db db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -42,6 +42,17 @@ db-reset:
 migrate-db:
 	@test -f .env || (echo "Missing .env. Copy .env.example to .env and edit it locally before running migrations."; exit 1)
 	@set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli migrate-db
+
+db-check:
+	@test -f .env || (echo "Missing .env. Copy .env.example to .env and edit it locally before running db-check."; exit 1)
+	@$(MAKE) db-up; \
+	status=0; \
+	$(MAKE) migrate-db || status=$$?; \
+	if [ $$status -eq 0 ]; then set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --persist || status=$$?; fi; \
+	if [ $$status -eq 0 ]; then set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli list-runs --limit 5 || status=$$?; fi; \
+	$(MAKE) clean; \
+	$(MAKE) db-down; \
+	exit $$status
 
 clean:
 	rm -rf artifacts/ logs/ .pytest_cache/ .mypy_cache/ .ruff_cache/
