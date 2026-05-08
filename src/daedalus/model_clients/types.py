@@ -63,7 +63,7 @@ class ModelRequest(BaseModel):
     input_artifact_path: Path
     output_artifact_path: Path | None = None
     response_schema_name: str | None = None
-    budget: ModelBudget = Field(default_factory=ModelBudget)
+    budget: ModelBudget | None = Field(default_factory=ModelBudget)
     metadata: dict[str, str] = Field(default_factory=dict)
 
 

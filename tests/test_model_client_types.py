@@ -47,6 +47,7 @@ def test_model_request_preserves_workflow_context_and_artifact_paths() -> None:
     assert request.prompt_version == "v1"
     assert request.input_artifact_path == Path("artifacts/input.json")
     assert request.output_artifact_path == Path("artifacts/output.json")
+    assert request.budget is not None
     assert request.budget.allow_cloud_models is False
 
 
