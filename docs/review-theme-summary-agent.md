@@ -26,6 +26,43 @@ The first implementation should use `FakeModelClient` in tests so Daedalus can
 validate agent boundaries, artifacts, budgets, and invocation recording without
 provider SDKs, network calls, real LLM calls, or cloud model usage.
 
+## Current Fake/Local Implementation
+
+Daedalus now includes a fake/local CLI path:
+
+- `summarize-review-themes-fake`
+
+This command runs the review theme summary agent with `FakeModelClient`. It does
+not call real LLMs, does not install or use provider SDKs, does not read provider
+credentials, and does not make network calls.
+
+The command reads an existing normalized reviews JSON artifact, builds compact
+deterministic input with `build_review_theme_summary_input(...)`, calls the
+agent through the shared `ModelClient` protocol, and writes:
+
+- `review_theme_summary.md`
+
+The command prints only safe metadata such as `run_id`, output path, provider,
+model name, token counts, and estimated cost. It does not print raw prompt text,
+raw model output text, or raw review datasets.
+
+Safe local example:
+
+```sh
+make clean
+
+.venv/bin/daedalus normalize-reviews \
+  --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv \
+  --output artifacts/readysetrentables/normalized_reviews.json
+
+.venv/bin/daedalus summarize-review-themes-fake \
+  --input artifacts/readysetrentables/normalized_reviews.json \
+  --output artifacts/readysetrentables/review_theme_summary.md
+```
+
+This path is file/artifact-only. It is not wired into `run-workflow`, LangGraph
+nodes, Postgres persistence, or real provider execution yet.
+
 ## Expected Inputs
 
 The agent should accept structured inputs, not loose prompt text:

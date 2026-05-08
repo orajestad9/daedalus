@@ -78,12 +78,19 @@ invocations to `run_id` and `step_id` when available, preserve artifact outputs,
 and enforce the token/cost governance rules before any cloud-model usage
 expands.
 
-The initial Phase 4 work should remain local-first and observable. It should
-avoid direct provider calls from agents, avoid hidden prompt or cost behavior,
-and keep model outputs inspectable as artifacts when useful. The first planned
-AI-assisted feature is the ReadySetRentables review theme summary agent, which
-will summarize compact normalized review inputs through the shared `ModelClient`
-boundary and write an inspectable summary artifact.
+The initial Phase 4 work remains local-first and observable. Current progress
+includes core model-client types, `FakeModelClient`, `RecordingModelClient`,
+budget validation, model invocation records and repositories, fake model
+invocation inspection through `show-run`, versioned prompt templates, review
+theme summary input/result models, deterministic compact input building, a
+review theme summary agent tested with `FakeModelClient`, a markdown artifact
+writer, and the `summarize-review-themes-fake` CLI command.
+
+The first AI-assisted feature path is the ReadySetRentables review theme summary
+agent, which summarizes compact normalized review inputs through the shared
+`ModelClient` boundary and writes an inspectable summary artifact. It is still
+fake/local only: no real provider clients, provider SDKs, network calls, or real
+LLM calls exist yet.
 
 See `docs/model-client-architecture.md` for the Phase 4 design baseline. The
 first implementation steps should favor a fake/in-memory model client or local

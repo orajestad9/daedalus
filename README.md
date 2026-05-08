@@ -70,6 +70,15 @@ For a direct local graph run:
 .venv/bin/daedalus run-review-graph --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
 ```
 
+For the fake/local Phase 4 review theme summary path:
+
+```sh
+.venv/bin/daedalus summarize-review-themes-fake --input artifacts/readysetrentables/normalized_reviews.json --output artifacts/readysetrentables/review_theme_summary.md
+```
+
+This uses `FakeModelClient` only. It does not call real LLMs, use provider SDKs,
+or print raw prompts, raw model output, or raw review datasets.
+
 ## Local Postgres
 
 Phase 1 includes optional local Postgres persistence for workflow run records

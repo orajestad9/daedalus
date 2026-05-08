@@ -59,6 +59,11 @@ adapter, before cloud providers. That lets Daedalus test model-call boundaries,
 artifacts, budgets, and observability without sending workflow data outside the
 local machine.
 
+`FakeModelClient` is now the first safe model-client consumer path through the
+`summarize-review-themes-fake` CLI command. That command exercises the review
+theme summary agent boundary and artifact output without real LLM calls,
+provider SDKs, network access, or cloud model usage.
+
 Proposed provider order:
 
 1. Ollama or another local provider first.
