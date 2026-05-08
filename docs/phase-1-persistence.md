@@ -140,9 +140,10 @@ make db-check
 ```
 
 `make db-check` starts Postgres, applies migrations, runs the workflow with
-`--persist`, captures the run ID, lists recent runs, inspects the persisted run
-with `show-run`, verifies workflow steps are visible, cleans generated local
-artifacts, and stops Postgres.
+`--persist` through both the deterministic and LangGraph execution paths,
+captures the LangGraph run ID, lists recent runs, inspects the persisted
+LangGraph run with `show-run`, verifies workflow steps are visible, cleans
+generated local artifacts, and stops Postgres.
 
 ## Why `make check` Does Not Require Postgres
 

@@ -70,6 +70,11 @@ editing the YAML file:
 The override is scoped to that command invocation. Approval gates and optional
 `--persist` behavior remain unchanged.
 
+The local `make db-check` integration command now exercises both persisted
+paths: the default deterministic manifest run and a LangGraph override run. It
+then inspects the persisted LangGraph run with `show-run` to verify that run,
+artifact, and workflow step records remain inspectable through Postgres.
+
 ## What LangGraph Is Responsible For
 
 LangGraph should eventually own workflow control flow:

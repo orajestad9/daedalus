@@ -141,8 +141,9 @@ make db-check
 
 `make db-check` requires Docker and a local `.env`. It starts Postgres, applies
 committed SQL migrations, runs the ReadySetRentables workflow with
-Postgres-backed persistence, captures the run ID, lists recent workflow runs,
-inspects the persisted run with `show-run`, verifies workflow steps are visible,
-cleans generated local artifacts, and stops Postgres. This target is
-intentionally separate from `make check` so normal unit checks stay fast and
+Postgres-backed persistence through both the deterministic and LangGraph
+execution paths, captures the LangGraph run ID, lists recent workflow runs,
+inspects the persisted LangGraph run with `show-run`, verifies workflow steps
+are visible, cleans generated local artifacts, and stops Postgres. This target
+is intentionally separate from `make check` so normal unit checks stay fast and
 database-free.
