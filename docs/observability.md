@@ -84,6 +84,76 @@ The `show-run` command is optimized for persisted run inspection: it loads the
 run record, artifact records, and step records from Postgres, then formats a
 readable summary through the run inspection formatter.
 
+## Run Inspection Examples
+
+For a one-command local integration check, use:
+
+```sh
+make db-check
+```
+
+This starts local Postgres, applies migrations, persists a workflow run, lists
+recent runs, inspects the captured run with `show-run`, verifies workflow steps
+are visible, cleans generated artifacts, and stops Postgres.
+
+For a manual inspection flow, start Postgres and apply migrations:
+
+```sh
+make db-up
+make migrate-db
+```
+
+Run the ReadySetRentables workflow with persistence enabled:
+
+```sh
+.venv/bin/daedalus run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --persist
+```
+
+The command prints a generated `run_id`. Use `list-runs` to see recent persisted
+runs:
+
+```sh
+.venv/bin/daedalus list-runs
+```
+
+Inspect one run with a placeholder run ID:
+
+```sh
+.venv/bin/daedalus show-run --run-id <run-id>
+```
+
+Then stop local Postgres:
+
+```sh
+make db-down
+```
+
+`show-run` prints a readable summary shaped like this:
+
+```text
+Workflow run <run-id>
+workflow_name: readysetrentables_review_normalization
+domain: readysetrentables_reviews
+status: completed
+duration_ms: <elapsed-ms>
+review_count: 8
+artifacts:
+- normalized_reviews: artifacts/readysetrentables/normalized_reviews.json
+- review_metadata: artifacts/readysetrentables/normalized_reviews.metadata.json
+- workflow_summary: artifacts/readysetrentables/normalized_reviews.summary.md
+- workflow_run_record: artifacts/readysetrentables/normalized_reviews.run.json
+steps:
+- load_reviews: status=completed duration_ms=<elapsed-ms>
+- write_normalized_artifact: status=completed duration_ms=<elapsed-ms>
+- write_metadata_artifact: status=completed duration_ms=<elapsed-ms>
+- write_summary_artifact: status=completed duration_ms=<elapsed-ms>
+- write_run_record_artifact: status=completed duration_ms=<elapsed-ms>
+```
+
+The placeholders above are deliberate. Do not paste real `.env` values,
+passwords, private hosts, tokens, connection strings, or machine-specific values
+into documentation.
+
 ## Structured Logging
 
 Daedalus uses the standard Python logging module. Important lifecycle logs now

@@ -49,7 +49,8 @@ treats token usage, cloud-model opt-in, model-call tracking, and prompt privacy
 as first-class design constraints.
 
 For the current run, step, artifact, logging, and persisted inspection model,
-see [`docs/observability.md`](docs/observability.md).
+including practical `show-run` examples, see
+[`docs/observability.md`](docs/observability.md).
 
 ## Local Postgres
 
