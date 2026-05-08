@@ -1,20 +1,27 @@
 # Phase 1 Persistence
 
-Phase 1 adds optional local Postgres persistence for Daedalus workflow execution
-records. The workflow still writes local artifacts first. Postgres stores the
-run and artifact index so operators and future agents can inspect completed
-workflow executions without opening every JSON or markdown file manually.
+Phase 1 added optional local Postgres persistence for Daedalus workflow
+execution records. The workflow still writes local artifacts first. Postgres
+stores the run and artifact index so operators and future agents can inspect
+completed workflow executions without opening every JSON or markdown file
+manually. Phase 2 extends this persisted inspection path with workflow step
+records; see [`docs/observability.md`](observability.md) for the current
+run/step inspection model.
 
 This phase remains local-first. It does not add production deployment,
 Kubernetes, agents, model clients, LangGraph, or OpenTelemetry.
 
 ## What Persistence Stores
 
-Phase 1 stores two kinds of records:
+Phase 1 introduced two kinds of records:
 
 - workflow run records, one row per completed workflow run
 - workflow artifact records, one row per generated artifact associated with a
   run
+
+Phase 2 adds workflow step records in `workflow_steps` for persisted run
+inspection. This document remains the Phase 1 persistence baseline; the current
+observability model is documented in [`docs/observability.md`](observability.md).
 
 The first persisted workflow is the ReadySetRentables review normalization flow:
 
@@ -81,7 +88,7 @@ Limit and filter the list:
 daedalus list-runs --limit 5 --domain readysetrentables_reviews --status completed
 ```
 
-Inspect one run and its artifacts:
+Inspect one run, its artifacts, and its workflow steps:
 
 ```sh
 daedalus show-run --run-id <workflow-run-uuid>

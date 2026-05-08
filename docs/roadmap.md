@@ -33,22 +33,28 @@ workflows, cloud-model calls, or model invocation persistence.
 
 ### Phase 2: Observability And Run Inspection
 
-Phase 2 is now focused on local observability and run inspection before adding
-model or agent execution. Current Phase 2 progress includes workflow
-`duration_ms`, lifecycle timing helpers, workflow step records, a
-`workflow_steps` schema, step persistence support, runtime step collection,
-`show-run` step display, workflow steps in summary markdown artifacts, a run
-inspection formatter, structured logging context with `run_id`, and a stronger
-`make db-check` path that verifies persisted run inspection.
+The Phase 2 local observability baseline is complete enough to move toward Phase
+3. Phase 2 added workflow `duration_ms`, lifecycle timing helpers, workflow step
+records, a `workflow_steps` schema, step persistence support, runtime step
+collection, failure-path step recording tests, `show-run` step display, workflow
+steps in summary markdown artifacts, a run inspection formatter, structured
+logging context with `run_id`, future model invocation observability
+requirements, and a stronger `make db-check` path that verifies persisted run
+inspection.
 
 See `docs/observability.md` for the current observability architecture.
 
-### Later Phases: Model And Agent Foundations
+### Phase 3: Model Invocation And Agent Foundations
 
-Model-client and agent foundations should be introduced only after honoring the
-token/cost governance rules. That work should keep model calls behind a shared
-abstraction, attach future invocations to `run_id`, preserve artifact
-boundaries, and avoid direct provider calls from agents. Model invocation
-tracking should be added before or alongside those clients so provider, model,
-prompt version, token usage, estimated cost, status, timing, and input/output
-artifact references are observable from the first model-backed workflow.
+Phase 3 should introduce model invocation tracking and model-client foundations
+only after honoring the token/cost governance rules. That work should keep model
+calls behind a shared abstraction, attach future invocations to `run_id` and
+`step_id` when available, preserve artifact boundaries, and avoid direct
+provider calls from agents. Model invocation tracking should be added before or
+alongside those clients so provider, model, prompt version, token usage,
+estimated cost, status, timing, and input/output artifact references are
+observable from the first model-backed workflow.
+
+OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution, and
+production deployment remain later work unless a Phase 3 task explicitly narrows
+one of those areas.

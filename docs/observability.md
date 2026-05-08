@@ -54,6 +54,11 @@ Each step has its own ID, the parent `run_id`, step name, status, timestamps,
 duration, and optional error message. Successful workflow runs mark these steps
 as completed with non-negative durations.
 
+If a step action raises an exception, the workflow step helper records a failed
+step with the error message and re-raises the original exception. Full failed-run
+persistence is still deferred; the current behavior establishes failure-path step
+semantics without changing the workflow's failed-run storage model.
+
 When persistence is enabled, step records are stored in `workflow_steps`.
 `show-run` displays a Steps section so operators can inspect the persisted
 coarse workflow timeline.
@@ -79,10 +84,11 @@ There are two inspection paths:
 - Markdown summary inspection through `normalized_reviews.summary.md`
 - Postgres-backed inspection through `daedalus show-run --run-id <run-id>`
 
-The markdown summary is optimized for fast human review of one workflow output.
-The `show-run` command is optimized for persisted run inspection: it loads the
-run record, artifact records, and step records from Postgres, then formats a
-readable summary through the run inspection formatter.
+The markdown summary is optimized for fast human review of one workflow output,
+including the collected workflow steps. The `show-run` command is optimized for
+persisted run inspection: it loads the run record, artifact records, and step
+records from Postgres, then formats a readable summary through the run
+inspection formatter.
 
 ## Run Inspection Examples
 

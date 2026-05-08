@@ -2,7 +2,8 @@
 Daedalus is a local-first Python multi-agent orchestration platform for building
 observable, human-approved AI pipelines. The first workflow automates
 ReadySetRentables review processing from Airbnb CSV data into deterministic JSON
-artifacts, with optional local Postgres persistence for workflow run records.
+artifacts, with optional local Postgres persistence for workflow run, artifact,
+and step records.
 
 ## Development Commands
 
@@ -55,7 +56,8 @@ including practical `show-run` examples, see
 ## Local Postgres
 
 Phase 1 includes optional local Postgres persistence for workflow run records
-and generated artifact records. See
+and generated artifact records. Phase 2 extends persisted inspection with
+workflow step records. See
 [`docs/phase-1-persistence.md`](docs/phase-1-persistence.md) for the full
 workflow.
 
