@@ -18,9 +18,14 @@ from daedalus.domains.readysetrentables_reviews.graph_state import (
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 from daedalus.orchestrator.artifact_type import ArtifactType
-from daedalus.orchestrator.run_lifecycle import utc_now
+from daedalus.orchestrator.run_lifecycle import calculate_duration_ms, utc_now
+from daedalus.orchestrator.run_record import (
+    WorkflowRunRecord,
+    write_workflow_run_record_json,
+)
+from daedalus.orchestrator.status import WorkflowStatus
 from daedalus.orchestrator.step_record import WorkflowStepRecord
-from daedalus.orchestrator.workflow_identity import WorkflowName
+from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 
 
 def load_reviews_node(
@@ -153,3 +158,61 @@ def write_summary_artifact_node(
 
 def _summary_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.summary.md")
+
+
+def write_run_record_artifact_node(
+    state: ReadySetRentablesReviewGraphState,
+) -> ReadySetRentablesReviewGraphState:
+    """Write the generic workflow run record JSON artifact from graph state."""
+    if state.batch is None:
+        msg = "Cannot write run record artifact before review batch is loaded."
+        raise ValueError(msg)
+    if state.metadata_json_path is None:
+        msg = "Cannot write run record artifact before metadata artifact is written."
+        raise ValueError(msg)
+    if state.summary_markdown_path is None:
+        msg = "Cannot write run record artifact before summary artifact is written."
+        raise ValueError(msg)
+
+    completed_at_utc = utc_now()
+    run_record_json_path = _run_record_path_for(state.output_json_path)
+    run_record = WorkflowRunRecord(
+        run_id=state.run_id,
+        workflow_name=WorkflowName.READYSETRENTABLES_REVIEW_NORMALIZATION,
+        domain=WorkflowDomain.READYSETRENTABLES_REVIEWS,
+        status=WorkflowStatus.COMPLETED,
+        started_at_utc=state.started_at_utc,
+        completed_at_utc=completed_at_utc,
+        source_input_path=state.input_csv_path,
+        output_artifact_path=state.output_json_path,
+        metadata_artifact_path=state.metadata_json_path,
+        summary_artifact_path=state.summary_markdown_path,
+        run_record_artifact_path=run_record_json_path,
+        duration_ms=calculate_duration_ms(state.started_at_utc, completed_at_utc),
+        review_count=state.batch.review_count,
+        approval_required=state.approval_required,
+        approved=state.approved,
+    )
+    step = WorkflowStepRecord.start(
+        run_id=state.run_id,
+        step_name="write_run_record_artifact",
+    )
+    try:
+        written_run_record_path = write_workflow_run_record_json(
+            run_record,
+            run_record_json_path,
+        )
+    except Exception as exc:
+        state.steps.append(step.fail(str(exc)))
+        raise
+
+    return state.model_copy(
+        update={
+            "run_record_json_path": written_run_record_path,
+            "steps": [*state.steps, step.complete()],
+        }
+    )
+
+
+def _run_record_path_for(output_json_path: Path) -> Path:
+    return output_json_path.with_name(f"{output_json_path.stem}.run.json")

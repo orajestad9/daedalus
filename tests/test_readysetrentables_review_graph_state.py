@@ -17,6 +17,7 @@ def test_graph_state_create_generates_run_id_and_preserves_paths() -> None:
     )
 
     assert isinstance(state.run_id, UUID)
+    assert state.started_at_utc.tzinfo is not None
     assert state.input_csv_path == input_csv_path
     assert state.output_json_path == output_json_path
 

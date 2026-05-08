@@ -6,12 +6,14 @@ lets future nodes exchange domain objects and artifact paths instead of loose
 prompt text.
 """
 
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
 from daedalus.domains.readysetrentables_reviews.models import ReviewBatch
+from daedalus.orchestrator.run_lifecycle import utc_now
 from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
@@ -19,6 +21,7 @@ class ReadySetRentablesReviewGraphState(BaseModel):
     """Structured state that future LangGraph nodes will pass between phases."""
 
     run_id: UUID
+    started_at_utc: datetime
     input_csv_path: Path
     output_json_path: Path
     batch: ReviewBatch | None = None
@@ -40,6 +43,7 @@ class ReadySetRentablesReviewGraphState(BaseModel):
         """Create initial graph state with generated workflow identity."""
         return cls(
             run_id=uuid4(),
+            started_at_utc=utc_now(),
             input_csv_path=input_csv_path,
             output_json_path=output_json_path,
             approval_required=approval_required,

@@ -7,6 +7,7 @@ from daedalus.domains.readysetrentables_reviews.graph_nodes import (
     load_reviews_node,
     write_metadata_artifact_node,
     write_normalized_artifact_node,
+    write_run_record_artifact_node,
     write_summary_artifact_node,
 )
 from daedalus.domains.readysetrentables_reviews.graph_state import (
@@ -320,3 +321,135 @@ def test_write_summary_artifact_node_requires_metadata_path(tmp_path: Path) -> N
 
     with pytest.raises(ValueError, match="metadata artifact is written"):
         write_summary_artifact_node(state)
+
+
+def test_write_run_record_artifact_node_writes_run_record_and_preserves_state(
+    tmp_path: Path,
+) -> None:
+    output_json_path = tmp_path / "normalized_reviews.json"
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_json_path,
+        approval_required=True,
+        approved=True,
+    )
+    summary_state = write_summary_artifact_node(
+        write_metadata_artifact_node(write_normalized_artifact_node(load_reviews_node(state)))
+    )
+
+    updated_state = write_run_record_artifact_node(summary_state)
+
+    expected_run_record_path = tmp_path / "normalized_reviews.run.json"
+    assert updated_state.run_record_json_path == expected_run_record_path
+    assert expected_run_record_path.exists()
+    assert updated_state.run_id == summary_state.run_id
+    assert updated_state.started_at_utc == summary_state.started_at_utc
+    assert updated_state.input_csv_path == SAMPLE_CSV_PATH
+    assert updated_state.output_json_path == output_json_path
+    assert updated_state.metadata_json_path == summary_state.metadata_json_path
+    assert updated_state.summary_markdown_path == summary_state.summary_markdown_path
+    assert updated_state.approval_required is True
+    assert updated_state.approved is True
+    assert updated_state.batch == summary_state.batch
+
+
+def test_write_run_record_artifact_node_writes_expected_run_record_content(
+    tmp_path: Path,
+) -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=tmp_path / "normalized_reviews.json",
+        approval_required=True,
+        approved=True,
+    )
+    summary_state = write_summary_artifact_node(
+        write_metadata_artifact_node(write_normalized_artifact_node(load_reviews_node(state)))
+    )
+
+    updated_state = write_run_record_artifact_node(summary_state)
+
+    assert updated_state.run_record_json_path is not None
+    run_record = json.loads(updated_state.run_record_json_path.read_text(encoding="utf-8"))
+    assert run_record["run_id"] == str(state.run_id)
+    assert run_record["workflow_name"] == "readysetrentables_review_normalization"
+    assert run_record["domain"] == "readysetrentables_reviews"
+    assert run_record["status"] == "completed"
+    assert isinstance(run_record["duration_ms"], int)
+    assert run_record["duration_ms"] >= 0
+    assert run_record["source_input_path"] == str(SAMPLE_CSV_PATH)
+    assert run_record["output_artifact_path"] == str(summary_state.output_json_path)
+    assert run_record["metadata_artifact_path"] == str(summary_state.metadata_json_path)
+    assert run_record["summary_artifact_path"] == str(summary_state.summary_markdown_path)
+    assert run_record["run_record_artifact_path"] == str(updated_state.run_record_json_path)
+    assert run_record["review_count"] == EXPECTED_SAMPLE_REVIEW_COUNT
+    assert run_record["approval_required"] is True
+    assert run_record["approved"] is True
+
+
+def test_write_run_record_artifact_node_preserves_existing_steps_and_appends_completed_step(
+    tmp_path: Path,
+) -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=tmp_path / "normalized_reviews.json",
+    )
+    summary_state = write_summary_artifact_node(
+        write_metadata_artifact_node(write_normalized_artifact_node(load_reviews_node(state)))
+    )
+
+    updated_state = write_run_record_artifact_node(summary_state)
+
+    assert [step.step_name for step in updated_state.steps] == [
+        "load_reviews",
+        "write_normalized_artifact",
+        "write_metadata_artifact",
+        "write_summary_artifact",
+        "write_run_record_artifact",
+    ]
+    assert updated_state.steps[:4] == summary_state.steps
+    step = updated_state.steps[4]
+    assert step.run_id == state.run_id
+    assert step.status == WorkflowStatus.COMPLETED
+    assert step.completed_at_utc is not None
+    assert step.duration_ms is not None
+    assert step.duration_ms >= 0
+
+
+def test_write_run_record_artifact_node_requires_loaded_batch() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+
+    with pytest.raises(ValueError, match="review batch is loaded"):
+        write_run_record_artifact_node(state)
+
+
+def test_write_run_record_artifact_node_requires_metadata_path(tmp_path: Path) -> None:
+    state = write_normalized_artifact_node(
+        load_reviews_node(
+            ReadySetRentablesReviewGraphState.create(
+                input_csv_path=SAMPLE_CSV_PATH,
+                output_json_path=tmp_path / "normalized_reviews.json",
+            )
+        )
+    )
+
+    with pytest.raises(ValueError, match="metadata artifact is written"):
+        write_run_record_artifact_node(state)
+
+
+def test_write_run_record_artifact_node_requires_summary_path(tmp_path: Path) -> None:
+    state = write_metadata_artifact_node(
+        write_normalized_artifact_node(
+            load_reviews_node(
+                ReadySetRentablesReviewGraphState.create(
+                    input_csv_path=SAMPLE_CSV_PATH,
+                    output_json_path=tmp_path / "normalized_reviews.json",
+                )
+            )
+        )
+    )
+
+    with pytest.raises(ValueError, match="summary artifact is written"):
+        write_run_record_artifact_node(state)
