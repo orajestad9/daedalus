@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from daedalus.domains.readysetrentables_reviews.models import ReviewBatch
 from daedalus.orchestrator.artifact_type import ArtifactType
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
 class ReviewBatchArtifactMetadata(BaseModel):
@@ -55,23 +56,31 @@ def write_review_normalization_summary_markdown(
     review_count: int,
     approval_required: bool,
     approved: bool,
+    steps: list[WorkflowStepRecord] | None = None,
 ) -> Path:
     """Write the compact human-readable run summary artifact."""
     summary_markdown_path.parent.mkdir(parents=True, exist_ok=True)
-    markdown = "\n".join(
-        [
-            "# ReadySetRentables Review Normalization Summary",
-            "",
-            f"- Run ID: `{run_id}`",
-            f"- Source CSV path: `{source_csv_path}`",
-            f"- Normalized JSON path: `{output_json_path}`",
-            f"- Metadata JSON path: `{metadata_json_path}`",
-            f"- Review count: {review_count}",
-            f"- Approval required: {approval_required}",
-            f"- Approved: {approved}",
-            "- Status: Completed successfully.",
-            "",
-        ]
-    )
+    lines = [
+        "# ReadySetRentables Review Normalization Summary",
+        "",
+        f"- Run ID: `{run_id}`",
+        f"- Source CSV path: `{source_csv_path}`",
+        f"- Normalized JSON path: `{output_json_path}`",
+        f"- Metadata JSON path: `{metadata_json_path}`",
+        f"- Review count: {review_count}",
+        f"- Approval required: {approval_required}",
+        f"- Approved: {approved}",
+        "- Status: Completed successfully.",
+        "",
+    ]
+    if steps is not None:
+        lines.extend(["## Workflow Steps", ""])
+        if steps:
+            lines.extend(f"- {step.step_name}: {step.status.value}" for step in steps)
+        else:
+            lines.append("- No workflow steps recorded before summary generation.")
+        lines.append("")
+
+    markdown = "\n".join(lines)
     summary_markdown_path.write_text(markdown, encoding="utf-8")
     return summary_markdown_path
