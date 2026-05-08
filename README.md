@@ -42,7 +42,10 @@ The sample run writes four ignored local artifacts under
 
 Workflows can be described by YAML manifests under `workflows/`. The sample
 ReadySetRentables manifest defines the workflow name, domain, input CSV path,
-output JSON path, and whether human approval is required.
+output JSON path, whether human approval is required, and the execution engine.
+The default execution engine is `deterministic`; LangGraph can be selected
+explicitly with `execution_engine: langgraph` or temporarily overridden with
+`daedalus run-workflow --execution-engine langgraph`.
 
 Before adding agents or model clients, review
 [`docs/token-cost-governance.md`](docs/token-cost-governance.md). Daedalus

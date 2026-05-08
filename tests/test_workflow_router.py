@@ -12,6 +12,7 @@ from daedalus.orchestrator.workflow_router import (
     run_workflow_from_manifest_path,
 )
 from daedalus.orchestrator.step_record import WorkflowStepRecord
+from daedalus.shared.workflow_manifest import WorkflowExecutionEngine
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -109,6 +110,107 @@ def test_langgraph_manifest_routes_graph_path(
     assert result.summary_markdown_path.is_file()
     assert result.run_record_json_path.is_file()
     assert [step.step_name for step in result.steps] == EXPECTED_STEP_NAMES
+
+
+def test_deterministic_manifest_with_langgraph_override_routes_graph_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=False,
+        execution_engine="deterministic",
+    )
+    calls: list[str] = []
+
+    def fake_deterministic(**_: object) -> ReviewNormalizationWorkflowResult:
+        calls.append("deterministic")
+        msg = "Deterministic runner should not be called when LangGraph is overridden"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        "daedalus.orchestrator.workflow_router.run_review_normalization_workflow",
+        fake_deterministic,
+    )
+
+    result = run_workflow_from_manifest_path(
+        manifest_path,
+        execution_engine_override=WorkflowExecutionEngine.LANGGRAPH,
+    )
+
+    assert calls == []
+    assert result.output_json_path.is_file()
+    assert result.metadata_json_path.is_file()
+    assert result.summary_markdown_path.is_file()
+    assert result.run_record_json_path.is_file()
+    assert [step.step_name for step in result.steps] == EXPECTED_STEP_NAMES
+
+
+def test_langgraph_manifest_with_deterministic_override_routes_deterministic_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=False,
+        execution_engine="langgraph",
+    )
+    calls: list[str] = []
+
+    def fake_deterministic(**_: object) -> ReviewNormalizationWorkflowResult:
+        calls.append("deterministic")
+        return _workflow_result(tmp_path / "normalized_reviews.json")
+
+    def fake_langgraph(**_: object) -> object:
+        msg = "LangGraph runner should not be called when deterministic is overridden"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        "daedalus.orchestrator.workflow_router.run_review_normalization_workflow",
+        fake_deterministic,
+    )
+    monkeypatch.setattr(
+        "daedalus.orchestrator.workflow_router.run_readysetrentables_review_graph",
+        fake_langgraph,
+    )
+
+    result = run_workflow_from_manifest_path(
+        manifest_path,
+        execution_engine_override=WorkflowExecutionEngine.DETERMINISTIC,
+    )
+
+    assert calls == ["deterministic"]
+    assert result.review_count == 8
+
+
+def test_approval_gate_still_applies_with_execution_engine_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = _write_readysetrentables_manifest(
+        tmp_path,
+        requires_human_approval=True,
+        execution_engine="deterministic",
+    )
+
+    def fail_if_called(**_: object) -> object:
+        msg = "Workflow runner should not be called before approval"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(
+        "daedalus.orchestrator.workflow_router.run_review_normalization_workflow",
+        fail_if_called,
+    )
+    monkeypatch.setattr(
+        "daedalus.orchestrator.workflow_router.run_readysetrentables_review_graph",
+        fail_if_called,
+    )
+
+    with pytest.raises(WorkflowApprovalRequiredError, match="requires human approval"):
+        run_workflow_from_manifest_path(
+            manifest_path,
+            execution_engine_override=WorkflowExecutionEngine.LANGGRAPH,
+        )
 
 
 def test_run_workflow_from_manifest_requires_approval(tmp_path: Path) -> None:

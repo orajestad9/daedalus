@@ -37,6 +37,7 @@ from daedalus.orchestrator.workflow_router import (
     WorkflowApprovalRequiredError,
     run_workflow_from_manifest_path,
 )
+from daedalus.shared.workflow_manifest import WorkflowExecutionEngine
 from daedalus.telemetry.logging import configure_logging
 
 
@@ -83,6 +84,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = run_workflow_from_manifest_path(
                 args.manifest,
                 approved=args.approve,
+                execution_engine_override=args.execution_engine,
             )
         except (UnsupportedWorkflowError, WorkflowApprovalRequiredError) as exc:
             parser.error(str(exc))
@@ -214,6 +216,13 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Persist completed workflow run and artifact records to Postgres.",
     )
+    run_workflow.add_argument(
+        "--execution-engine",
+        default=None,
+        type=_execution_engine_arg,
+        metavar="{deterministic,langgraph}",
+        help="Override the manifest execution engine for this run.",
+    )
 
     subparsers.add_parser(
         "migrate-db",
@@ -260,6 +269,15 @@ def _uuid_arg(value: str) -> UUID:
         return UUID(value)
     except ValueError as exc:
         msg = f"Invalid UUID: {value}"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+
+def _execution_engine_arg(value: str) -> WorkflowExecutionEngine:
+    try:
+        return WorkflowExecutionEngine(value)
+    except ValueError as exc:
+        supported = ", ".join(engine.value for engine in WorkflowExecutionEngine)
+        msg = f"Invalid execution engine: {value}. Supported values: {supported}"
         raise argparse.ArgumentTypeError(msg) from exc
 
 

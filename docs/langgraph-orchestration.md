@@ -58,6 +58,18 @@ runs, the router adapts the final graph state back into the existing
 `ReviewNormalizationWorkflowResult` shape so CLI output, persistence, and future
 callers can keep using the same workflow result contract.
 
+For ad hoc comparison runs, the CLI can override the manifest setting without
+editing the YAML file:
+
+```bash
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --execution-engine langgraph
+```
+
+The override is scoped to that command invocation. Approval gates and optional
+`--persist` behavior remain unchanged.
+
 ## What LangGraph Is Responsible For
 
 LangGraph should eventually own workflow control flow:

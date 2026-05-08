@@ -42,6 +42,7 @@ def run_workflow_from_manifest_path(
     manifest_path: Path,
     *,
     approved: bool = False,
+    execution_engine_override: WorkflowExecutionEngine | None = None,
 ) -> ReviewNormalizationWorkflowResult:
     """Load a manifest, enforce platform gates, and run the routed workflow.
 
@@ -52,11 +53,12 @@ def run_workflow_from_manifest_path(
     """
     logger.info("Loading workflow manifest manifest_path=%s", manifest_path)
     manifest = load_workflow_manifest(manifest_path)
+    effective_execution_engine = execution_engine_override or manifest.execution_engine
     logger.info(
         "Routing workflow manifest workflow_name=%s domain=%s execution_engine=%s manifest_path=%s",
         manifest.workflow_name,
         manifest.domain,
-        manifest.execution_engine.value,
+        effective_execution_engine.value,
         manifest_path,
     )
     if manifest.requires_human_approval and not approved:
@@ -73,13 +75,17 @@ def run_workflow_from_manifest_path(
         )
         raise UnsupportedWorkflowError(msg)
 
-    result = _run_readysetrentables_review_manifest(manifest, approved=approved)
+    result = _run_readysetrentables_review_manifest(
+        manifest,
+        approved=approved,
+        execution_engine=effective_execution_engine,
+    )
     logger.info(
         "Completed routed workflow run_id=%s workflow_name=%s domain=%s execution_engine=%s",
         result.run_id,
         manifest.workflow_name,
         manifest.domain,
-        manifest.execution_engine.value,
+        effective_execution_engine.value,
     )
     return result
 
@@ -95,8 +101,9 @@ def _run_readysetrentables_review_manifest(
     manifest: WorkflowManifest,
     *,
     approved: bool,
+    execution_engine: WorkflowExecutionEngine,
 ) -> ReviewNormalizationWorkflowResult:
-    if manifest.execution_engine == WorkflowExecutionEngine.DETERMINISTIC:
+    if execution_engine == WorkflowExecutionEngine.DETERMINISTIC:
         return run_review_normalization_workflow(
             input_csv_path=manifest.input_csv_path,
             output_json_path=manifest.output_json_path,
@@ -104,7 +111,7 @@ def _run_readysetrentables_review_manifest(
             approved=approved,
         )
 
-    if manifest.execution_engine == WorkflowExecutionEngine.LANGGRAPH:
+    if execution_engine == WorkflowExecutionEngine.LANGGRAPH:
         graph_state = run_readysetrentables_review_graph(
             input_csv_path=manifest.input_csv_path,
             output_json_path=manifest.output_json_path,
@@ -113,7 +120,7 @@ def _run_readysetrentables_review_manifest(
         )
         return _review_result_from_graph_state(graph_state)
 
-    msg = f"Unsupported execution engine: {manifest.execution_engine!r}"
+    msg = f"Unsupported execution engine: {execution_engine!r}"
     raise UnsupportedWorkflowError(msg)
 
 

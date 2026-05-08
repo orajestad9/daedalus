@@ -19,6 +19,7 @@ from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.status import WorkflowStatus
 from daedalus.orchestrator.step_record import WorkflowStepRecord
+from daedalus.shared.workflow_manifest import WorkflowExecutionEngine
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -116,6 +117,81 @@ def test_run_workflow_command_succeeds_with_sample_manifest(
     assert f"metadata={metadata_path}" in output
     assert f"summary={summary_path}" in output
     assert f"run_record={run_record_path}" in output
+
+
+def test_run_workflow_command_without_execution_engine_override_uses_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[WorkflowExecutionEngine | None] = []
+
+    def fake_run_workflow(
+        _: Path,
+        *,
+        approved: bool,
+        execution_engine_override: WorkflowExecutionEngine | None,
+    ) -> ReviewNormalizationWorkflowResult:
+        assert approved is False
+        calls.append(execution_engine_override)
+        return _review_normalization_result(Path("artifacts/test/normalized_reviews.json"))
+
+    monkeypatch.setattr("daedalus.cli.run_workflow_from_manifest_path", fake_run_workflow)
+
+    exit_code = main(
+        [
+            "run-workflow",
+            "--manifest",
+            str(SAMPLE_MANIFEST_PATH),
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == [None]
+
+
+def test_run_workflow_command_passes_execution_engine_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[WorkflowExecutionEngine | None] = []
+
+    def fake_run_workflow(
+        _: Path,
+        *,
+        approved: bool,
+        execution_engine_override: WorkflowExecutionEngine | None,
+    ) -> ReviewNormalizationWorkflowResult:
+        assert approved is False
+        calls.append(execution_engine_override)
+        return _review_normalization_result(Path("artifacts/test/normalized_reviews.json"))
+
+    monkeypatch.setattr("daedalus.cli.run_workflow_from_manifest_path", fake_run_workflow)
+
+    exit_code = main(
+        [
+            "run-workflow",
+            "--manifest",
+            str(SAMPLE_MANIFEST_PATH),
+            "--execution-engine",
+            "langgraph",
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == [WorkflowExecutionEngine.LANGGRAPH]
+
+
+def test_run_workflow_command_invalid_execution_engine_fails_cleanly() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-workflow",
+                "--manifest",
+                str(SAMPLE_MANIFEST_PATH),
+                "--execution-engine",
+                "unsupported",
+            ]
+        )
+
+    assert exc_info.value.code == 2
 
 
 def test_run_workflow_command_rejects_unsupported_manifest(tmp_path: Path) -> None:
@@ -467,6 +543,22 @@ def _write_readysetrentables_manifest(
         encoding="utf-8",
     )
     return manifest_path
+
+
+def _review_normalization_result(output_json_path: Path) -> ReviewNormalizationWorkflowResult:
+    run_id = uuid4()
+    return ReviewNormalizationWorkflowResult(
+        source_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_json_path,
+        metadata_json_path=output_json_path.with_name(f"{output_json_path.stem}.metadata.json"),
+        summary_markdown_path=output_json_path.with_name(f"{output_json_path.stem}.summary.md"),
+        run_record_json_path=output_json_path.with_name(f"{output_json_path.stem}.run.json"),
+        review_count=8,
+        run_id=run_id,
+        approval_required=False,
+        approved=False,
+        steps=[WorkflowStepRecord.start(run_id=run_id, step_name="load_reviews").complete()],
+    )
 
 
 def _workflow_run_details(
