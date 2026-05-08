@@ -46,11 +46,23 @@ See `docs/observability.md` for the current observability architecture.
 
 ### Phase 3: LangGraph Orchestration Baseline
 
-Phase 3 is active next. Its first milestone is a LangGraph orchestration
-baseline that reproduces the existing deterministic ReadySetRentables workflow
-without changing artifact outputs, persistence behavior, approval gates, or
-tests. LangGraph should initially own workflow control flow and structured graph
-state, while domain parsing, artifact writing, Postgres repositories, and model
+Phase 3 is active. Its current milestone is a LangGraph orchestration baseline
+that reproduces the existing deterministic ReadySetRentables workflow without
+changing artifact outputs, persistence behavior, approval gates, or tests.
+
+Current Phase 3 progress includes the LangGraph dependency, architecture
+documentation, typed graph state, deterministic graph nodes, a compiled graph
+runner, direct `run-review-graph` CLI execution, graph/deterministic parity
+tests, manifest `execution_engine` routing, a `run-workflow --execution-engine`
+override, and `make db-check` coverage for persisted LangGraph execution.
+
+The deterministic workflow remains the default execution engine. LangGraph is
+opt-in through direct graph execution, manifest `execution_engine: langgraph`,
+or the CLI override. LangGraph currently orchestrates deterministic nodes only;
+there are still no agents, model clients, or LLM calls.
+
+LangGraph should initially own workflow control flow and structured graph state,
+while domain parsing, artifact writing, Postgres repositories, and model
 provider calls remain outside graph nodes.
 
 See `docs/langgraph-orchestration.md` for the Phase 3 design baseline.

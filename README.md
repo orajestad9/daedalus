@@ -58,6 +58,11 @@ including practical `show-run` examples, see
 
 For the Phase 3 LangGraph orchestration plan, see
 [`docs/langgraph-orchestration.md`](docs/langgraph-orchestration.md).
+For a direct local graph run:
+
+```sh
+.venv/bin/daedalus run-review-graph --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
+```
 
 ## Local Postgres
 

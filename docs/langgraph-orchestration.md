@@ -5,6 +5,10 @@ changing the behavior of the deterministic ReadySetRentables review workflow.
 LangGraph is now available as a project dependency for this workflow path, but
 Phase 3 still does not create agents, add model clients, or make LLM calls.
 
+LangGraph currently orchestrates deterministic Python nodes only. It is not yet
+used for model invocation, agent behavior, human review loops, or distributed
+tracing.
+
 ## Why LangGraph Now
 
 Daedalus already has the pieces a graph runtime should preserve: manifests,
@@ -14,8 +18,29 @@ those boundaries exist makes the graph an orchestration layer rather than a
 place where parsing, artifact writing, persistence, or model-provider logic gets
 mixed together.
 
-The first graph should reproduce the existing deterministic workflow before it
+The first graph reproduces the existing deterministic workflow before Daedalus
 adds branching, retries, model calls, or agents.
+
+## Current LangGraph Status
+
+The ReadySetRentables review workflow now has a compiled LangGraph execution
+path alongside the existing deterministic workflow. The deterministic workflow
+remains the trusted default. LangGraph is opt-in through one of these paths:
+
+- the direct `run-review-graph` CLI command
+- a manifest with `execution_engine: langgraph`
+- a temporary `run-workflow --execution-engine langgraph` CLI override
+
+The LangGraph path writes the same file artifact set as the deterministic path:
+
+- `normalized_reviews.json`
+- `normalized_reviews.metadata.json`
+- `normalized_reviews.summary.md`
+- `normalized_reviews.run.json`
+
+Graph parity tests compare stable normalized review fields against the
+deterministic workflow so the graph can evolve without quietly changing the
+review-processing result.
 
 ## Current Deterministic Workflow
 
@@ -36,6 +61,48 @@ The workflow produces the same file artifacts as before:
 
 When `run-workflow --persist` is used, Postgres persistence remains optional and
 happens after workflow execution through the existing persistence service.
+
+## Graph State
+
+The graph state is represented by
+`ReadySetRentablesReviewGraphState`. It carries structured workflow data across
+nodes:
+
+- `run_id`
+- `started_at_utc`
+- `input_csv_path`
+- `output_json_path`
+- `batch`
+- `metadata_json_path`
+- `summary_markdown_path`
+- `run_record_json_path`
+- `steps`
+- `approval_required`
+- `approved`
+
+State should continue to favor typed paths, domain batches, artifact paths, and
+workflow step records over loose prompt text. That keeps the graph compatible
+with file artifacts, Postgres persistence, and future inspection tools.
+
+## Current Graph Nodes
+
+The compiled graph runs these deterministic nodes in order:
+
+```text
+load_reviews
+  -> write_normalized_artifact
+  -> write_metadata_artifact
+  -> write_summary_artifact
+  -> write_run_record_artifact
+```
+
+Each node maps directly to a `WorkflowStepRecord.step_name` with the same name.
+That shared vocabulary keeps markdown summaries, persisted `workflow_steps`,
+`show-run`, and future LangGraph trace views aligned.
+
+The nodes use existing domain ingestion and artifact helpers. They do not own
+CSV parsing rules, Pydantic domain models, artifact serialization details,
+Postgres SQL, provider calls, or approval persistence.
 
 ## Manifest Execution Engine
 
@@ -75,6 +142,73 @@ paths: the default deterministic manifest run and a LangGraph override run. It
 then inspects the persisted LangGraph run with `show-run` to verify that run,
 artifact, and workflow step records remain inspectable through Postgres.
 
+## Running LangGraph Directly
+
+Use the direct graph command for local comparison when Postgres persistence is
+not needed:
+
+```bash
+.venv/bin/daedalus run-review-graph \
+  --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv \
+  --output artifacts/readysetrentables/normalized_reviews.json
+```
+
+This command runs the compiled graph and writes local artifacts only. It does
+not use a manifest and does not persist records to Postgres.
+
+## Running LangGraph Through Manifests
+
+Run a manifest that already declares `execution_engine: langgraph`:
+
+```bash
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization_langgraph.yaml
+```
+
+Or keep the committed deterministic manifest unchanged and override the engine
+for one invocation:
+
+```bash
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --execution-engine langgraph
+```
+
+The manifest router still enforces approval gates before either execution
+engine runs.
+
+## Persisting And Inspecting A LangGraph Run
+
+Postgres persistence remains opt-in:
+
+```bash
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --execution-engine langgraph \
+  --persist
+```
+
+After a persisted run, inspect recent runs and one run in detail:
+
+```bash
+.venv/bin/daedalus list-runs
+.venv/bin/daedalus show-run --run-id <run-id>
+```
+
+`show-run` displays the workflow run record, artifact records, and workflow step
+records. For LangGraph runs, the step section should include the graph node
+names listed above.
+
+For a broader local integration check, use:
+
+```bash
+make db-check
+```
+
+`make db-check` requires Docker and a local `.env`. It keeps `make check`
+database-free while verifying deterministic persistence, LangGraph persistence,
+`list-runs`, and `show-run` inspection.
+
 ## What LangGraph Is Responsible For
 
 LangGraph should eventually own workflow control flow:
@@ -103,55 +237,6 @@ The initial LangGraph baseline should not own:
 - OpenTelemetry spans
 
 No model calls should be introduced in Phase 3 Step 1.
-
-## Proposed Graph Shape
-
-The first graph should mirror the current deterministic phases:
-
-```text
-load_reviews
-  -> write_normalized_artifact
-  -> write_metadata_artifact
-  -> write_summary_artifact
-  -> write_run_record_artifact
-```
-
-This keeps current artifact outputs and tests stable while allowing the workflow
-execution boundary to move toward a graph runtime.
-
-## Proposed Graph State
-
-The graph state should carry structured Pydantic and domain objects where
-practical. Proposed state fields include:
-
-- `run_id`
-- `input_csv_path`
-- `output_json_path`
-- `batch`
-- `metadata_json_path`
-- `summary_markdown_path`
-- `run_record_json_path`
-- `steps`
-- `approval_required`
-- `approved`
-
-State should favor typed paths, domain batches, metadata objects, and step
-records over unstructured strings. Prompt text should not become the graph's
-default transport format.
-
-## Proposed Graph Nodes
-
-Initial nodes should match the current step names:
-
-- `load_reviews`
-- `write_normalized_artifact`
-- `write_metadata_artifact`
-- `write_summary_artifact`
-- `write_run_record_artifact`
-
-Each node should map directly to one `WorkflowStepRecord.step_name` so persisted
-inspection, markdown summaries, and future LangGraph traces use the same
-vocabulary.
 
 ## Artifacts And Persistence
 
