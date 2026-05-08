@@ -1,8 +1,8 @@
 """LangGraph-oriented nodes for the ReadySetRentables review workflow.
 
-These functions are plain Python node units for now. They prepare the domain
-workflow for graph orchestration while preserving the existing deterministic
-workflow entry point and behavior.
+These functions are deterministic graph nodes: they reuse the same ingestion
+and artifact helpers as the trusted workflow while carrying run_id, approval
+state, and WorkflowStepRecord data through LangGraph state.
 """
 
 from pathlib import Path
