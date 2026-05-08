@@ -2,12 +2,15 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import pytest
+from daedalus.domains.readysetrentables_reviews import workflow as workflow_module
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
 from daedalus.orchestrator.status import WorkflowStatus
+from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
 SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv")
@@ -181,6 +184,35 @@ def test_run_review_normalization_workflow_logs_run_context(
         and "workflow_name=readysetrentables_review_normalization" in message
         for message in messages
     )
+
+
+def test_run_step_records_failed_step_and_reraises() -> None:
+    run_id = uuid4()
+    steps: list[WorkflowStepRecord] = []
+
+    class StepFailure(RuntimeError):
+        pass
+
+    def fail_step() -> None:
+        raise StepFailure("controlled step failure")
+
+    with pytest.raises(StepFailure):
+        workflow_module._run_step(
+            run_id=run_id,
+            steps=steps,
+            step_name="controlled_failure",
+            action=fail_step,
+        )
+
+    assert len(steps) == 1
+    failed_step = steps[0]
+    assert failed_step.status == WorkflowStatus.FAILED
+    assert failed_step.step_name == "controlled_failure"
+    assert failed_step.run_id == run_id
+    assert failed_step.completed_at_utc is not None
+    assert failed_step.duration_ms is not None
+    assert failed_step.duration_ms >= 0
+    assert failed_step.error_message == "controlled step failure"
 
 
 class _ListHandler(logging.Handler):

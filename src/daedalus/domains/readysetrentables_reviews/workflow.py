@@ -6,7 +6,9 @@ database writes, or graph orchestration live here yet.
 """
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
@@ -32,6 +34,7 @@ from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 logger = logging.getLogger(__name__)
 WORKFLOW_NAME = WorkflowName.READYSETRENTABLES_REVIEW_NORMALIZATION
 DOMAIN = WorkflowDomain.READYSETRENTABLES_REVIEWS
+StepResult = TypeVar("StepResult")
 
 
 class ReviewNormalizationWorkflowResult(BaseModel):
@@ -83,45 +86,58 @@ def run_review_normalization_workflow(
     )
 
     steps: list[WorkflowStepRecord] = []
-    step = WorkflowStepRecord.start(run_id=run_id, step_name="load_reviews")
-    _log_step_started(run_id=run_id, step=step)
-    batch = load_airbnb_reviews_csv(input_csv_path)
-    steps.append(_complete_step(run_id=run_id, step=step))
+    batch = _run_step(
+        run_id=run_id,
+        steps=steps,
+        step_name="load_reviews",
+        action=lambda: load_airbnb_reviews_csv(input_csv_path),
+    )
 
-    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_normalized_artifact")
-    _log_step_started(run_id=run_id, step=step)
-    artifact_path = write_review_batch_json(batch, output_json_path)
-    steps.append(_complete_step(run_id=run_id, step=step))
+    artifact_path = _run_step(
+        run_id=run_id,
+        steps=steps,
+        step_name="write_normalized_artifact",
+        action=lambda: write_review_batch_json(batch, output_json_path),
+    )
 
     metadata_path = _metadata_path_for(artifact_path)
-    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_metadata_artifact")
-    _log_step_started(run_id=run_id, step=step)
-    metadata = ReviewBatchArtifactMetadata(
+
+    def write_metadata_artifact() -> Path:
+        metadata = ReviewBatchArtifactMetadata(
+            run_id=run_id,
+            workflow_name=WORKFLOW_NAME,
+            artifact_type=ArtifactType.NORMALIZED_REVIEWS,
+            source_csv_path=input_csv_path,
+            output_json_path=artifact_path,
+            created_at_utc=utc_now(),
+            review_count=batch.review_count,
+        )
+        return write_review_batch_metadata_json(metadata, metadata_path)
+
+    _run_step(
         run_id=run_id,
-        workflow_name=WORKFLOW_NAME,
-        artifact_type=ArtifactType.NORMALIZED_REVIEWS,
-        source_csv_path=input_csv_path,
-        output_json_path=artifact_path,
-        created_at_utc=utc_now(),
-        review_count=batch.review_count,
+        steps=steps,
+        step_name="write_metadata_artifact",
+        action=write_metadata_artifact,
     )
-    write_review_batch_metadata_json(metadata, metadata_path)
-    steps.append(_complete_step(run_id=run_id, step=step))
 
     summary_path = _summary_path_for(artifact_path)
-    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_summary_artifact")
-    _log_step_started(run_id=run_id, step=step)
-    write_review_normalization_summary_markdown(
+
+    _run_step(
         run_id=run_id,
-        source_csv_path=input_csv_path,
-        output_json_path=artifact_path,
-        metadata_json_path=metadata_path,
-        summary_markdown_path=summary_path,
-        review_count=batch.review_count,
-        approval_required=approval_required,
-        approved=approved,
+        steps=steps,
+        step_name="write_summary_artifact",
+        action=lambda: write_review_normalization_summary_markdown(
+            run_id=run_id,
+            source_csv_path=input_csv_path,
+            output_json_path=artifact_path,
+            metadata_json_path=metadata_path,
+            summary_markdown_path=summary_path,
+            review_count=batch.review_count,
+            approval_required=approval_required,
+            approved=approved,
+        ),
     )
-    steps.append(_complete_step(run_id=run_id, step=step))
 
     completed_at_utc = utc_now()
     run_record_path = _run_record_path_for(artifact_path)
@@ -143,10 +159,12 @@ def run_review_normalization_workflow(
         approval_required=approval_required,
         approved=approved,
     )
-    step = WorkflowStepRecord.start(run_id=run_id, step_name="write_run_record_artifact")
-    _log_step_started(run_id=run_id, step=step)
-    write_workflow_run_record_json(run_record, run_record_path)
-    steps.append(_complete_step(run_id=run_id, step=step))
+    _run_step(
+        run_id=run_id,
+        steps=steps,
+        step_name="write_run_record_artifact",
+        action=lambda: write_workflow_run_record_json(run_record, run_record_path),
+    )
 
     logger.info(
         "Completed workflow run_id=%s workflow_name=%s domain=%s review_count=%s duration_ms=%s",
@@ -181,6 +199,35 @@ def _summary_path_for(output_json_path: Path) -> Path:
 
 def _run_record_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.run.json")
+
+
+def _run_step(
+    *,
+    run_id: UUID,
+    steps: list[WorkflowStepRecord],
+    step_name: str,
+    action: Callable[[], StepResult],
+) -> StepResult:
+    step = WorkflowStepRecord.start(run_id=run_id, step_name=step_name)
+    _log_step_started(run_id=run_id, step=step)
+    try:
+        result = action()
+    except Exception as exc:
+        failed_step = step.fail(str(exc))
+        steps.append(failed_step)
+        logger.info(
+            "Failed workflow step run_id=%s workflow_name=%s domain=%s step_name=%s duration_ms=%s error_type=%s",
+            run_id,
+            WORKFLOW_NAME.value,
+            DOMAIN.value,
+            failed_step.step_name,
+            failed_step.duration_ms,
+            type(exc).__name__,
+        )
+        raise
+
+    steps.append(_complete_step(run_id=run_id, step=step))
+    return result
 
 
 def _log_step_started(*, run_id: UUID, step: WorkflowStepRecord) -> None:
