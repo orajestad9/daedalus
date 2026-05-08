@@ -6,6 +6,7 @@ below is opt-in and used by CLI persistence only, keeping normal workflow runs
 file-only unless the caller explicitly asks for Postgres persistence.
 """
 
+import logging
 from collections.abc import Sequence
 from uuid import UUID
 
@@ -23,6 +24,9 @@ from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.step_record import WorkflowStepRecord
+
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowPersistenceError(RuntimeError):
@@ -98,6 +102,7 @@ def persist_review_normalization_workflow_result(
     logs password-bearing DSNs, and it leaves the default workflow execution path
     free from any database requirement.
     """
+    logger.info("Persistence requested run_id=%s", result.run_id)
     settings = load_postgres_settings()
     connection = connect_postgres(settings)
 
@@ -112,6 +117,12 @@ def persist_review_normalization_workflow_result(
             steps=result.steps,
         )
         connection.commit()
+        logger.info(
+            "Persistence completed run_id=%s artifact_count=%s step_count=%s",
+            result.run_id,
+            len(artifact_records),
+            len(result.steps),
+        )
     except Exception as exc:
         connection.rollback()
         msg = "Failed to persist workflow run"
