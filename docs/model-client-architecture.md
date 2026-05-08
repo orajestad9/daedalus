@@ -126,6 +126,13 @@ Prompts should have stable names and versions. A model invocation should record
 which prompt produced the output so maintainers can explain behavior after a
 run completes.
 
+Versioned prompt templates live under `prompts/` using safe, reviewable paths
+such as `prompts/readysetrentables/review_theme_summary/v0.md`. Future model
+requests should load prompts by `prompt_name` and `prompt_version`, then record
+those identifiers on the invocation record. Prompt loading must reject absolute
+paths and path traversal, and prompt files must not contain secrets, credentials,
+private customer data, or connection strings.
+
 Prompt changes should be treated like behavior changes. Future prompt templates
 should avoid embedding secrets and should be reviewable like code or workflow
 configuration.

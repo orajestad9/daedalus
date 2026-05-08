@@ -120,6 +120,10 @@ Prompts should have stable names and versions. A model invocation should record
 the prompt name and prompt version so a future developer, reviewer, or agent can
 understand which instruction set produced an output.
 
+Committed prompt templates should be loaded by versioned identity, not by
+untrusted arbitrary paths. Prompt files should stay generic, reviewable, and free
+of secrets, credentials, private customer data, or connection strings.
+
 Prompt changes should be treated like code changes when they affect behavior.
 Future prompt artifacts should be reviewable and should avoid embedding secrets.
 
