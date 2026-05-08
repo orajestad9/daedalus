@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -10,8 +11,12 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 )
 from daedalus.memory.workflow_persistence import (
     WorkflowPersistenceError,
+    load_workflow_run_details,
     persist_review_normalization_workflow_result,
 )
+from daedalus.model_clients.invocation_record import ModelInvocationStatus
+from daedalus.model_clients.types import ModelProvider
+from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
     write_workflow_run_record_json,
@@ -68,6 +73,33 @@ def test_persist_review_normalization_workflow_result_rolls_back_on_failure(
     assert connection.closed is True
 
 
+def test_load_workflow_run_details_includes_model_invocations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id = uuid4()
+    connection = FakeReadConnection(run_id=run_id)
+    monkeypatch.setattr(
+        "daedalus.memory.workflow_persistence.load_postgres_settings",
+        _postgres_settings,
+    )
+    monkeypatch.setattr(
+        "daedalus.memory.workflow_persistence.connect_postgres",
+        lambda _: connection,
+    )
+
+    details = load_workflow_run_details(run_id)
+
+    assert details.run_record.run_id == run_id
+    assert len(details.artifact_records) == 1
+    assert len(details.step_records) == 1
+    assert len(details.model_invocation_records) == 1
+    invocation = details.model_invocation_records[0]
+    assert invocation.provider == ModelProvider.FAKE
+    assert invocation.status == ModelInvocationStatus.SUCCEEDED
+    assert any("from model_invocations" in sql.lower() for sql in connection.executed_sql)
+    assert connection.closed is True
+
+
 class FakeConnection:
     def __init__(self, *, fail_on_execute: bool = False) -> None:
         self._fail_on_execute = fail_on_execute
@@ -87,6 +119,48 @@ class FakeConnection:
 
     def rollback(self) -> None:
         self.rolled_back = True
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeReadCursor:
+    def __init__(
+        self,
+        *,
+        row: tuple[object, ...] | None = None,
+        rows: list[tuple[object, ...]] | None = None,
+    ) -> None:
+        self._row = row
+        self._rows = rows or []
+
+    def fetchone(self) -> tuple[object, ...] | None:
+        return self._row
+
+    def fetchall(self) -> list[tuple[object, ...]]:
+        return self._rows
+
+
+class FakeReadConnection:
+    def __init__(self, *, run_id: UUID) -> None:
+        self._run_id = run_id
+        self.executed_sql: list[str] = []
+        self.closed = False
+
+    def execute(self, sql: str, params: tuple[object, ...]) -> FakeReadCursor:
+        self.executed_sql.append(sql)
+        lower_sql = sql.lower()
+        if "from workflow_runs" in lower_sql:
+            return FakeReadCursor(row=_workflow_run_row(self._run_id))
+        if "from workflow_artifacts" in lower_sql:
+            return FakeReadCursor(rows=[_artifact_row(self._run_id)])
+        if "from workflow_steps" in lower_sql:
+            return FakeReadCursor(rows=[_workflow_step_row(self._run_id)])
+        if "from model_invocations" in lower_sql:
+            return FakeReadCursor(rows=[_model_invocation_row(self._run_id)])
+
+        msg = f"Unexpected SQL in fake read connection: {sql}"
+        raise AssertionError(msg)
 
     def close(self) -> None:
         self.closed = True
@@ -178,4 +252,71 @@ def _workflow_step_record(
         completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
         duration_ms=60_000,
         error_message=None,
+    )
+
+
+def _workflow_run_row(run_id: UUID) -> tuple[object, ...]:
+    return (
+        run_id,
+        "readysetrentables_review_normalization",
+        "readysetrentables_reviews",
+        "completed",
+        datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
+        "sample.csv",
+        "normalized_reviews.json",
+        "normalized_reviews.metadata.json",
+        "normalized_reviews.summary.md",
+        "normalized_reviews.run.json",
+        60_000,
+        8,
+        False,
+        False,
+    )
+
+
+def _artifact_row(run_id: UUID) -> tuple[object, ...]:
+    return (
+        uuid4(),
+        run_id,
+        ArtifactType.NORMALIZED_REVIEWS.value,
+        "normalized_reviews.json",
+        datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
+    )
+
+
+def _workflow_step_row(run_id: UUID) -> tuple[object, ...]:
+    return (
+        uuid4(),
+        run_id,
+        "load_reviews",
+        "completed",
+        datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+        1_000,
+        None,
+    )
+
+
+def _model_invocation_row(run_id: UUID) -> tuple[object, ...]:
+    return (
+        uuid4(),
+        run_id,
+        uuid4(),
+        "review_summarizer",
+        "fake",
+        "fake-local-model",
+        "summarize_reviews",
+        "v1",
+        10,
+        5,
+        15,
+        Decimal("0.001"),
+        "succeeded",
+        datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+        1_000,
+        "artifacts/input.json",
+        "artifacts/output.json",
+        None,
     )

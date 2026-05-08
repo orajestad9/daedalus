@@ -10,16 +10,18 @@ import logging
 from collections.abc import Sequence
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from daedalus.config import load_postgres_settings
 from daedalus.domains.readysetrentables_reviews.workflow import (
     ReviewNormalizationWorkflowResult,
 )
 from daedalus.memory.artifact_repository import ArtifactRepository
+from daedalus.memory.model_invocation_repository import ModelInvocationRepository
 from daedalus.memory.postgres import connect_postgres
 from daedalus.memory.workflow_run_repository import WorkflowRunRepository
 from daedalus.memory.workflow_step_repository import WorkflowStepRepository
+from daedalus.model_clients.invocation_record import ModelInvocationRecord
 from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
@@ -38,11 +40,12 @@ class WorkflowRunNotFoundError(LookupError):
 
 
 class WorkflowRunDetails(BaseModel):
-    """Read model for a persisted workflow run and its artifact records."""
+    """Read model for a persisted workflow run and related inspection records."""
 
     run_record: WorkflowRunRecord
     artifact_records: list[ArtifactRecord]
     step_records: list[WorkflowStepRecord]
+    model_invocation_records: list[ModelInvocationRecord] = Field(default_factory=list)
 
 
 class WorkflowPersistenceService:
@@ -142,6 +145,7 @@ def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
         workflow_run_repository = WorkflowRunRepository(connection)
         artifact_repository = ArtifactRepository(connection)
         workflow_step_repository = WorkflowStepRepository(connection)
+        model_invocation_repository = ModelInvocationRepository(connection)
         run_record = workflow_run_repository.get_by_run_id(run_id)
         if run_record is None:
             msg = f"Workflow run not found: run_id={run_id}"
@@ -151,6 +155,7 @@ def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
             run_record=run_record,
             artifact_records=artifact_repository.list_for_run(run_id),
             step_records=workflow_step_repository.list_for_run(run_id),
+            model_invocation_records=model_invocation_repository.list_for_run(run_id),
         )
     except WorkflowRunNotFoundError:
         raise
