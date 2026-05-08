@@ -48,6 +48,9 @@ Before adding agents or model clients, review
 treats token usage, cloud-model opt-in, model-call tracking, and prompt privacy
 as first-class design constraints.
 
+For the current run, step, artifact, logging, and persisted inspection model,
+see [`docs/observability.md`](docs/observability.md).
+
 ## Local Postgres
 
 Phase 1 includes optional local Postgres persistence for workflow run records
@@ -129,6 +132,8 @@ make db-check
 
 `make db-check` requires Docker and a local `.env`. It starts Postgres, applies
 committed SQL migrations, runs the ReadySetRentables workflow with
-Postgres-backed persistence, lists recent workflow runs, cleans generated local
-artifacts, and stops Postgres. This target is intentionally separate from
-`make check` so normal unit checks stay fast and database-free.
+Postgres-backed persistence, captures the run ID, lists recent workflow runs,
+inspects the persisted run with `show-run`, verifies workflow steps are visible,
+cleans generated local artifacts, and stops Postgres. This target is
+intentionally separate from `make check` so normal unit checks stay fast and
+database-free.
