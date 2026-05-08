@@ -1,0 +1,7 @@
+workflow_name: readysetrentables_review_normalization
+domain: readysetrentables_reviews
+description: Normalize synthetic Airbnb review CSV data with the LangGraph execution engine.
+input_csv_path: sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv
+output_json_path: artifacts/readysetrentables/normalized_reviews_langgraph.json
+requires_human_approval: false
+execution_engine: langgraph

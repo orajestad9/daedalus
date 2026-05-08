@@ -2,8 +2,8 @@
 
 Phase 3 introduces a LangGraph orchestration baseline for Daedalus without
 changing the behavior of the deterministic ReadySetRentables review workflow.
-This step is architectural only: it does not add LangGraph as a dependency,
-create agents, add model clients, or make LLM calls.
+LangGraph is now available as a project dependency for this workflow path, but
+Phase 3 still does not create agents, add model clients, or make LLM calls.
 
 ## Why LangGraph Now
 
@@ -36,6 +36,27 @@ The workflow produces the same file artifacts as before:
 
 When `run-workflow --persist` is used, Postgres persistence remains optional and
 happens after workflow execution through the existing persistence service.
+
+## Manifest Execution Engine
+
+Workflow manifests can now choose the execution engine with `execution_engine`.
+Supported values are:
+
+- `deterministic`
+- `langgraph`
+
+The default is `deterministic`, so existing manifests remain on the trusted
+deterministic workflow unless they explicitly opt into LangGraph. The committed
+`workflows/readysetrentables_review_normalization.yaml` manifest is explicit
+about this default. The sample
+`workflows/readysetrentables_review_normalization_langgraph.yaml` manifest runs
+the same ReadySetRentables workflow through the compiled LangGraph path for
+manual comparison and testing.
+
+The manifest router still enforces approval before execution. For LangGraph
+runs, the router adapts the final graph state back into the existing
+`ReviewNormalizationWorkflowResult` shape so CLI output, persistence, and future
+callers can keep using the same workflow result contract.
 
 ## What LangGraph Is Responsible For
 
@@ -161,7 +182,6 @@ approval, and inspection behavior is designed and tested.
 
 ## Intentionally Deferred
 
-- adding LangGraph as a dependency in this design step
 - replacing the existing deterministic workflow behavior
 - model clients
 - agents

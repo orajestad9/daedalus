@@ -5,11 +5,19 @@ Docker containers, Kubernetes jobs, GitHub Actions, and future agents can all
 point at the same YAML file instead of rebuilding workflow arguments by hand.
 """
 
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, cast
 
 import yaml
 from pydantic import BaseModel
+
+
+class WorkflowExecutionEngine(StrEnum):
+    """Supported execution engines for manifest-driven workflow runs."""
+
+    DETERMINISTIC = "deterministic"
+    LANGGRAPH = "langgraph"
 
 
 class WorkflowManifest(BaseModel):
@@ -21,6 +29,7 @@ class WorkflowManifest(BaseModel):
     input_csv_path: Path
     output_json_path: Path
     requires_human_approval: bool = False
+    execution_engine: WorkflowExecutionEngine = WorkflowExecutionEngine.DETERMINISTIC
 
 
 def load_workflow_manifest(manifest_path: Path) -> WorkflowManifest:

@@ -4,3 +4,4 @@ description: Normalize synthetic Airbnb review CSV data into a structured JSON a
 input_csv_path: sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv
 output_json_path: artifacts/readysetrentables/normalized_reviews.json
 requires_human_approval: false
+execution_engine: deterministic
