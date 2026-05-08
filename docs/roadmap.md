@@ -71,15 +71,20 @@ See `docs/phase-3-completion-checklist.md` for the current completion summary.
 
 ### Phase 4: Agents And Model-Client Baseline
 
-Phase 4 should introduce the first cautious agents and model-client foundations,
-not production autonomy. The goal is to define a shared model invocation
-boundary, keep all provider calls behind that boundary, attach future invocations
-to `run_id` and `step_id` when available, preserve artifact outputs, and enforce
-the token/cost governance rules before any cloud-model usage expands.
+Phase 4 is active next. It should introduce the first cautious model-client and
+agent foundations, not production autonomy. The goal is to define a shared model
+invocation boundary, keep all provider calls behind that boundary, attach future
+invocations to `run_id` and `step_id` when available, preserve artifact outputs,
+and enforce the token/cost governance rules before any cloud-model usage
+expands.
 
 The initial Phase 4 work should remain local-first and observable. It should
 avoid direct provider calls from agents, avoid hidden prompt or cost behavior,
 and keep model outputs inspectable as artifacts when useful.
+
+See `docs/model-client-architecture.md` for the Phase 4 design baseline. The
+first implementation steps should favor a fake/in-memory model client or local
+Ollama adapter before any cloud provider integration.
 
 OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution,
 production deployment, autonomous planning, token/model invocation tables, and

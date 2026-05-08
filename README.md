@@ -51,6 +51,8 @@ Before adding agents or model clients, review
 [`docs/token-cost-governance.md`](docs/token-cost-governance.md). Daedalus
 treats token usage, cloud-model opt-in, model-call tracking, and prompt privacy
 as first-class design constraints.
+For the Phase 4 model-client design baseline, see
+[`docs/model-client-architecture.md`](docs/model-client-architecture.md).
 
 For the current run, step, artifact, logging, and persisted inspection model,
 including practical `show-run` examples, see
