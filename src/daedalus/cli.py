@@ -12,6 +12,9 @@ from pathlib import Path
 from uuid import UUID
 
 from daedalus.config import load_postgres_settings
+from daedalus.domains.readysetrentables_reviews.graph_workflow import (
+    run_readysetrentables_review_graph,
+)
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
@@ -55,6 +58,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"summary={result.summary_markdown_path} "
             f"run_record={result.run_record_json_path} "
             f"run_id={result.run_id}"
+        )
+        return 0
+
+    if args.command == "run-review-graph":
+        graph_result = run_readysetrentables_review_graph(
+            input_csv_path=args.input,
+            output_json_path=args.output,
+        )
+        review_count = graph_result.batch.review_count if graph_result.batch is not None else 0
+        print(
+            f"Ran review graph run_id={graph_result.run_id} "
+            f"review_count={review_count} "
+            f"output={graph_result.output_json_path} "
+            f"metadata={graph_result.metadata_json_path} "
+            f"summary={graph_result.summary_markdown_path} "
+            f"run_record={graph_result.run_record_json_path} "
+            f"steps={len(graph_result.steps)}"
         )
         return 0
 
@@ -151,6 +171,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the Airbnb review CSV input.",
     )
     normalize_reviews.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Path where the normalized JSON artifact should be written.",
+    )
+
+    run_review_graph = subparsers.add_parser(
+        "run-review-graph",
+        help="Run the ReadySetRentables review normalization LangGraph workflow.",
+    )
+    run_review_graph.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Path to the Airbnb review CSV input.",
+    )
+    run_review_graph.add_argument(
         "--output",
         required=True,
         type=Path,

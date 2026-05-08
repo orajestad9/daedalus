@@ -54,6 +54,39 @@ def test_normalize_reviews_command_succeeds_with_sample_csv(
     assert "run_id=" in output
 
 
+def test_run_review_graph_command_succeeds_with_sample_csv(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_path = tmp_path / "normalized_reviews.json"
+
+    exit_code = main(
+        [
+            "run-review-graph",
+            "--input",
+            str(SAMPLE_CSV_PATH),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert (tmp_path / "normalized_reviews.metadata.json").is_file()
+    assert (tmp_path / "normalized_reviews.summary.md").is_file()
+    assert (tmp_path / "normalized_reviews.run.json").is_file()
+
+    output = capsys.readouterr().out
+    assert "Ran review graph" in output
+    assert "run_id=" in output
+    assert "review_count=8" in output
+    assert f"output={output_path}" in output
+    assert f"metadata={tmp_path / 'normalized_reviews.metadata.json'}" in output
+    assert f"summary={tmp_path / 'normalized_reviews.summary.md'}" in output
+    assert f"run_record={tmp_path / 'normalized_reviews.run.json'}" in output
+    assert "steps=5" in output
+
+
 def test_run_workflow_command_succeeds_with_sample_manifest(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
