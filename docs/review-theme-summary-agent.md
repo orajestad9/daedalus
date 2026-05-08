@@ -1,0 +1,172 @@
+# ReadySetRentables Review Theme Summary Agent
+
+This document describes the first planned AI-assisted Daedalus agent. It is a
+design baseline only: no agent, provider SDK, network call, real model call, or
+workflow wiring is added by this document.
+
+## Purpose
+
+The review theme summary agent will summarize recurring themes from normalized
+ReadySetRentables guest review data. Its job is to produce a concise artifact
+that helps a human operator quickly understand common positive themes,
+improvement themes, and follow-up opportunities.
+
+This is intentionally narrow. It does not make operational decisions, change
+review data, contact guests, update listings, or perform autonomous planning.
+
+## Why This Is The First Safe AI-Assisted Feature
+
+Review theme summarization is a good first AI-assisted feature because the
+workflow already has deterministic normalized review artifacts, run IDs,
+workflow step records, local persistence, prompt versioning, and model
+invocation observability. The model can operate on a compact, sanitized view of
+review data instead of raw source files or full workflow history.
+
+The first implementation should use `FakeModelClient` in tests so Daedalus can
+validate agent boundaries, artifacts, budgets, and invocation recording without
+provider SDKs, network calls, real LLM calls, or cloud model usage.
+
+## Expected Inputs
+
+The agent should accept structured inputs, not loose prompt text:
+
+- normalized review batch or compact deterministic review summary input
+- `run_id`
+- optional `step_id`
+- `prompt_name`, initially `readysetrentables/review_theme_summary`
+- `prompt_version`, initially `v0`
+- `ModelBudget`
+- input artifact path for the compact model input
+- output artifact path for the model-produced summary
+
+The agent should not send raw huge datasets to a model. Deterministic
+preprocessing should reduce normalized review data into the smallest faithful
+input artifact needed for theme summarization.
+
+## Expected Outputs
+
+The first useful output should be an inspectable artifact, for example:
+
+- `review_theme_summary.md`
+
+A later version may produce structured JSON such as:
+
+- `review_theme_summary.json`
+
+The artifact should be linked to the workflow run through artifact records when
+persistence is enabled. The model invocation record should point to the input
+and output artifact paths.
+
+## Prompt Template Usage
+
+The agent should load the committed versioned prompt template:
+
+- `prompts/readysetrentables/review_theme_summary/v0.md`
+
+Prompt identity should be recorded on each model invocation:
+
+- `prompt_name=readysetrentables/review_theme_summary`
+- `prompt_version=v0`
+
+Prompt templates must remain generic and reviewable. They must not contain
+secrets, API keys, password-bearing DSNs, private hostnames, private customer
+data, or machine-specific values.
+
+## ModelClient Usage
+
+The agent must not call provider SDKs directly. It should depend on the shared
+`ModelClient` protocol and should be able to run against:
+
+- `FakeModelClient` for tests and local boundary checks
+- a future local provider adapter, such as Ollama
+- future cloud provider adapters only when explicitly opted in
+
+The first implementation should use `RecordingModelClient` where persistence is
+available so successful and failed model calls create `ModelInvocationRecord`
+objects.
+
+## Budget Enforcement
+
+Every request should include a `ModelBudget`. The budget should constrain:
+
+- input tokens
+- output tokens
+- total tokens
+- estimated cost
+- allowed providers
+- cloud model opt-in
+
+Budget validation should happen through the shared model-client path. If a
+response exceeds budget, Daedalus should record a failed invocation and surface a
+clear error without printing prompt text or output text.
+
+## Model Invocation Recording
+
+Each model invocation should record safe metadata:
+
+- `run_id`
+- optional `step_id`
+- agent name
+- provider
+- model name
+- prompt name
+- prompt version
+- token counts
+- estimated cost
+- status
+- timestamps and `duration_ms`
+- input artifact path
+- output artifact path
+- safe error message when applicable
+
+Raw prompt text and raw response text should not be blindly persisted to
+Postgres. If retained at all, they should live in artifact-controlled outputs
+after an explicit data classification decision.
+
+## Artifact Output Strategy
+
+The agent should write model outputs as artifacts. A markdown artifact is the
+best first target because it is easy for humans to inspect and fits the existing
+summary-oriented workflow style.
+
+The input to the model should also be artifact-backed when practical. A compact
+input artifact makes token use easier to inspect, supports reproducibility, and
+keeps `show-run` focused on metadata rather than raw prompt bodies.
+
+## LangGraph Fit
+
+Later, the agent can become a LangGraph node after the deterministic artifact
+steps. A likely graph shape is:
+
+```text
+load_reviews
+  -> write_normalized_artifact
+  -> write_metadata_artifact
+  -> write_review_theme_summary_artifact
+  -> write_summary_artifact
+  -> write_run_record_artifact
+```
+
+The node should map to a `WorkflowStepRecord`, attach invocations to the same
+`run_id`, and include `step_id` when available.
+
+## Intentionally Deferred
+
+- real Ollama adapter
+- OpenAI or Anthropic provider adapters
+- provider SDK dependencies
+- network calls
+- cloud model execution
+- autonomous planning
+- agent-to-agent coordination
+- full LangGraph wiring for the agent
+- new database migrations
+- OpenTelemetry spans
+- dashboards or UI
+
+## Related Documents
+
+- [`docs/model-client-architecture.md`](model-client-architecture.md)
+- [`docs/token-cost-governance.md`](token-cost-governance.md)
+- [`docs/observability.md`](observability.md)
+- [`docs/langgraph-orchestration.md`](langgraph-orchestration.md)

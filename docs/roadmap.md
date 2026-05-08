@@ -80,11 +80,15 @@ expands.
 
 The initial Phase 4 work should remain local-first and observable. It should
 avoid direct provider calls from agents, avoid hidden prompt or cost behavior,
-and keep model outputs inspectable as artifacts when useful.
+and keep model outputs inspectable as artifacts when useful. The first planned
+AI-assisted feature is the ReadySetRentables review theme summary agent, which
+will summarize compact normalized review inputs through the shared `ModelClient`
+boundary and write an inspectable summary artifact.
 
 See `docs/model-client-architecture.md` for the Phase 4 design baseline. The
 first implementation steps should favor a fake/in-memory model client or local
 Ollama adapter before any cloud provider integration.
+See `docs/review-theme-summary-agent.md` for the first planned agent design.
 
 OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution,
 production deployment, autonomous planning, token/model invocation tables, and
