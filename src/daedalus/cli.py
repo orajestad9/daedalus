@@ -130,6 +130,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 record=details.run_record,
                 artifacts=details.artifact_records,
                 steps=details.step_records,
+                model_invocations=details.model_invocation_records,
             )
         )
         return 0

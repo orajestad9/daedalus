@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -14,6 +15,11 @@ from daedalus.memory.workflow_persistence import (
     WorkflowRunDetails,
     WorkflowRunNotFoundError,
 )
+from daedalus.model_clients.invocation_record import (
+    ModelInvocationRecord,
+    ModelInvocationStatus,
+)
+from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
@@ -408,6 +414,11 @@ def test_show_run_command_succeeds_with_mocked_persistence(
     assert "steps:" in output
     assert "- load_reviews: status=completed duration_ms=50" in output
     assert "- write_artifact: status=failed duration_ms=75 error_message=write failed" in output
+    assert "Model Invocations:" in output
+    assert "provider=fake" in output
+    assert "model_name=fake-local-model" in output
+    assert "prompt_name=summarize_reviews" in output
+    assert "status=succeeded" in output
 
 
 def test_show_run_command_handles_no_steps_cleanly(
@@ -426,6 +437,23 @@ def test_show_run_command_handles_no_steps_cleanly(
     assert "- normalized_reviews: normalized_reviews.json" in output
     assert "steps:" in output
     assert "No workflow steps recorded." in output
+
+
+def test_show_run_command_handles_no_model_invocations_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    details = _workflow_run_details(run_id, model_invocation_records=[])
+
+    monkeypatch.setattr("daedalus.cli.load_workflow_run_details", lambda _: details)
+
+    exit_code = main(["show-run", "--run-id", str(run_id)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Model Invocations:" in output
+    assert "No model invocations recorded." in output
 
 
 def test_show_run_command_missing_run_fails_cleanly(
@@ -564,6 +592,7 @@ def _review_normalization_result(output_json_path: Path) -> ReviewNormalizationW
 def _workflow_run_details(
     run_id: UUID,
     step_records: list[WorkflowStepRecord] | None = None,
+    model_invocation_records: list[ModelInvocationRecord] | None = None,
 ) -> WorkflowRunDetails:
     run_record = WorkflowRunRecord(
         run_id=run_id,
@@ -613,6 +642,9 @@ def _workflow_run_details(
                 error_message="write failed",
             ),
         ],
+        model_invocation_records=model_invocation_records
+        if model_invocation_records is not None
+        else [_model_invocation_record(run_id=run_record.run_id)],
     )
 
 
@@ -633,4 +665,28 @@ def _workflow_step_record(
         completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
         duration_ms=duration_ms,
         error_message=error_message,
+    )
+
+
+def _model_invocation_record(run_id: UUID) -> ModelInvocationRecord:
+    return ModelInvocationRecord(
+        invocation_id=uuid4(),
+        run_id=run_id,
+        step_id=uuid4(),
+        agent_name="review_summarizer",
+        provider=ModelProvider.FAKE,
+        model_name="fake-local-model",
+        prompt_name="summarize_reviews",
+        prompt_version="v1",
+        input_tokens=10,
+        output_tokens=5,
+        total_tokens=15,
+        estimated_cost_usd=Decimal("0.001"),
+        status=ModelInvocationStatus.SUCCEEDED,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+        duration_ms=1_000,
+        input_artifact_path=Path("artifacts/input.json"),
+        output_artifact_path=Path("artifacts/output.json"),
+        error_message=None,
     )
