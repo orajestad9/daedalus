@@ -48,8 +48,21 @@ db-check:
 	@$(MAKE) db-up; \
 	status=0; \
 	$(MAKE) migrate-db || status=$$?; \
-	if [ $$status -eq 0 ]; then set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --persist || status=$$?; fi; \
+	if [ $$status -eq 0 ]; then \
+		RUN_OUTPUT=$$(set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --persist 2>&1); \
+		status=$$?; \
+		printf "%s\n" "$$RUN_OUTPUT"; \
+		RUN_ID=$$(printf "%s\n" "$$RUN_OUTPUT" | sed -n 's/.*run_id=\([^ ]*\).*/\1/p' | head -n 1); \
+		if [ $$status -eq 0 ] && [ -z "$$RUN_ID" ]; then echo "Could not capture run_id from persisted workflow output."; status=1; fi; \
+	fi; \
 	if [ $$status -eq 0 ]; then set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli list-runs --limit 5 || status=$$?; fi; \
+	if [ $$status -eq 0 ]; then \
+		SHOW_RUN_OUTPUT=$$(set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli show-run --run-id "$$RUN_ID" 2>&1); \
+		status=$$?; \
+		printf "%s\n" "$$SHOW_RUN_OUTPUT"; \
+		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q '^steps:' || { echo "show-run output did not include workflow steps."; status=1; }; fi; \
+		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'load_reviews' || { echo "show-run output did not include the load_reviews step."; status=1; }; fi; \
+	fi; \
 	$(MAKE) clean; \
 	$(MAKE) db-down; \
 	exit $$status
