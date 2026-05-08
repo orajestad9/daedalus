@@ -58,6 +58,8 @@ including practical `show-run` examples, see
 
 For the Phase 3 LangGraph orchestration plan, see
 [`docs/langgraph-orchestration.md`](docs/langgraph-orchestration.md).
+For the current Phase 3 completion summary, see
+[`docs/phase-3-completion-checklist.md`](docs/phase-3-completion-checklist.md).
 For a direct local graph run:
 
 ```sh

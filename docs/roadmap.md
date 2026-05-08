@@ -46,9 +46,10 @@ See `docs/observability.md` for the current observability architecture.
 
 ### Phase 3: LangGraph Orchestration Baseline
 
-Phase 3 is active. Its current milestone is a LangGraph orchestration baseline
-that reproduces the existing deterministic ReadySetRentables workflow without
-changing artifact outputs, persistence behavior, approval gates, or tests.
+Phase 3 is complete or near-complete. It establishes a LangGraph orchestration
+baseline that reproduces the existing deterministic ReadySetRentables workflow
+without changing artifact outputs, persistence behavior, approval gates, or
+tests.
 
 Current Phase 3 progress includes the LangGraph dependency, architecture
 documentation, typed graph state, deterministic graph nodes, a compiled graph
@@ -66,13 +67,21 @@ while domain parsing, artifact writing, Postgres repositories, and model
 provider calls remain outside graph nodes.
 
 See `docs/langgraph-orchestration.md` for the Phase 3 design baseline.
+See `docs/phase-3-completion-checklist.md` for the current completion summary.
 
-Model invocation tracking and model-client foundations should come only after
-the LangGraph baseline honors the token/cost governance rules. That work should
-keep model calls behind a shared abstraction, attach future invocations to
-`run_id` and `step_id` when available, preserve artifact boundaries, and avoid
-direct provider calls from agents.
+### Phase 4: Agents And Model-Client Baseline
+
+Phase 4 should introduce the first cautious agents and model-client foundations,
+not production autonomy. The goal is to define a shared model invocation
+boundary, keep all provider calls behind that boundary, attach future invocations
+to `run_id` and `step_id` when available, preserve artifact outputs, and enforce
+the token/cost governance rules before any cloud-model usage expands.
+
+The initial Phase 4 work should remain local-first and observable. It should
+avoid direct provider calls from agents, avoid hidden prompt or cost behavior,
+and keep model outputs inspectable as artifacts when useful.
 
 OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution,
-production deployment, agents, model clients, and LLM calls remain deferred until
-a later Phase 3 task explicitly narrows one of those areas.
+production deployment, autonomous planning, token/model invocation tables, and
+production-grade LLM workflows remain deferred until a later task explicitly
+narrows one of those areas.
