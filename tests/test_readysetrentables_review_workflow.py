@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
@@ -143,3 +144,49 @@ def test_run_review_normalization_workflow_collects_completed_steps(
     assert all(step.status == WorkflowStatus.COMPLETED for step in result.steps)
     assert all(step.duration_ms is not None for step in result.steps)
     assert all(step.duration_ms is not None and step.duration_ms >= 0 for step in result.steps)
+
+
+def test_run_review_normalization_workflow_logs_run_context(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "normalized_reviews.json"
+    workflow_logger = logging.getLogger("daedalus.domains.readysetrentables_reviews.workflow")
+    handler = _ListHandler()
+    original_level = workflow_logger.level
+    original_propagate = workflow_logger.propagate
+    workflow_logger.setLevel(logging.INFO)
+    workflow_logger.propagate = False
+    workflow_logger.addHandler(handler)
+
+    try:
+        result = run_review_normalization_workflow(
+            input_csv_path=SAMPLE_CSV_PATH,
+            output_json_path=output_path,
+        )
+    finally:
+        workflow_logger.removeHandler(handler)
+        workflow_logger.setLevel(original_level)
+        workflow_logger.propagate = original_propagate
+
+    messages = [record.getMessage() for record in handler.records]
+    assert any(
+        "Starting workflow" in message
+        and f"run_id={result.run_id}" in message
+        and "workflow_name=readysetrentables_review_normalization" in message
+        for message in messages
+    )
+    assert any(
+        "Completed workflow" in message
+        and f"run_id={result.run_id}" in message
+        and "workflow_name=readysetrentables_review_normalization" in message
+        for message in messages
+    )
+
+
+class _ListHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)

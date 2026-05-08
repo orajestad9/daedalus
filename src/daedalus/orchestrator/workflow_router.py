@@ -6,6 +6,7 @@ gives Daedalus one place to enforce platform rules such as approval gates and
 unsupported-workflow failures.
 """
 
+import logging
 from pathlib import Path
 
 from daedalus.domains.readysetrentables_reviews.workflow import (
@@ -14,6 +15,9 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
 )
 from daedalus.orchestrator.workflow_identity import WorkflowDomain, WorkflowName
 from daedalus.shared.workflow_manifest import WorkflowManifest, load_workflow_manifest
+
+
+logger = logging.getLogger(__name__)
 
 
 class UnsupportedWorkflowError(ValueError):
@@ -36,7 +40,14 @@ def run_workflow_from_manifest_path(
     manifests fail loudly because silent no-ops would hide bad automation,
     mistyped manifests, or incomplete Phase 1 routing work.
     """
+    logger.info("Loading workflow manifest manifest_path=%s", manifest_path)
     manifest = load_workflow_manifest(manifest_path)
+    logger.info(
+        "Routing workflow manifest workflow_name=%s domain=%s manifest_path=%s",
+        manifest.workflow_name,
+        manifest.domain,
+        manifest_path,
+    )
     if manifest.requires_human_approval and not approved:
         msg = (
             "Workflow requires human approval before execution: "
@@ -51,12 +62,19 @@ def run_workflow_from_manifest_path(
         )
         raise UnsupportedWorkflowError(msg)
 
-    return run_review_normalization_workflow(
+    result = run_review_normalization_workflow(
         input_csv_path=manifest.input_csv_path,
         output_json_path=manifest.output_json_path,
         approval_required=manifest.requires_human_approval,
         approved=approved,
     )
+    logger.info(
+        "Completed routed workflow run_id=%s workflow_name=%s domain=%s",
+        result.run_id,
+        manifest.workflow_name,
+        manifest.domain,
+    )
+    return result
 
 
 def _is_readysetrentables_review_manifest(manifest: WorkflowManifest) -> bool:

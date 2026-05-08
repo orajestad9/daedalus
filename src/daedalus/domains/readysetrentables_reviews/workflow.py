@@ -67,21 +67,35 @@ def run_review_normalization_workflow(
     run_id = uuid4()
     started_at_utc = utc_now()
 
-    logger.info("Starting review normalization workflow run_id=%s", run_id)
-    logger.info("Input CSV path: %s run_id=%s", input_csv_path, run_id)
-    logger.info("Output JSON path: %s run_id=%s", output_json_path, run_id)
+    logger.info(
+        "Starting workflow run_id=%s workflow_name=%s domain=%s",
+        run_id,
+        WORKFLOW_NAME.value,
+        DOMAIN.value,
+    )
+    logger.info(
+        "Workflow input/output paths run_id=%s workflow_name=%s domain=%s input_csv_path=%s output_json_path=%s",
+        run_id,
+        WORKFLOW_NAME.value,
+        DOMAIN.value,
+        input_csv_path,
+        output_json_path,
+    )
 
     steps: list[WorkflowStepRecord] = []
     step = WorkflowStepRecord.start(run_id=run_id, step_name="load_reviews")
+    _log_step_started(run_id=run_id, step=step)
     batch = load_airbnb_reviews_csv(input_csv_path)
-    steps.append(step.complete())
+    steps.append(_complete_step(run_id=run_id, step=step))
 
     step = WorkflowStepRecord.start(run_id=run_id, step_name="write_normalized_artifact")
+    _log_step_started(run_id=run_id, step=step)
     artifact_path = write_review_batch_json(batch, output_json_path)
-    steps.append(step.complete())
+    steps.append(_complete_step(run_id=run_id, step=step))
 
     metadata_path = _metadata_path_for(artifact_path)
     step = WorkflowStepRecord.start(run_id=run_id, step_name="write_metadata_artifact")
+    _log_step_started(run_id=run_id, step=step)
     metadata = ReviewBatchArtifactMetadata(
         run_id=run_id,
         workflow_name=WORKFLOW_NAME,
@@ -92,10 +106,11 @@ def run_review_normalization_workflow(
         review_count=batch.review_count,
     )
     write_review_batch_metadata_json(metadata, metadata_path)
-    steps.append(step.complete())
+    steps.append(_complete_step(run_id=run_id, step=step))
 
     summary_path = _summary_path_for(artifact_path)
     step = WorkflowStepRecord.start(run_id=run_id, step_name="write_summary_artifact")
+    _log_step_started(run_id=run_id, step=step)
     write_review_normalization_summary_markdown(
         run_id=run_id,
         source_csv_path=input_csv_path,
@@ -106,7 +121,7 @@ def run_review_normalization_workflow(
         approval_required=approval_required,
         approved=approved,
     )
-    steps.append(step.complete())
+    steps.append(_complete_step(run_id=run_id, step=step))
 
     completed_at_utc = utc_now()
     run_record_path = _run_record_path_for(artifact_path)
@@ -129,14 +144,18 @@ def run_review_normalization_workflow(
         approved=approved,
     )
     step = WorkflowStepRecord.start(run_id=run_id, step_name="write_run_record_artifact")
+    _log_step_started(run_id=run_id, step=step)
     write_workflow_run_record_json(run_record, run_record_path)
-    steps.append(step.complete())
+    steps.append(_complete_step(run_id=run_id, step=step))
 
-    logger.info("Review count: %s run_id=%s", batch.review_count, run_id)
-    logger.info("Metadata JSON path: %s run_id=%s", metadata_path, run_id)
-    logger.info("Summary markdown path: %s run_id=%s", summary_path, run_id)
-    logger.info("Run record JSON path: %s run_id=%s", run_record_path, run_id)
-    logger.info("Completed review normalization workflow run_id=%s", run_id)
+    logger.info(
+        "Completed workflow run_id=%s workflow_name=%s domain=%s review_count=%s duration_ms=%s",
+        run_id,
+        WORKFLOW_NAME.value,
+        DOMAIN.value,
+        batch.review_count,
+        duration_ms,
+    )
 
     return ReviewNormalizationWorkflowResult(
         source_csv_path=input_csv_path,
@@ -162,3 +181,26 @@ def _summary_path_for(output_json_path: Path) -> Path:
 
 def _run_record_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.run.json")
+
+
+def _log_step_started(*, run_id: UUID, step: WorkflowStepRecord) -> None:
+    logger.info(
+        "Starting workflow step run_id=%s workflow_name=%s domain=%s step_name=%s",
+        run_id,
+        WORKFLOW_NAME.value,
+        DOMAIN.value,
+        step.step_name,
+    )
+
+
+def _complete_step(*, run_id: UUID, step: WorkflowStepRecord) -> WorkflowStepRecord:
+    completed_step = step.complete()
+    logger.info(
+        "Completed workflow step run_id=%s workflow_name=%s domain=%s step_name=%s duration_ms=%s",
+        run_id,
+        WORKFLOW_NAME.value,
+        DOMAIN.value,
+        completed_step.step_name,
+        completed_step.duration_ms,
+    )
+    return completed_step
