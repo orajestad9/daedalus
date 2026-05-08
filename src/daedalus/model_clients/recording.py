@@ -3,6 +3,7 @@
 from pathlib import Path
 from uuid import UUID
 
+from daedalus.model_clients.budget import validate_model_budget
 from daedalus.model_clients.client import ModelClient
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
 from daedalus.model_clients.types import ModelRequest, ModelResponse
@@ -34,6 +35,7 @@ class RecordingModelClient:
         started_at_utc = utc_now()
         try:
             response = self._inner_client.complete(request)
+            validate_model_budget(request=request, response=response)
         except Exception as exc:
             completed_at_utc = utc_now()
             self._recorder.record_failure(

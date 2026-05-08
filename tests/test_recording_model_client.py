@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -6,12 +7,13 @@ from uuid import UUID, uuid4
 import pytest
 
 from daedalus.model_clients import FakeModelClient, ModelClient, RecordingModelClient
+from daedalus.model_clients.budget import ModelBudgetExceededError
 from daedalus.model_clients.invocation_record import (
     ModelInvocationRecord,
     ModelInvocationStatus,
 )
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
-from daedalus.model_clients.types import ModelProvider, ModelRequest, ModelResponse
+from daedalus.model_clients.types import ModelBudget, ModelProvider, ModelRequest, ModelResponse
 
 
 def test_recording_model_client_satisfies_model_client_protocol() -> None:
@@ -33,6 +35,28 @@ def test_successful_call_records_one_succeeded_invocation() -> None:
     client = _recording_client(repository=repository)
 
     client.complete(_model_request())
+
+    assert len(repository.saved_records) == 1
+    assert repository.saved_records[0].status == ModelInvocationStatus.SUCCEEDED
+
+
+def test_within_budget_response_records_success() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(input_tokens=4, output_tokens=3),
+        repository=repository,
+    )
+
+    client.complete(
+        _model_request(
+            budget=ModelBudget(
+                max_input_tokens=4,
+                max_output_tokens=3,
+                max_total_tokens=7,
+                max_estimated_cost_usd=Decimal("0"),
+            )
+        )
+    )
 
     assert len(repository.saved_records) == 1
     assert repository.saved_records[0].status == ModelInvocationStatus.SUCCEEDED
@@ -96,6 +120,114 @@ def test_failed_inner_client_reraises_original_exception() -> None:
         client.complete(_model_request())
 
     assert str(exc_info.value) == "inner model failed"
+
+
+def test_over_input_token_budget_records_failure_and_raises() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(input_tokens=2),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError, match="max_input_tokens"):
+        client.complete(_model_request(budget=ModelBudget(max_input_tokens=1)))
+
+    assert len(repository.saved_records) == 1
+    assert repository.saved_records[0].status == ModelInvocationStatus.FAILED
+    assert repository.saved_records[0].error_message is not None
+    assert "max_input_tokens" in repository.saved_records[0].error_message
+
+
+def test_over_output_token_budget_records_failure_and_raises() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(output_tokens=2),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError, match="max_output_tokens"):
+        client.complete(_model_request(budget=ModelBudget(max_output_tokens=1)))
+
+    assert len(repository.saved_records) == 1
+    assert repository.saved_records[0].status == ModelInvocationStatus.FAILED
+
+
+def test_over_total_token_budget_records_failure_and_raises() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(input_tokens=1, output_tokens=2),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError, match="max_total_tokens"):
+        client.complete(_model_request(budget=ModelBudget(max_total_tokens=2)))
+
+    assert len(repository.saved_records) == 1
+    assert repository.saved_records[0].status == ModelInvocationStatus.FAILED
+
+
+def test_over_estimated_cost_budget_records_failure_and_raises() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(estimated_cost_usd=Decimal("0.02")),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError, match="max_estimated_cost_usd"):
+        client.complete(_model_request(budget=ModelBudget(max_estimated_cost_usd=Decimal("0.01"))))
+
+    assert len(repository.saved_records) == 1
+    assert repository.saved_records[0].status == ModelInvocationStatus.FAILED
+
+
+def test_budget_failure_does_not_record_success() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(input_tokens=2),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError):
+        client.complete(_model_request(budget=ModelBudget(max_input_tokens=1)))
+
+    assert [record.status for record in repository.saved_records] == [ModelInvocationStatus.FAILED]
+
+
+def test_budget_failure_serialized_record_omits_raw_input_text() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(input_tokens=2),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError):
+        client.complete(
+            _model_request(
+                budget=ModelBudget(max_input_tokens=1),
+                input_text="sensitive prompt text",
+            )
+        )
+
+    serialized_record = repository.saved_records[0].model_dump_json()
+    data = cast(dict[str, Any], json.loads(serialized_record))
+    assert "input_text" not in data
+    assert "sensitive prompt text" not in serialized_record
+
+
+def test_budget_failure_serialized_record_omits_raw_output_text() -> None:
+    repository = FakeModelInvocationRepository()
+    client = _recording_client(
+        inner_client=FakeModelClient(output_text="sensitive response text", output_tokens=2),
+        repository=repository,
+    )
+
+    with pytest.raises(ModelBudgetExceededError):
+        client.complete(_model_request(budget=ModelBudget(max_output_tokens=1)))
+
+    serialized_record = repository.saved_records[0].model_dump_json()
+    data = cast(dict[str, Any], json.loads(serialized_record))
+    assert "output_text" not in data
+    assert "sensitive response text" not in serialized_record
 
 
 def test_raw_request_input_text_is_not_in_serialized_record() -> None:
@@ -163,6 +295,7 @@ def _model_request(
     run_id: UUID | None = None,
     input_text: str = "sample prompt text",
     model_name: str = "fake-local-model",
+    budget: ModelBudget | None = None,
 ) -> ModelRequest:
     return ModelRequest(
         run_id=run_id or uuid4(),
@@ -174,4 +307,5 @@ def _model_request(
         input_text=input_text,
         input_artifact_path=Path("artifacts/input.json"),
         output_artifact_path=Path("artifacts/output.json"),
+        budget=budget,
     )
