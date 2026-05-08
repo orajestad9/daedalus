@@ -7,6 +7,7 @@ from daedalus.model_clients.invocation_record import (
     ModelInvocationStatus,
 )
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
+from daedalus.model_clients.recording import RecordingModelClient
 
 __all__ = [
     "FakeModelClient",
@@ -14,4 +15,5 @@ __all__ = [
     "ModelInvocationRecord",
     "ModelInvocationRecorder",
     "ModelInvocationStatus",
+    "RecordingModelClient",
 ]
