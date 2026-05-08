@@ -48,4 +48,7 @@ See `docs/observability.md` for the current observability architecture.
 Model-client and agent foundations should be introduced only after honoring the
 token/cost governance rules. That work should keep model calls behind a shared
 abstraction, attach future invocations to `run_id`, preserve artifact
-boundaries, and avoid direct provider calls from agents.
+boundaries, and avoid direct provider calls from agents. Model invocation
+tracking should be added before or alongside those clients so provider, model,
+prompt version, token usage, estimated cost, status, timing, and input/output
+artifact references are observable from the first model-backed workflow.

@@ -168,6 +168,53 @@ Logs are intentionally lightweight and safe. They should not include passwords,
 password-bearing DSNs, `.env` contents, raw private datasets, API keys, provider
 tokens, or sensitive prompt/response bodies.
 
+## Future Model Invocation Observability
+
+Future model calls should be tracked as first-class workflow events. They should
+attach to the workflow `run_id`, and to a `step_id` whenever the call happens
+inside an observable workflow step. Agents, LangGraph nodes, and direct workflow
+code should not call providers directly; they should go through a future shared
+`ModelClient` abstraction that can enforce budgets, emit consistent artifacts,
+and record invocation metadata.
+
+Each future model invocation record should include:
+
+- `invocation_id`
+- `run_id`
+- `step_id` if available
+- `agent_name`
+- `provider`
+- `model_name`
+- `prompt_name`
+- `prompt_version`
+- `input_tokens`
+- `output_tokens`
+- `total_tokens`
+- `estimated_cost_usd`
+- `status`
+- `started_at_utc`
+- `completed_at_utc`
+- `duration_ms`
+- `input_artifact_path`
+- `output_artifact_path`
+
+This belongs with the token and cost governance rules in
+[`docs/token-cost-governance.md`](token-cost-governance.md). Manifest-level
+budgets, cloud-model opt-in, prompt versioning, and cache behavior should be
+checked before a provider call is made, not reconstructed afterward from logs.
+
+Model outputs should be written as artifacts when they are useful to inspect,
+validate, approve, or replay. Raw prompts and responses should not be blindly
+persisted in Postgres, especially when they may contain private data, secrets, or
+large user-provided context. Store references to sanitized input and output
+artifacts instead, and only persist prompt/response bodies when an explicit data
+classification decision says it is safe.
+
+Later `show-run` output can include a model invocation section alongside run,
+artifact, and step records. LangGraph node tracing can attach node-level model
+calls to both `run_id` and `step_id`, and future agents can use the same model
+invocation records to make cost, token usage, and failure inspection visible.
+
 ## Checks
 
 `make check` is the fast unit-quality gate. It runs pytest, ruff, ruff format
