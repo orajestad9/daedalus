@@ -7,6 +7,8 @@ import pytest
 
 from daedalus.cli import main
 from daedalus.config import PostgresSettings
+from daedalus.domains.readysetrentables_reviews.artifacts import write_review_batch_json
+from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 from daedalus.domains.readysetrentables_reviews.workflow import (
     ReviewNormalizationWorkflowResult,
 )
@@ -451,6 +453,106 @@ def test_record_fake_model_invocation_output_omits_raw_input_and_response(
     assert "fake local summary" not in output
 
 
+def test_summarize_review_themes_fake_command_succeeds(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+    run_id = uuid4()
+
+    exit_code = main(
+        [
+            "summarize-review-themes-fake",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--run-id",
+            str(run_id),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert str(run_id) in output
+    assert f"output={output_path}" in output
+    assert "provider=fake" in output
+    assert "model_name=fake-model" in output
+    assert "total_tokens=" in output
+    assert "estimated_cost_usd=" in output
+
+
+def test_summarize_review_themes_fake_command_generates_run_id(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    exit_code = main(
+        [
+            "summarize-review-themes-fake",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "run_id=" in output
+    assert output_path.is_file()
+
+
+def test_summarize_review_themes_fake_command_output_omits_raw_text(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    exit_code = main(
+        [
+            "summarize-review-themes-fake",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "ReadySetRentables Review Theme Summary" not in output
+    assert "fake model response" not in output
+    assert "Bright apartment with a spotless kitchen" not in output
+
+
+def test_summarize_review_themes_fake_command_invalid_representative_review_limit_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-fake",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--max-representative-reviews",
+                "-1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
 def test_show_run_command_succeeds_with_mocked_persistence(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -647,6 +749,12 @@ def _review_normalization_result(output_json_path: Path) -> ReviewNormalizationW
         approved=False,
         steps=[WorkflowStepRecord.start(run_id=run_id, step_name="load_reviews").complete()],
     )
+
+
+def _write_normalized_reviews_json(tmp_path: Path) -> Path:
+    batch = load_airbnb_reviews_csv(SAMPLE_CSV_PATH)
+    output_path = tmp_path / "normalized_reviews.json"
+    return write_review_batch_json(batch, output_path)
 
 
 def _workflow_run_details(

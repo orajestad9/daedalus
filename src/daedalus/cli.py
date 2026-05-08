@@ -10,11 +10,21 @@ import argparse
 from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from daedalus.config import load_postgres_settings
+from daedalus.domains.readysetrentables_reviews.artifacts import load_review_batch_json
 from daedalus.domains.readysetrentables_reviews.graph_workflow import (
     run_readysetrentables_review_graph,
+)
+from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
+    ReviewThemeSummaryAgent,
+)
+from daedalus.domains.readysetrentables_reviews.theme_summary_artifacts import (
+    write_review_theme_summary_markdown,
+)
+from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder import (
+    build_review_theme_summary_input,
 )
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
@@ -157,6 +167,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "summarize-review-themes-fake":
+        try:
+            run_id = args.run_id or uuid4()
+            batch = load_review_batch_json(args.input)
+            input_data = build_review_theme_summary_input(
+                run_id=run_id,
+                batch=batch,
+                max_representative_reviews=args.max_representative_reviews,
+            )
+            agent = ReviewThemeSummaryAgent(model_client=FakeModelClient())
+            theme_summary_result = agent.summarize(input_data)
+            write_review_theme_summary_markdown(
+                result=theme_summary_result,
+                output_path=args.output,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Wrote fake review theme summary "
+            f"run_id={theme_summary_result.run_id} "
+            f"output={args.output} "
+            f"provider={theme_summary_result.model_provider.value} "
+            f"model_name={theme_summary_result.model_name} "
+            f"total_tokens={theme_summary_result.total_tokens} "
+            f"estimated_cost_usd={theme_summary_result.estimated_cost_usd}"
+        )
+        return 0
+
     if args.command == "list-runs":
         try:
             runs = load_recent_workflow_runs(
@@ -274,6 +313,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Workflow run UUID to attach the fake model invocation to.",
     )
 
+    summarize_review_themes_fake = subparsers.add_parser(
+        "summarize-review-themes-fake",
+        help="Run the review theme summary agent locally with FakeModelClient.",
+    )
+    summarize_review_themes_fake.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Path to a normalized reviews JSON artifact.",
+    )
+    summarize_review_themes_fake.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Path where the fake review theme summary markdown should be written.",
+    )
+    summarize_review_themes_fake.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional workflow run UUID to associate with the summary.",
+    )
+    summarize_review_themes_fake.add_argument(
+        "--max-representative-reviews",
+        default=5,
+        type=_non_negative_int_arg,
+        help="Maximum number of representative review texts to include in fake input.",
+    )
+
     list_runs = subparsers.add_parser(
         "list-runs",
         help="List recent persisted workflow runs from Postgres.",
@@ -370,6 +438,20 @@ def _list_limit_arg(value: str) -> int:
         raise argparse.ArgumentTypeError(msg)
 
     return limit
+
+
+def _non_negative_int_arg(value: str) -> int:
+    try:
+        parsed_value = int(value)
+    except ValueError as exc:
+        msg = f"Invalid integer: {value}"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+    if parsed_value < 0:
+        msg = f"Value must be non-negative: {value}"
+        raise argparse.ArgumentTypeError(msg)
+
+    return parsed_value
 
 
 def _format_workflow_run_list(runs: Sequence[WorkflowRunRecord]) -> str:
