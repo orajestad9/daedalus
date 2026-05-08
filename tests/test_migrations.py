@@ -16,6 +16,7 @@ def test_initial_workflow_migration_creates_expected_tables() -> None:
     assert "create table if not exists workflow_runs" in migration_sql
     assert "create table if not exists workflow_artifacts" in migration_sql
     assert "create table if not exists workflow_steps" in migration_sql
+    assert "create table if not exists model_invocations" in migration_sql
 
 
 def test_initial_workflow_migration_contains_expected_columns() -> None:
@@ -44,6 +45,19 @@ def test_initial_workflow_migration_contains_expected_columns() -> None:
         "step_name text not null",
         "duration_ms integer null",
         "error_message text null",
+        "invocation_id uuid primary key",
+        "step_id uuid null references workflow_steps(step_id) on delete set null",
+        "agent_name text null",
+        "provider text not null",
+        "model_name text not null",
+        "prompt_name text not null",
+        "prompt_version text not null",
+        "input_tokens integer null",
+        "output_tokens integer null",
+        "total_tokens integer null",
+        "estimated_cost_usd numeric null",
+        "input_artifact_path text null",
+        "output_artifact_path text null",
     ]
 
     for expected_column in expected_columns:
@@ -64,10 +78,23 @@ def test_initial_workflow_migration_contains_expected_indexes() -> None:
         "on workflow_steps (status)",
         "on workflow_steps (step_name)",
         "on workflow_steps (created_at_utc desc)",
+        "on model_invocations (run_id)",
+        "on model_invocations (step_id)",
+        "on model_invocations (provider)",
+        "on model_invocations (model_name)",
+        "on model_invocations (status)",
+        "on model_invocations (created_at_utc desc)",
     ]
 
     for expected_index in expected_indexes:
         assert expected_index in migration_sql
+
+
+def test_initial_workflow_migration_omits_raw_model_payload_columns() -> None:
+    migration_sql = MIGRATION_PATH.read_text(encoding="utf-8").lower()
+
+    assert "raw_prompt" not in migration_sql
+    assert "raw_response" not in migration_sql
 
 
 def test_discover_migration_files_returns_only_sql_files(tmp_path: Path) -> None:

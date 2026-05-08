@@ -40,6 +40,31 @@ CREATE TABLE IF NOT EXISTS workflow_steps (
     created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Model invocation records intentionally store metadata and artifact paths only.
+-- Raw prompt text and raw response text do not belong in this table.
+CREATE TABLE IF NOT EXISTS model_invocations (
+    invocation_id UUID PRIMARY KEY,
+    run_id UUID NOT NULL REFERENCES workflow_runs(run_id) ON DELETE CASCADE,
+    step_id UUID NULL REFERENCES workflow_steps(step_id) ON DELETE SET NULL,
+    agent_name TEXT NULL,
+    provider TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    prompt_name TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    input_tokens INTEGER NULL,
+    output_tokens INTEGER NULL,
+    total_tokens INTEGER NULL,
+    estimated_cost_usd NUMERIC NULL,
+    status TEXT NOT NULL,
+    started_at_utc TIMESTAMPTZ NOT NULL,
+    completed_at_utc TIMESTAMPTZ NOT NULL,
+    duration_ms INTEGER NOT NULL,
+    input_artifact_path TEXT NULL,
+    output_artifact_path TEXT NULL,
+    error_message TEXT NULL,
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_workflow_runs_created_at_utc_desc
     ON workflow_runs (created_at_utc DESC);
 
@@ -69,3 +94,21 @@ CREATE INDEX IF NOT EXISTS idx_workflow_steps_step_name
 
 CREATE INDEX IF NOT EXISTS idx_workflow_steps_created_at_utc_desc
     ON workflow_steps (created_at_utc DESC);
+
+CREATE INDEX IF NOT EXISTS idx_model_invocations_run_id
+    ON model_invocations (run_id);
+
+CREATE INDEX IF NOT EXISTS idx_model_invocations_step_id
+    ON model_invocations (step_id);
+
+CREATE INDEX IF NOT EXISTS idx_model_invocations_provider
+    ON model_invocations (provider);
+
+CREATE INDEX IF NOT EXISTS idx_model_invocations_model_name
+    ON model_invocations (model_name);
+
+CREATE INDEX IF NOT EXISTS idx_model_invocations_status
+    ON model_invocations (status);
+
+CREATE INDEX IF NOT EXISTS idx_model_invocations_created_at_utc_desc
+    ON model_invocations (created_at_utc DESC);
