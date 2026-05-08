@@ -1,9 +1,8 @@
 """Typed LangGraph state for the ReadySetRentables review workflow.
 
-This state model prepares the deterministic review workflow for graph
-orchestration without creating or running a graph yet. Keeping state typed here
-lets future nodes exchange domain objects and artifact paths instead of loose
-prompt text.
+This state model is the structured handoff between deterministic LangGraph
+nodes. Keeping state typed here lets graph execution exchange domain objects,
+artifact paths, and workflow steps instead of loose prompt text.
 """
 
 from datetime import datetime
@@ -18,7 +17,7 @@ from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
 class ReadySetRentablesReviewGraphState(BaseModel):
-    """Structured state that future LangGraph nodes will pass between phases."""
+    """Structured state passed between ReadySetRentables LangGraph nodes."""
 
     run_id: UUID
     started_at_utc: datetime
