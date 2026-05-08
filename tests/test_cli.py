@@ -391,6 +391,66 @@ def test_migrate_db_command_succeeds_with_mocked_migration_runner(
     assert "Applied 1 migration files" in capsys.readouterr().out
 
 
+def test_record_fake_model_invocation_command_succeeds_with_mocked_postgres(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(["record-fake-model-invocation", "--run-id", str(uuid4())])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Recorded fake model invocation" in output
+    assert "provider=fake" in output
+    assert "model_name=fake-model" in output
+    assert "total_tokens=" in output
+    assert "estimated_cost_usd=" in output
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+    assert any("insert into model_invocations" in sql.lower() for sql in connection.executed_sql)
+
+
+def test_record_fake_model_invocation_invalid_run_id_fails_cleanly() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["record-fake-model-invocation", "--run-id", "not-a-uuid"])
+
+    assert exc_info.value.code == 2
+
+
+def test_record_fake_model_invocation_output_omits_raw_input_and_response(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(["record-fake-model-invocation", "--run-id", str(uuid4())])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synthetic local fake model check text." not in output
+    assert "fake local summary" not in output
+
+
 def test_show_run_command_succeeds_with_mocked_persistence(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -646,6 +706,28 @@ def _workflow_run_details(
         if model_invocation_records is not None
         else [_model_invocation_record(run_id=run_record.run_id)],
     )
+
+
+class FakeModelInvocationConnection:
+    def __init__(self) -> None:
+        self.executed_sql: list[str] = []
+        self.executed_params: list[tuple[object, ...]] = []
+        self.committed = False
+        self.rolled_back = False
+        self.closed = False
+
+    def execute(self, sql: str, params: tuple[object, ...]) -> None:
+        self.executed_sql.append(sql)
+        self.executed_params.append(params)
+
+    def commit(self) -> None:
+        self.committed = True
+
+    def rollback(self) -> None:
+        self.rolled_back = True
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def _workflow_step_record(

@@ -8,6 +8,7 @@ can reuse the same behavior without shelling out to the CLI.
 
 import argparse
 from collections.abc import Sequence
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
@@ -18,7 +19,9 @@ from daedalus.domains.readysetrentables_reviews.graph_workflow import (
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
+from daedalus.memory.model_invocation_repository import ModelInvocationRepository
 from daedalus.memory.migrations import apply_migrations
+from daedalus.memory.postgres import connect_postgres
 from daedalus.memory.workflow_persistence import (
     WorkflowPersistenceError,
     WorkflowRunNotFoundError,
@@ -30,6 +33,10 @@ from daedalus.memory.workflow_run_repository import (
     MAX_LIST_RECENT_LIMIT,
     MIN_LIST_RECENT_LIMIT,
 )
+from daedalus.model_clients.fake import FakeModelClient
+from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
+from daedalus.model_clients.recording import RecordingModelClient
+from daedalus.model_clients.types import ModelBudget, ModelProvider, ModelRequest, ModelResponse
 from daedalus.orchestrator.run_inspection_formatter import format_run_inspection
 from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.workflow_router import (
@@ -132,6 +139,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 steps=details.step_records,
                 model_invocations=details.model_invocation_records,
             )
+        )
+        return 0
+
+    if args.command == "record-fake-model-invocation":
+        try:
+            response = _record_fake_model_invocation(args.run_id)
+        except (ValueError, WorkflowPersistenceError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Recorded fake model invocation "
+            f"provider={response.provider.value} "
+            f"model_name={response.model_name} "
+            f"total_tokens={response.total_tokens} "
+            f"estimated_cost_usd={response.estimated_cost_usd}"
         )
         return 0
 
@@ -241,6 +263,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Workflow run UUID to inspect.",
     )
 
+    record_fake_model_invocation = subparsers.add_parser(
+        "record-fake-model-invocation",
+        help="Record one local fake model invocation for a persisted workflow run.",
+    )
+    record_fake_model_invocation.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Workflow run UUID to attach the fake model invocation to.",
+    )
+
     list_runs = subparsers.add_parser(
         "list-runs",
         help="List recent persisted workflow runs from Postgres.",
@@ -263,6 +296,49 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _record_fake_model_invocation(run_id: UUID) -> ModelResponse:
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+    try:
+        repository = ModelInvocationRepository(connection)
+        recorder = ModelInvocationRecorder(repository)
+        client = RecordingModelClient(
+            inner_client=FakeModelClient(output_text="fake local summary"),
+            recorder=recorder,
+            agent_name="fake_local_check",
+            input_artifact_path=Path("artifacts/fake-model-input.txt"),
+            output_artifact_path=Path("artifacts/fake-model-output.txt"),
+        )
+        request = ModelRequest(
+            run_id=run_id,
+            agent_name="fake_local_check",
+            provider=ModelProvider.FAKE,
+            model_name="fake-model",
+            prompt_name="fake_review_theme_summary",
+            prompt_version="v0",
+            input_text="Synthetic local fake model check text.",
+            input_artifact_path=Path("artifacts/fake-model-input.txt"),
+            output_artifact_path=Path("artifacts/fake-model-output.txt"),
+            budget=ModelBudget(
+                max_input_tokens=100,
+                max_output_tokens=100,
+                max_total_tokens=200,
+                max_estimated_cost_usd=Decimal("0.01"),
+                allowed_providers=(ModelProvider.FAKE,),
+            ),
+        )
+        response = client.complete(request)
+        connection.commit()
+    except Exception as exc:
+        connection.rollback()
+        msg = "Failed to record fake model invocation"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
+
+    return response
 
 
 def _uuid_arg(value: str) -> UUID:

@@ -2,8 +2,9 @@
 
 Daedalus observability is intentionally local-first today. Phase 2 records enough
 run, step, artifact, and log context to inspect a completed workflow without
-adding OpenTelemetry, LangGraph, agents, model clients, dashboards, or production
-infrastructure yet.
+adding OpenTelemetry, agents, dashboards, or production infrastructure yet.
+Phase 4 has started adding model invocation metadata through fake/local model
+clients only; no real provider calls happen yet.
 
 The current scope answers three practical questions:
 
@@ -86,9 +87,9 @@ There are two inspection paths:
 
 The markdown summary is optimized for fast human review of one workflow output,
 including the collected workflow steps. The `show-run` command is optimized for
-persisted run inspection: it loads the run record, artifact records, and step
-records from Postgres, then formats a readable summary through the run
-inspection formatter.
+persisted run inspection: it loads the run record, artifact records, step
+records, and any model invocation records from Postgres, then formats a readable
+summary through the run inspection formatter.
 
 ## Run Inspection Examples
 
@@ -230,6 +231,12 @@ check, and mypy without Docker or Postgres.
 ignored `.env`, starts Postgres, applies migrations, runs the workflow with
 `--persist`, captures the run ID, lists recent runs, calls `show-run`, verifies
 that workflow steps are visible, cleans generated artifacts, and stops Postgres.
+
+`make fake-model-db-check` is a local-only Phase 4 check. It creates a persisted
+workflow run, records one fake model invocation through `RecordingModelClient`,
+then calls `show-run` to verify the Model Invocations section is visible. This
+uses `FakeModelClient` only; it does not use provider SDKs, network calls, cloud
+models, raw prompt logging, or raw response logging.
 
 Keeping these commands separate lets normal development and CI stay fast while
 still providing an end-to-end local persistence inspection check.
