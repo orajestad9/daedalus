@@ -11,6 +11,7 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
     ReviewBatchArtifactMetadata,
     write_review_batch_json,
     write_review_batch_metadata_json,
+    write_review_normalization_summary_markdown,
 )
 from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
@@ -108,3 +109,47 @@ def write_metadata_artifact_node(
 
 def _metadata_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.metadata.json")
+
+
+def write_summary_artifact_node(
+    state: ReadySetRentablesReviewGraphState,
+) -> ReadySetRentablesReviewGraphState:
+    """Write human-readable summary markdown from graph state."""
+    if state.batch is None:
+        msg = "Cannot write summary artifact before review batch is loaded."
+        raise ValueError(msg)
+    if state.metadata_json_path is None:
+        msg = "Cannot write summary artifact before metadata artifact is written."
+        raise ValueError(msg)
+
+    summary_markdown_path = _summary_path_for(state.output_json_path)
+    step = WorkflowStepRecord.start(
+        run_id=state.run_id,
+        step_name="write_summary_artifact",
+    )
+    try:
+        written_summary_path = write_review_normalization_summary_markdown(
+            run_id=state.run_id,
+            source_csv_path=state.input_csv_path,
+            output_json_path=state.output_json_path,
+            metadata_json_path=state.metadata_json_path,
+            summary_markdown_path=summary_markdown_path,
+            review_count=state.batch.review_count,
+            approval_required=state.approval_required,
+            approved=state.approved,
+            steps=state.steps,
+        )
+    except Exception as exc:
+        state.steps.append(step.fail(str(exc)))
+        raise
+
+    return state.model_copy(
+        update={
+            "summary_markdown_path": written_summary_path,
+            "steps": [*state.steps, step.complete()],
+        }
+    )
+
+
+def _summary_path_for(output_json_path: Path) -> Path:
+    return output_json_path.with_name(f"{output_json_path.stem}.summary.md")
