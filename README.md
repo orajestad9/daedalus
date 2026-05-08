@@ -53,6 +53,9 @@ For the current run, step, artifact, logging, and persisted inspection model,
 including practical `show-run` examples, see
 [`docs/observability.md`](docs/observability.md).
 
+For the Phase 3 LangGraph orchestration plan, see
+[`docs/langgraph-orchestration.md`](docs/langgraph-orchestration.md).
+
 ## Local Postgres
 
 Phase 1 includes optional local Postgres persistence for workflow run records

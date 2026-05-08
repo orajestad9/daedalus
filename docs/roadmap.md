@@ -44,17 +44,23 @@ inspection.
 
 See `docs/observability.md` for the current observability architecture.
 
-### Phase 3: Model Invocation And Agent Foundations
+### Phase 3: LangGraph Orchestration Baseline
 
-Phase 3 should introduce model invocation tracking and model-client foundations
-only after honoring the token/cost governance rules. That work should keep model
-calls behind a shared abstraction, attach future invocations to `run_id` and
-`step_id` when available, preserve artifact boundaries, and avoid direct
-provider calls from agents. Model invocation tracking should be added before or
-alongside those clients so provider, model, prompt version, token usage,
-estimated cost, status, timing, and input/output artifact references are
-observable from the first model-backed workflow.
+Phase 3 is active next. Its first milestone is a LangGraph orchestration
+baseline that reproduces the existing deterministic ReadySetRentables workflow
+without changing artifact outputs, persistence behavior, approval gates, or
+tests. LangGraph should initially own workflow control flow and structured graph
+state, while domain parsing, artifact writing, Postgres repositories, and model
+provider calls remain outside graph nodes.
 
-OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution, and
-production deployment remain later work unless a Phase 3 task explicitly narrows
-one of those areas.
+See `docs/langgraph-orchestration.md` for the Phase 3 design baseline.
+
+Model invocation tracking and model-client foundations should come only after
+the LangGraph baseline honors the token/cost governance rules. That work should
+keep model calls behind a shared abstraction, attach future invocations to
+`run_id` and `step_id` when available, preserve artifact boundaries, and avoid
+direct provider calls from agents.
+
+OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution,
+production deployment, agents, model clients, and LLM calls remain deferred until
+a later Phase 3 task explicitly narrows one of those areas.
