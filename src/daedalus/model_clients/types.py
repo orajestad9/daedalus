@@ -59,6 +59,7 @@ class ModelRequest(BaseModel):
     model_name: str
     prompt_name: str
     prompt_version: str
+    input_text: str = ""
     input_artifact_path: Path
     output_artifact_path: Path | None = None
     response_schema_name: str | None = None
@@ -73,6 +74,7 @@ class ModelResponse(BaseModel):
     status: ModelInvocationStatus
     provider: ModelProvider
     model_name: str
+    output_text: str | None = None
     output_artifact_path: Path | None = None
     structured_output: dict[str, Any] | None = None
     input_tokens: int | None = Field(default=None, ge=0)
