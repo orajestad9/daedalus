@@ -261,6 +261,13 @@ The first implementation should use `RecordingModelClient` where persistence is
 available so successful and failed model calls create `ModelInvocationRecord`
 objects.
 
+Ollama is planned as the first real local provider after the fake graph path.
+The design lives in
+[`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md). It should
+satisfy the same `ModelClient` protocol so this agent can switch from
+`FakeModelClient` to a local provider without changing prompt identity,
+artifact writing, or invocation persistence.
+
 ## Budget Enforcement
 
 Every request should include a `ModelBudget`. The budget should constrain:

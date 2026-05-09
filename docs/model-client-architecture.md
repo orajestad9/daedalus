@@ -65,6 +65,10 @@ Real provider clients are not implemented yet. There are no Ollama, OpenAI, or
 Anthropic adapters, no provider SDK dependencies, no network calls, and no real
 LLM calls.
 
+Phase 5B starts the design for a local `OllamaModelClient` provider. See
+[`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md) before adding
+any Ollama implementation code.
+
 ## Provider Strategy
 
 Phase 4 should start with a fake or in-memory model client, or a local Ollama

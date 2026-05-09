@@ -105,7 +105,7 @@ See `docs/review-theme-summary-agent.md` for the current fake/local agent path.
 
 ### Phase 5A: Fake-Agent LangGraph Integration
 
-Phase 5A is active. It wires the fake/local ReadySetRentables review theme
+Phase 5A is complete. It wires the fake/local ReadySetRentables review theme
 summary agent into the LangGraph workflow before Daedalus adds Ollama or any
 other real provider client.
 
@@ -122,13 +122,28 @@ prompts, workflow steps, `review_theme_summary.md` artifact output, artifact
 record persistence, and fake invocation metadata while keeping real provider
 SDKs, network calls, and real LLM calls out of scope.
 
-See `docs/phase-5a-fake-agent-langgraph.md` for the integration plan.
+See `docs/phase-5a-fake-agent-langgraph.md` for the integration baseline.
 
-Upcoming Phase 5A work should stay incremental:
+### Phase 5B: Local Ollama Provider
 
-- optional local checks for graph-generated fake summary artifacts
-- Ollama/local provider design
-- real local provider implementation only after the fake path is stable
+Phase 5B is active/next. It starts by designing a local `OllamaModelClient`
+provider that satisfies the existing `ModelClient` protocol without adding
+cloud provider SDKs, cloud model usage, or real LLM calls in the design step.
+
+The Phase 5B path should keep Daedalus local-first and explicit. Ollama support
+should be opt-in, use safe local defaults, preserve `RecordingModelClient`,
+budget validation, prompt versioning, artifact outputs, and model invocation
+metadata, and leave `make check` free from live Ollama requirements.
+
+See `docs/phase-5b-ollama-provider.md` for the Ollama provider design.
+
+Upcoming Phase 5B work should stay incremental:
+
+- implement `OllamaModelClientSettings`
+- implement `OllamaModelClient` with mocked-HTTP unit tests
+- add an optional local Ollama check outside `make check`
+- wire Ollama into the review theme summary path only after the fake path
+  remains stable
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade
