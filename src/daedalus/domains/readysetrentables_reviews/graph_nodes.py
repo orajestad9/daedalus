@@ -17,6 +17,9 @@ from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder import (
+    build_review_theme_summary_input,
+)
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_lifecycle import calculate_duration_ms, utc_now
 from daedalus.orchestrator.run_record import (
@@ -114,6 +117,35 @@ def write_metadata_artifact_node(
 
 def _metadata_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name(f"{output_json_path.stem}.metadata.json")
+
+
+def build_review_theme_summary_input_node(
+    state: ReadySetRentablesReviewGraphState,
+) -> ReadySetRentablesReviewGraphState:
+    """Build compact review theme summary input from a loaded review batch."""
+    if state.batch is None:
+        msg = "Cannot build review theme summary input before review batch is loaded."
+        raise ValueError(msg)
+
+    step = WorkflowStepRecord.start(
+        run_id=state.run_id,
+        step_name="build_review_theme_summary_input",
+    )
+    try:
+        review_theme_summary_input = build_review_theme_summary_input(
+            run_id=state.run_id,
+            batch=state.batch,
+        )
+    except Exception as exc:
+        state.steps.append(step.fail(str(exc)))
+        raise
+
+    return state.model_copy(
+        update={
+            "review_theme_summary_input": review_theme_summary_input,
+            "steps": [*state.steps, step.complete()],
+        }
+    )
 
 
 def write_summary_artifact_node(

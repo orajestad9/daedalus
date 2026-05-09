@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from daedalus.domains.readysetrentables_reviews.graph_nodes import (
+    build_review_theme_summary_input_node,
     load_reviews_node,
     write_metadata_artifact_node,
     write_normalized_artifact_node,
@@ -213,6 +214,59 @@ def test_write_metadata_artifact_node_requires_loaded_batch() -> None:
 
     with pytest.raises(ValueError, match="review batch is loaded"):
         write_metadata_artifact_node(state)
+
+
+def test_build_review_theme_summary_input_node_populates_compact_input() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+    loaded_state = load_reviews_node(state)
+
+    updated_state = build_review_theme_summary_input_node(loaded_state)
+
+    assert updated_state.review_theme_summary_input is not None
+    assert updated_state.review_theme_summary_input.run_id == state.run_id
+    assert updated_state.review_theme_summary_input.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
+    assert updated_state.review_theme_summary_input.representative_reviews
+    assert updated_state.run_id == loaded_state.run_id
+    assert updated_state.input_csv_path == loaded_state.input_csv_path
+    assert updated_state.output_json_path == loaded_state.output_json_path
+    assert updated_state.batch == loaded_state.batch
+
+
+def test_build_review_theme_summary_input_node_preserves_existing_steps_and_appends_completed_step() -> (
+    None
+):
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+    loaded_state = load_reviews_node(state)
+
+    updated_state = build_review_theme_summary_input_node(loaded_state)
+
+    assert [step.step_name for step in updated_state.steps] == [
+        "load_reviews",
+        "build_review_theme_summary_input",
+    ]
+    assert updated_state.steps[0] == loaded_state.steps[0]
+    step = updated_state.steps[1]
+    assert step.run_id == state.run_id
+    assert step.status == WorkflowStatus.COMPLETED
+    assert step.completed_at_utc is not None
+    assert step.duration_ms is not None
+    assert step.duration_ms >= 0
+
+
+def test_build_review_theme_summary_input_node_requires_loaded_batch() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+
+    with pytest.raises(ValueError, match="review batch is loaded"):
+        build_review_theme_summary_input_node(state)
 
 
 def test_write_summary_artifact_node_writes_summary_and_preserves_state(
