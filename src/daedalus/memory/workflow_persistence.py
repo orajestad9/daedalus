@@ -78,6 +78,7 @@ class WorkflowPersistenceService:
         self,
         record: WorkflowRunRecord,
         steps: list[WorkflowStepRecord] | None = None,
+        extra_artifact_records: Sequence[ArtifactRecord] | None = None,
     ) -> list[ArtifactRecord]:
         """Save a review normalization run, optional steps, and artifact records."""
         if steps and self._workflow_step_repository is None:
@@ -89,7 +90,10 @@ class WorkflowPersistenceService:
             if self._workflow_step_repository is not None:
                 self._workflow_step_repository.save(step)
 
-        artifact_records = _artifact_records_from_run_record(record)
+        artifact_records = [
+            *_artifact_records_from_run_record(record),
+            *(extra_artifact_records or []),
+        ]
         for artifact_record in artifact_records:
             self._artifact_repository.save(artifact_record)
 
@@ -118,6 +122,7 @@ def persist_review_normalization_workflow_result(
         artifact_records = service.save_review_normalization_run(
             record=_run_record_from_result(result),
             steps=result.steps,
+            extra_artifact_records=_extra_artifact_records_from_result(result),
         )
         connection.commit()
         logger.info(
@@ -200,7 +205,7 @@ def _run_record_from_result(result: ReviewNormalizationWorkflowResult) -> Workfl
 def _artifact_records_from_result(
     result: ReviewNormalizationWorkflowResult,
 ) -> list[ArtifactRecord]:
-    return [
+    artifact_records = [
         ArtifactRecord.create(
             run_id=result.run_id,
             artifact_type=ArtifactType.NORMALIZED_REVIEWS,
@@ -221,6 +226,23 @@ def _artifact_records_from_result(
             artifact_type=ArtifactType.WORKFLOW_RUN_RECORD,
             artifact_path=result.run_record_json_path,
         ),
+    ]
+    artifact_records.extend(_extra_artifact_records_from_result(result))
+    return artifact_records
+
+
+def _extra_artifact_records_from_result(
+    result: ReviewNormalizationWorkflowResult,
+) -> list[ArtifactRecord]:
+    if result.review_theme_summary_markdown_path is None:
+        return []
+
+    return [
+        ArtifactRecord.create(
+            run_id=result.run_id,
+            artifact_type=ArtifactType.REVIEW_THEME_SUMMARY,
+            artifact_path=result.review_theme_summary_markdown_path,
+        )
     ]
 
 

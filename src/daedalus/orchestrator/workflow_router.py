@@ -146,6 +146,7 @@ def _review_result_from_graph_state(
         metadata_json_path=state.metadata_json_path,
         summary_markdown_path=state.summary_markdown_path,
         run_record_json_path=state.run_record_json_path,
+        review_theme_summary_markdown_path=state.review_theme_summary_markdown_path,
         review_count=state.batch.review_count,
         run_id=state.run_id,
         approval_required=state.approval_required,

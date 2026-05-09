@@ -45,6 +45,7 @@ class ReviewNormalizationWorkflowResult(BaseModel):
     metadata_json_path: Path
     summary_markdown_path: Path
     run_record_json_path: Path
+    review_theme_summary_markdown_path: Path | None = None
     review_count: int
     run_id: UUID
     approval_required: bool

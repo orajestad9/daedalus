@@ -48,6 +48,43 @@ def test_save_review_normalization_run_creates_expected_artifact_types() -> None
     ]
 
 
+def test_save_review_normalization_run_saves_extra_review_theme_summary_artifact() -> None:
+    artifact_repository = FakeArtifactRepository()
+    service = WorkflowPersistenceService(
+        workflow_run_repository=cast(WorkflowRunRepository, FakeWorkflowRunRepository()),
+        artifact_repository=cast(ArtifactRepository, artifact_repository),
+    )
+    record = _workflow_run_record()
+    review_theme_summary_record = ArtifactRecord.create(
+        run_id=record.run_id,
+        artifact_type=ArtifactType.REVIEW_THEME_SUMMARY,
+        artifact_path=Path("review_theme_summary.md"),
+    )
+
+    artifact_records = service.save_review_normalization_run(
+        record,
+        extra_artifact_records=[review_theme_summary_record],
+    )
+
+    assert artifact_records[-1] == review_theme_summary_record
+    assert artifact_repository.saved_records[-1].artifact_type == (
+        ArtifactType.REVIEW_THEME_SUMMARY
+    )
+
+
+def test_save_review_normalization_run_does_not_add_review_theme_summary_by_default() -> None:
+    service = WorkflowPersistenceService(
+        workflow_run_repository=cast(WorkflowRunRepository, FakeWorkflowRunRepository()),
+        artifact_repository=cast(ArtifactRepository, FakeArtifactRepository()),
+    )
+
+    artifact_records = service.save_review_normalization_run(_workflow_run_record())
+
+    assert ArtifactType.REVIEW_THEME_SUMMARY not in {
+        record.artifact_type for record in artifact_records
+    }
+
+
 def test_save_review_normalization_run_saves_all_steps_when_repository_configured() -> None:
     step_repository = FakeWorkflowStepRepository()
     service = WorkflowPersistenceService(

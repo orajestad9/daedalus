@@ -50,6 +50,36 @@ def test_persist_review_normalization_workflow_result_commits_transaction(
     assert connection.closed is True
 
 
+def test_persist_review_normalization_workflow_result_persists_review_theme_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = FakeConnection()
+    result = _workflow_result(tmp_path).model_copy(
+        update={
+            "review_theme_summary_markdown_path": tmp_path / "review_theme_summary.md",
+        }
+    )
+    monkeypatch.setattr(
+        "daedalus.memory.workflow_persistence.load_postgres_settings",
+        _postgres_settings,
+    )
+    monkeypatch.setattr(
+        "daedalus.memory.workflow_persistence.connect_postgres",
+        lambda _: connection,
+    )
+
+    artifact_count = persist_review_normalization_workflow_result(result)
+
+    assert artifact_count == 5
+    assert _insert_count(connection.executed_sql, "workflow_artifacts") == 5
+    assert any(
+        params[2] == ArtifactType.REVIEW_THEME_SUMMARY.value
+        and params[3] == str(tmp_path / "review_theme_summary.md")
+        for params in connection.executed_params
+    )
+
+
 def test_persist_review_normalization_workflow_result_rolls_back_on_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -104,12 +134,14 @@ class FakeConnection:
     def __init__(self, *, fail_on_execute: bool = False) -> None:
         self._fail_on_execute = fail_on_execute
         self.executed_sql: list[str] = []
+        self.executed_params: list[tuple[object, ...]] = []
         self.committed = False
         self.rolled_back = False
         self.closed = False
 
     def execute(self, sql: str, params: tuple[object, ...]) -> None:
         self.executed_sql.append(sql)
+        self.executed_params.append(params)
         if self._fail_on_execute:
             msg = "simulated persistence failure"
             raise RuntimeError(msg)

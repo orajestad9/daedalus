@@ -84,6 +84,7 @@ db-check:
 		printf "%s\n" "$$SHOW_RUN_OUTPUT"; \
 		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q '^steps:' || { echo "show-run output did not include workflow steps."; status=1; }; fi; \
 		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'load_reviews' || { echo "show-run output did not include the load_reviews step."; status=1; }; fi; \
+		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'review_theme_summary' || { echo "show-run output did not include the review_theme_summary artifact."; status=1; }; fi; \
 	fi; \
 	$(MAKE) clean; \
 	$(MAKE) db-down; \

@@ -80,6 +80,8 @@ def test_run_workflow_from_langgraph_manifest_succeeds() -> None:
     assert result.metadata_json_path.is_file()
     assert result.summary_markdown_path.is_file()
     assert result.run_record_json_path.is_file()
+    assert result.review_theme_summary_markdown_path is not None
+    assert result.review_theme_summary_markdown_path.is_file()
     assert result.review_count == 8
     assert [step.step_name for step in result.steps] == EXPECTED_STEP_NAMES
 
@@ -112,6 +114,8 @@ def test_langgraph_manifest_routes_graph_path(
     assert result.metadata_json_path.is_file()
     assert result.summary_markdown_path.is_file()
     assert result.run_record_json_path.is_file()
+    assert result.review_theme_summary_markdown_path == (tmp_path / "review_theme_summary.md")
+    assert result.review_theme_summary_markdown_path.is_file()
     assert [step.step_name for step in result.steps] == EXPECTED_STEP_NAMES
 
 
@@ -146,6 +150,8 @@ def test_deterministic_manifest_with_langgraph_override_routes_graph_path(
     assert result.metadata_json_path.is_file()
     assert result.summary_markdown_path.is_file()
     assert result.run_record_json_path.is_file()
+    assert result.review_theme_summary_markdown_path == (tmp_path / "review_theme_summary.md")
+    assert result.review_theme_summary_markdown_path.is_file()
     assert [step.step_name for step in result.steps] == EXPECTED_STEP_NAMES
 
 
