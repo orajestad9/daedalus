@@ -220,20 +220,29 @@ Errors should be safe for invocation metadata and CLI display. They should not
 include raw prompts, raw model output text, credentials, DSNs, hostnames beyond
 safe local placeholders, or full response bodies.
 
-## Model Availability Checks
+## Local Smoke Check
 
-Before real usage, Daedalus should have a lightweight way to verify that the
-configured local model is available. This should be optional and local-only. It
-should not be part of `make check` because `make check` must not require a live
-Ollama service.
+Daedalus now has an optional local-only smoke check for developers who already
+have Ollama running. It exercises `OllamaModelClient` directly and is not wired
+into workflows, LangGraph, or `ReviewThemeSummaryAgent`.
 
-An optional future target such as `ollama-local-check` may verify:
+```bash
+.venv/bin/daedalus ollama-smoke-check --model llama3.1
+```
 
-- Ollama is enabled locally
-- the local endpoint is reachable
-- the configured model is available
-- a small synthetic request works
-- no raw prompt or raw response text is printed
+The Makefile target is equivalent:
+
+```bash
+make ollama-local-check
+```
+
+This check:
+
+- assumes local Ollama is already running
+- uses a short synthetic prompt
+- prints provider, model, token, and cost metadata only
+- does not print raw prompt text, raw model output text, or payload contents
+- is intentionally not part of `make check`
 
 ## Testing Strategy
 

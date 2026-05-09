@@ -21,7 +21,13 @@ from daedalus.model_clients.invocation_record import (
     ModelInvocationRecord,
     ModelInvocationStatus,
 )
-from daedalus.model_clients.types import ModelProvider
+from daedalus.model_clients.ollama import OllamaModelClientError
+from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
+from daedalus.model_clients.types import (
+    ModelInvocationStatus as ModelResponseStatus,
+    ModelProvider,
+    ModelResponse,
+)
 from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
@@ -644,6 +650,85 @@ def test_summarize_review_themes_fake_command_invalid_representative_review_limi
     assert exc_info.value.code == 2
 
 
+def test_ollama_smoke_check_succeeds_with_mocked_client(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+
+    exit_code = main(
+        [
+            "ollama-smoke-check",
+            "--model",
+            "llama3.1",
+            "--prompt",
+            "Raw smoke check prompt should not be printed.",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Ollama smoke check succeeded" in output
+    assert "provider=ollama" in output
+    assert "model_name=llama3.1" in output
+    assert "input_tokens=4" in output
+    assert "output_tokens=3" in output
+    assert "total_tokens=7" in output
+    assert "estimated_cost_usd=0" in output
+    assert "Raw smoke check prompt should not be printed." not in output
+    assert "Raw local model output should not be printed." not in output
+
+
+def test_ollama_smoke_check_passes_configuration_to_mocked_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    SuccessfulOllamaClient.created_clients.clear()
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+
+    exit_code = main(
+        [
+            "ollama-smoke-check",
+            "--model",
+            "llama3.1",
+            "--base-url",
+            "http://localhost:11434",
+            "--timeout-seconds",
+            "2.5",
+        ]
+    )
+
+    assert exit_code == 0
+    client = SuccessfulOllamaClient.created_clients[0]
+    assert client.settings.enabled is True
+    assert client.settings.base_url == "http://localhost:11434"
+    assert client.settings.model_name == "llama3.1"
+    assert client.settings.request_timeout_seconds == 2.5
+
+
+def test_ollama_smoke_check_handles_model_client_error_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", FailingOllamaClient)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "ollama-smoke-check",
+                "--model",
+                "llama3.1",
+                "--prompt",
+                "Raw smoke check prompt should not be printed.",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "local Ollama smoke check failed safely" in combined_output
+    assert "Raw smoke check prompt should not be printed." not in combined_output
+
+
 def test_show_run_command_succeeds_with_mocked_persistence(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -927,6 +1012,38 @@ class FakeModelInvocationConnection:
 
     def close(self) -> None:
         self.closed = True
+
+
+class SuccessfulOllamaClient:
+    created_clients: list["SuccessfulOllamaClient"] = []
+
+    def __init__(self, *, settings: OllamaModelClientSettings) -> None:
+        self.settings = settings
+        self.requests: list[object] = []
+        self.created_clients.append(self)
+
+    def complete(self, request: object) -> ModelResponse:
+        self.requests.append(request)
+        return ModelResponse(
+            invocation_id=uuid4(),
+            status=ModelResponseStatus.COMPLETED,
+            provider=ModelProvider.OLLAMA,
+            model_name="llama3.1",
+            output_text="Raw local model output should not be printed.",
+            input_tokens=4,
+            output_tokens=3,
+            total_tokens=7,
+            estimated_cost_usd=Decimal("0"),
+        )
+
+
+class FailingOllamaClient:
+    def __init__(self, *, settings: OllamaModelClientSettings) -> None:
+        self.settings = settings
+
+    def complete(self, request: object) -> ModelResponse:
+        msg = "local Ollama smoke check failed safely"
+        raise OllamaModelClientError(msg)
 
 
 def _workflow_step_record(

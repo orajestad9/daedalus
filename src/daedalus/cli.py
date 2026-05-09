@@ -46,6 +46,8 @@ from daedalus.memory.workflow_run_repository import (
 )
 from daedalus.model_clients.fake import FakeModelClient
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
+from daedalus.model_clients.ollama import OllamaModelClient, OllamaModelClientError
+from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
 from daedalus.model_clients.recording import RecordingModelClient
 from daedalus.model_clients.types import ModelBudget, ModelProvider, ModelRequest, ModelResponse
 from daedalus.orchestrator.artifact_record import ArtifactRecord
@@ -216,6 +218,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "ollama-smoke-check":
+        try:
+            response = _run_ollama_smoke_check(
+                model_name=args.model,
+                base_url=args.base_url,
+                timeout_seconds=args.timeout_seconds,
+                prompt=args.prompt,
+            )
+        except (ValueError, OllamaModelClientError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Ollama smoke check succeeded "
+            f"provider={response.provider.value} "
+            f"model_name={response.model_name} "
+            f"input_tokens={response.input_tokens} "
+            f"output_tokens={response.output_tokens} "
+            f"total_tokens={response.total_tokens} "
+            f"estimated_cost_usd={response.estimated_cost_usd}"
+        )
+        return 0
+
     if args.command == "list-runs":
         try:
             runs = load_recent_workflow_runs(
@@ -379,6 +403,32 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum number of representative review texts to include in fake input.",
     )
 
+    ollama_smoke_check = subparsers.add_parser(
+        "ollama-smoke-check",
+        help="Optionally test local Ollama connectivity without workflow wiring.",
+    )
+    ollama_smoke_check.add_argument(
+        "--model",
+        required=True,
+        help="Local Ollama model name to use for the smoke check.",
+    )
+    ollama_smoke_check.add_argument(
+        "--base-url",
+        default="http://localhost:11434",
+        help="Local Ollama base URL.",
+    )
+    ollama_smoke_check.add_argument(
+        "--timeout-seconds",
+        default=30.0,
+        type=_positive_float_arg,
+        help="Timeout in seconds for the local Ollama request.",
+    )
+    ollama_smoke_check.add_argument(
+        "--prompt",
+        default="Reply with a short confirmation that local Ollama is reachable.",
+        help="Synthetic prompt for the optional local smoke check.",
+    )
+
     list_runs = subparsers.add_parser(
         "list-runs",
         help="List recent persisted workflow runs from Postgres.",
@@ -475,6 +525,33 @@ def _record_review_theme_summary_artifact(
     return artifact_record
 
 
+def _run_ollama_smoke_check(
+    *,
+    model_name: str,
+    base_url: str,
+    timeout_seconds: float,
+    prompt: str,
+) -> ModelResponse:
+    settings = OllamaModelClientSettings(
+        enabled=True,
+        base_url=base_url,
+        model_name=model_name,
+        request_timeout_seconds=timeout_seconds,
+    )
+    client = OllamaModelClient(settings=settings)
+    request = ModelRequest(
+        run_id=uuid4(),
+        agent_name="ollama_smoke_check",
+        provider=ModelProvider.OLLAMA,
+        model_name=model_name,
+        prompt_name="ollama_smoke_check",
+        prompt_version="v0",
+        input_text=prompt,
+        input_artifact_path=Path("prompts/ollama_smoke_check/v0"),
+    )
+    return client.complete(request)
+
+
 def _uuid_arg(value: str) -> UUID:
     try:
         return UUID(value)
@@ -515,6 +592,20 @@ def _non_negative_int_arg(value: str) -> int:
 
     if parsed_value < 0:
         msg = f"Value must be non-negative: {value}"
+        raise argparse.ArgumentTypeError(msg)
+
+    return parsed_value
+
+
+def _positive_float_arg(value: str) -> float:
+    try:
+        parsed_value = float(value)
+    except ValueError as exc:
+        msg = f"Invalid number: {value}"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+    if parsed_value <= 0:
+        msg = f"Value must be positive: {value}"
         raise argparse.ArgumentTypeError(msg)
 
     return parsed_value

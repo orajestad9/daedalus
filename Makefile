@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check ollama-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -39,6 +39,9 @@ graph-fake-summary-check:
 	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
 	@echo "graph-fake-summary-check passed: LangGraph created artifacts/readysetrentables/review_theme_summary.md."
 	@$(MAKE) clean
+
+ollama-local-check:
+	$(PYTHON) -m daedalus.cli ollama-smoke-check --model llama3.1
 
 db-up:
 	docker compose up -d postgres
