@@ -5,8 +5,10 @@ gates, and persistence. Token and cost governance must exist before those pieces
 start calling LLM providers, because every model invocation can affect privacy,
 latency, reproducibility, and operating cost.
 
-This document defines the design baseline. It is not implementation code, and it
-does not add model clients, agents, LangGraph, OpenTelemetry, or database tables.
+This document defines the governance baseline. Phase 4 now includes fake/local
+model-client infrastructure, model invocation metadata, and the
+`model_invocations` schema, but no real provider clients, provider SDKs, network
+calls, real LLM calls, OpenTelemetry, dashboards, or production autonomy.
 
 ## Why Governance Matters
 
@@ -46,11 +48,13 @@ not raw files or full workflow history by default.
 
 ## Model Invocation Tracking Requirements
 
-Every future model invocation should be tracked as a first-class event connected
-to a workflow run. The record should support audit, debugging, cost estimation,
-budget enforcement, and later observability integrations.
+Every model invocation should be tracked as a first-class event connected to a
+workflow run. Phase 4 has introduced `ModelInvocationRecord`,
+`ModelInvocationRepository`, and `ModelInvocationRecorder` for this metadata
+path. The current implementation is exercised with fake/local clients only; real
+provider clients remain deferred.
 
-At minimum, each invocation should eventually record:
+At minimum, each invocation record should capture:
 
 - invocation identity
 - workflow `run_id`
@@ -69,7 +73,7 @@ should be explicit, redacted where appropriate, and governed by workflow policy.
 
 ## Token And Cost Fields
 
-Future model-call records should include fields like:
+Model-call records include fields like:
 
 - `input_tokens`
 - `output_tokens`
@@ -171,15 +175,20 @@ downstream workflow steps consume them.
 - all model calls must respect manifest budgets
 - model outputs should be written as artifacts
 
-## Future `model_invocations` Table Concept
+## `model_invocations` Table
 
-A future migration may add a table shaped roughly like this:
+Phase 4 has added a local `model_invocations` table for safe model-call
+metadata. It is intentionally metadata-only: raw prompt text and raw response
+text do not belong in this table.
+
+The current schema is shaped around fields like:
 
 ```sql
 CREATE TABLE model_invocations (
     invocation_id UUID PRIMARY KEY,
     run_id UUID NOT NULL REFERENCES workflow_runs(run_id) ON DELETE CASCADE,
-    agent_name TEXT NOT NULL,
+    step_id UUID NULL REFERENCES workflow_steps(step_id) ON DELETE SET NULL,
+    agent_name TEXT NULL,
     provider TEXT NOT NULL,
     model_name TEXT NOT NULL,
     prompt_name TEXT NOT NULL,
@@ -187,17 +196,19 @@ CREATE TABLE model_invocations (
     input_tokens INTEGER,
     output_tokens INTEGER,
     total_tokens INTEGER,
-    estimated_cost_usd NUMERIC(12, 6),
+    estimated_cost_usd NUMERIC,
     status TEXT NOT NULL,
     started_at_utc TIMESTAMPTZ NOT NULL,
-    completed_at_utc TIMESTAMPTZ,
+    completed_at_utc TIMESTAMPTZ NOT NULL,
+    duration_ms INTEGER NOT NULL,
     input_artifact_path TEXT,
-    output_artifact_path TEXT
+    output_artifact_path TEXT,
+    error_message TEXT
 );
 ```
 
-This is a design sketch only. Do not add this migration until model invocation
-tracking is ready to be implemented.
+Repository and recorder support exists for fake/local checks. Real provider
+clients and real LLM calls are still deferred.
 
 ## What Must Never Be Logged
 
