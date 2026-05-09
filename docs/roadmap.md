@@ -71,8 +71,8 @@ See `docs/phase-3-completion-checklist.md` for the current completion summary.
 
 ### Phase 4: Agents And Model-Client Baseline
 
-Phase 4 is active next. It should introduce the first cautious model-client and
-agent foundations, not production autonomy. The goal is to define a shared model
+Phase 4 is complete. It introduced the first cautious model-client and agent
+foundations, not production autonomy. The goal was to define a shared model
 invocation boundary, keep all provider calls behind that boundary, attach future
 invocations to `run_id` and `step_id` when available, preserve artifact outputs,
 and enforce the token/cost governance rules before any cloud-model usage
@@ -97,12 +97,25 @@ agent, which summarizes compact normalized review inputs through the shared
 fake/local only: no real provider clients, provider SDKs, network calls, or real
 LLM calls exist yet.
 
-See `docs/model-client-architecture.md` for the Phase 4 design baseline. The
-first implementation steps should favor a fake/in-memory model client or local
-Ollama adapter before any cloud provider integration.
+See `docs/model-client-architecture.md` for the Phase 4 design baseline. Future
+provider implementation should favor a local Ollama adapter before any cloud
+provider integration.
 See `docs/review-theme-summary-agent.md` for the current fake/local agent path.
 
-Upcoming Phase 4 work should stay incremental:
+### Phase 5A: Fake-Agent LangGraph Integration
+
+Phase 5A is active next. It should wire the fake/local
+ReadySetRentables review theme summary agent into the LangGraph workflow before
+Daedalus adds Ollama or any other real provider client.
+
+The goal is to prove the integrated graph path with `FakeModelClient`,
+`RecordingModelClient`, `ModelInvocationRecorder`, versioned prompts, budget
+validation, workflow steps, and `review_theme_summary.md` artifact output while
+keeping real provider SDKs, network calls, and real LLM calls out of scope.
+
+See `docs/phase-5a-fake-agent-langgraph.md` for the integration plan.
+
+Upcoming Phase 5A work should stay incremental:
 
 - optional LangGraph fake summary node
 - optional `run-workflow` integration for fake review theme summaries

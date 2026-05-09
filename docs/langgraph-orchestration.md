@@ -21,6 +21,10 @@ mixed together.
 The first graph reproduces the existing deterministic workflow before Daedalus
 adds branching, retries, model calls, or agents.
 
+Phase 5A is planned to add the first fake/local agent node to this graph. See
+[`docs/phase-5a-fake-agent-langgraph.md`](phase-5a-fake-agent-langgraph.md) for
+the review theme summary integration plan.
+
 ## Current LangGraph Status
 
 The ReadySetRentables review workflow now has a compiled LangGraph execution

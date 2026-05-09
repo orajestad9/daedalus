@@ -216,6 +216,8 @@ structured domain objects and artifact references, not loose prompt text.
 
 See [`docs/langgraph-orchestration.md`](langgraph-orchestration.md) before
 adding model-backed graph nodes.
+See [`docs/phase-5a-fake-agent-langgraph.md`](phase-5a-fake-agent-langgraph.md)
+for the fake review theme summary graph integration plan.
 
 ## Intentionally Deferred
 

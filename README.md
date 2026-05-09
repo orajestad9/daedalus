@@ -55,6 +55,8 @@ For the Phase 4 model-client design baseline, see
 [`docs/model-client-architecture.md`](docs/model-client-architecture.md).
 For the current fake/local review theme summary agent path, see
 [`docs/review-theme-summary-agent.md`](docs/review-theme-summary-agent.md).
+For the Phase 5A fake-agent LangGraph integration plan, see
+[`docs/phase-5a-fake-agent-langgraph.md`](docs/phase-5a-fake-agent-langgraph.md).
 
 For the current run, step, artifact, logging, and persisted inspection model,
 including practical `show-run` examples, see
