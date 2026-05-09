@@ -271,6 +271,29 @@ persist to Postgres, does not record model invocations, and is not wired into
 provider, model, token, and cost metadata; raw prompt text, model output text,
 representative review text, and request payload contents are not printed.
 
+### Optional Invocation Persistence
+
+The Ollama summary command can optionally record model invocation metadata for
+an existing persisted run:
+
+```bash
+.venv/bin/daedalus summarize-review-themes-ollama \
+  --input artifacts/readysetrentables/normalized_reviews.json \
+  --output artifacts/readysetrentables/review_theme_summary.md \
+  --model llama3.1 \
+  --run-id <run-id> \
+  --persist-invocation
+```
+
+`--persist-invocation` requires `--run-id`. When it is present, the command
+wraps `OllamaModelClient` with `RecordingModelClient`, writes one
+`model_invocations` row through `ModelInvocationRecorder`, and commits only on
+success. Without the flag, the command remains file/artifact-only and does not
+open Postgres. The persisted row stores provider, model, prompt identity,
+status, token, cost, and timing metadata only; it does not store raw prompt
+text, raw model output text, representative review text, or request payload
+contents.
+
 ## Testing Strategy
 
 Unit tests for `OllamaModelClient` should use mocked HTTP. They should not

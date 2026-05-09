@@ -686,6 +686,169 @@ def test_summarize_review_themes_ollama_command_succeeds_with_mocked_client(
     assert "estimated_cost_usd=0" in output
 
 
+def test_summarize_review_themes_ollama_without_persist_does_not_connect_to_postgres(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+
+    def fail_if_called(_: object) -> object:
+        raise AssertionError("Postgres should not be opened without --persist-invocation")
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_if_called)
+
+    exit_code = main(
+        [
+            "summarize-review-themes-ollama",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+
+
+def test_summarize_review_themes_ollama_persist_invocation_requires_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    def fail_if_called(_: object) -> object:
+        raise AssertionError("Postgres should not be opened without --run-id")
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-ollama",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--model",
+                "llama3.1",
+                "--persist-invocation",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_summarize_review_themes_ollama_persist_invocation_records_model_invocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "summarize-review-themes-ollama",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--model",
+            "llama3.1",
+            "--run-id",
+            str(run_id),
+            "--persist-invocation",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert "provider=ollama" in output
+    assert "model_name=llama3.1" in output
+    assert "total_tokens=7" in output
+    assert "estimated_cost_usd=0" in output
+    assert "Raw local model output should not be printed." not in output
+    assert "Bright apartment with a spotless kitchen" not in output
+    assert any("insert into model_invocations" in sql.lower() for sql in connection.executed_sql)
+    assert connection.executed_params[0][1] == run_id
+    assert connection.executed_params[0][4] == ModelProvider.OLLAMA.value
+    assert connection.executed_params[0][5] == "llama3.1"
+    assert connection.executed_params[0][6] == "readysetrentables/review_theme_summary"
+    assert connection.executed_params[0][7] == "v0"
+    assert connection.executed_params[0][8] == 4
+    assert connection.executed_params[0][9] == 3
+    assert connection.executed_params[0][10] == 7
+    assert connection.executed_params[0][12] == ModelInvocationStatus.SUCCEEDED.value
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+
+
+def test_summarize_review_themes_ollama_persist_invocation_rolls_back_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", FailingOllamaClient)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-ollama",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--model",
+                "llama3.1",
+                "--run-id",
+                str(uuid4()),
+                "--persist-invocation",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert connection.committed is False
+    assert connection.rolled_back is True
+    assert connection.closed is True
+    assert "Bright apartment with a spotless kitchen" not in combined_output
+    assert "Prompt template:" not in combined_output
+
+
 def test_summarize_review_themes_ollama_command_output_omits_raw_text(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

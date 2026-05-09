@@ -44,6 +44,7 @@ from daedalus.memory.workflow_run_repository import (
     MAX_LIST_RECENT_LIMIT,
     MIN_LIST_RECENT_LIMIT,
 )
+from daedalus.model_clients.client import ModelClient
 from daedalus.model_clients.fake import FakeModelClient
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
 from daedalus.model_clients.ollama import OllamaModelClient, OllamaModelClientError
@@ -220,6 +221,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "summarize-review-themes-ollama":
         try:
+            if args.persist_invocation and args.run_id is None:
+                parser.error("--persist-invocation requires --run-id")
             run_id = args.run_id or uuid4()
             batch = load_review_batch_json(args.input)
             input_data = build_review_theme_summary_input(
@@ -233,8 +236,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 model_name=args.model,
                 request_timeout_seconds=args.timeout_seconds,
             )
+            model_client: ModelClient = OllamaModelClient(settings=ollama_settings)
+            connection = None
+            if args.persist_invocation:
+                connection = connect_postgres(load_postgres_settings())
+                repository = ModelInvocationRepository(connection)
+                recorder = ModelInvocationRecorder(repository)
+                model_client = RecordingModelClient(
+                    inner_client=model_client,
+                    recorder=recorder,
+                    agent_name="review_theme_summary_agent",
+                    output_artifact_path=args.output,
+                )
             agent = ReviewThemeSummaryAgent(
-                model_client=OllamaModelClient(settings=ollama_settings),
+                model_client=model_client,
                 model_provider=ModelProvider.OLLAMA,
                 model_name=args.model,
             )
@@ -243,8 +258,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result=theme_summary_result,
                 output_path=args.output,
             )
+            if connection is not None:
+                connection.commit()
         except (FileNotFoundError, ValueError, OllamaModelClientError) as exc:
+            if "connection" in locals() and connection is not None:
+                connection.rollback()
+                connection.close()
             parser.error(str(exc))
+        except Exception:
+            if "connection" in locals() and connection is not None:
+                connection.rollback()
+                connection.close()
+            msg = "Failed to persist Ollama model invocation"
+            parser.error(msg)
+        else:
+            if "connection" in locals() and connection is not None:
+                connection.close()
 
         print(
             "Wrote Ollama review theme summary "
@@ -485,6 +514,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=5,
         type=_non_negative_int_arg,
         help="Maximum number of representative review texts to include in compact input.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--persist-invocation",
+        action="store_true",
+        help="Persist the Ollama model invocation metadata for an existing --run-id.",
     )
 
     ollama_smoke_check = subparsers.add_parser(

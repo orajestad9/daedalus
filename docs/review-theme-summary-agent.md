@@ -267,7 +267,8 @@ lives in [`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md).
 `summarize-review-themes-ollama` CLI path can now run this agent against local
 Ollama and write `review_theme_summary.md`. That command is manual,
 artifact-only, and not wired into `run-workflow` or LangGraph; it does not
-persist model invocations yet.
+persist model invocations unless `--persist-invocation` is explicitly supplied
+with an existing `--run-id`.
 
 ## Budget Enforcement
 
