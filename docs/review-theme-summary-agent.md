@@ -148,6 +148,12 @@ The Ollama CLI path remains manual and local-only. It is not wired into
 LangGraph, `run-workflow`, or the deterministic workflow, and Ollama is not a
 default provider.
 
+Phase 6 plans the first deterministic evaluation checks for
+`review_theme_summary.md`, including artifact existence, expected sections,
+run/prompt/model metadata, token/cost metadata when available, and obvious
+placeholder-only output detection. See
+[`docs/phase-6-evaluation-harness.md`](phase-6-evaluation-harness.md).
+
 ## Expected Inputs
 
 The agent should accept structured inputs, not loose prompt text:

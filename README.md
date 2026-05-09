@@ -59,6 +59,8 @@ For the Phase 5A fake-agent LangGraph integration plan, see
 [`docs/phase-5a-fake-agent-langgraph.md`](docs/phase-5a-fake-agent-langgraph.md).
 For the Phase 5B local Ollama provider design, see
 [`docs/phase-5b-ollama-provider.md`](docs/phase-5b-ollama-provider.md).
+For the Phase 6 generic evaluation harness design, see
+[`docs/phase-6-evaluation-harness.md`](docs/phase-6-evaluation-harness.md).
 
 For the current run, step, artifact, logging, and persisted inspection model,
 including practical `show-run` examples, see

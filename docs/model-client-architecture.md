@@ -166,6 +166,9 @@ Model invocation records are first-class observability events. They attach to:
 
 See [`docs/observability.md`](observability.md) for the current run, artifact,
 step, and model invocation observability model.
+See [`docs/phase-6-evaluation-harness.md`](phase-6-evaluation-harness.md) for
+the planned generic evaluation report model that can compare artifacts across
+fake, Ollama, and future provider runs.
 
 ## Prompt And Version Tracking
 

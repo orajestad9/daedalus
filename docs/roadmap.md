@@ -127,7 +127,7 @@ See `docs/phase-5a-fake-agent-langgraph.md` for the integration baseline.
 
 ### Phase 5B: Local Ollama Provider
 
-Phase 5B is active. It adds a local `OllamaModelClient` provider that satisfies
+Phase 5B is complete. It adds a local `OllamaModelClient` provider that satisfies
 the existing `ModelClient` protocol without adding cloud provider SDKs or cloud
 model usage.
 
@@ -151,6 +151,25 @@ Upcoming Phase 5B work should stay incremental:
 - consider a LangGraph Ollama opt-in path only after the manual Ollama path
   remains stable
 - keep deterministic and fake LangGraph paths unchanged while Ollama matures
+
+### Phase 6: Evaluation Harness
+
+Phase 6 is active/next. It designs a generic evaluation harness for checking
+model outputs and workflow artifacts across domains. The first concrete example
+is ReadySetRentables `review_theme_summary.md`, but generic Daedalus evaluation
+should not hardcode ReadySetRentables into the platform layer.
+
+The Phase 6 design separates generic evaluation concepts such as
+`EvaluationStatus`, `EvaluationSeverity`, `EvaluationCheckResult`, and
+`EvaluationReport` from domain-specific checks such as ReadySetRentables review
+theme summary structure, future review insight schemas, neighborhood profile
+sections, and future Skimmr document summary checks.
+
+The first checks should be deterministic, local, and artifact-based. They should
+not require live Ollama in `make check`, should not call external providers by
+default, and should not use another model to judge subjective quality yet.
+
+See `docs/phase-6-evaluation-harness.md` for the evaluation harness design.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade
