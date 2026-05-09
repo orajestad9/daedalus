@@ -88,9 +88,9 @@ review theme summary agent tested with `FakeModelClient`, a markdown artifact
 writer, the `summarize-review-themes-fake` CLI command, recognized
 `review_theme_summary` artifact records, the
 `record-review-theme-summary-artifact` CLI command, `make fake-summary-check`
-for a no-Docker local artifact check, and optional `make fake-summary-db-check`
-coverage for recording the fake summary artifact and inspecting it with
-`show-run`.
+for a no-Docker local artifact check, and the Phase 5A
+`make fake-summary-db-check` path for inspecting the persisted graph summary
+artifact and fake model invocation metadata with `show-run`.
 
 The first AI-assisted feature path is the ReadySetRentables review theme summary
 agent, which summarizes compact normalized review inputs through the shared

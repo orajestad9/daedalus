@@ -3,8 +3,9 @@
 Daedalus observability is intentionally local-first today. Phase 2 records enough
 run, step, artifact, and log context to inspect a completed workflow without
 adding OpenTelemetry, agents, dashboards, or production infrastructure yet.
-Phase 4 has started adding model invocation metadata through fake/local model
-clients only; no real provider calls happen yet.
+Phase 4 added model invocation metadata through fake/local model clients, and
+Phase 5A now persists fake LangGraph summary invocation metadata when explicitly
+requested. No real provider calls happen yet.
 
 The current scope answers three practical questions:
 
@@ -301,8 +302,8 @@ work:
 - OpenTelemetry can attach spans to `run_id`, workflow identity, and step names.
 - LangGraph node tracing can map graph nodes to `WorkflowStepRecord` rows.
 - Agents can report actions as steps or future agent-specific records.
-- Model invocation tracking can attach provider calls to `run_id` and generated
-  artifacts.
+- Model invocation tracking can attach fake and future provider calls to
+  `run_id` and generated artifacts.
 - Token and cost tracking can follow the rules in
   [`docs/token-cost-governance.md`](token-cost-governance.md).
 

@@ -43,10 +43,10 @@ agent through the shared `ModelClient` protocol, and writes:
 
 - `review_theme_summary.md`
 
-`review_theme_summary` is now a recognized `ArtifactType` for future
-persistence and lineage tracking. The fake/local CLI writes the markdown file;
-an explicit companion CLI can record that file as an artifact for an existing
-persisted workflow run.
+`review_theme_summary` is now a recognized `ArtifactType` for persistence and
+lineage tracking. The fake/local CLI writes the markdown file; an explicit
+companion CLI can record that file as an artifact for an existing persisted
+workflow run.
 
 The command prints only safe metadata such as `run_id`, output path, provider,
 model name, token counts, and estimated cost. It does not print raw prompt text,
@@ -119,10 +119,13 @@ Current implemented pieces include:
 - `write_review_theme_summary_markdown(...)`
 - `summarize-review-themes-fake`
 - `run-workflow --execution-engine langgraph` fake summary artifact generation
+- `run-workflow --execution-engine langgraph --persist` fake summary artifact
+  and model invocation persistence
 - `record-review-theme-summary-artifact`
 - `make fake-summary-check`
 - `make graph-fake-summary-check`
-- `make fake-summary-db-check` for optional Docker/Postgres verification
+- `make fake-summary-db-check` for optional Docker/Postgres verification of
+  the persisted graph artifact and fake invocation metadata
 
 ## Expected Inputs
 
