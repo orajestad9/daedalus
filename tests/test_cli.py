@@ -650,6 +650,131 @@ def test_summarize_review_themes_fake_command_invalid_representative_review_limi
     assert exc_info.value.code == 2
 
 
+def test_summarize_review_themes_ollama_command_succeeds_with_mocked_client(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    SuccessfulOllamaClient.created_clients.clear()
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+    run_id = uuid4()
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+
+    exit_code = main(
+        [
+            "summarize-review-themes-ollama",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--model",
+            "llama3.1",
+            "--run-id",
+            str(run_id),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert str(run_id) in output
+    assert f"output={output_path}" in output
+    assert "provider=ollama" in output
+    assert "model_name=llama3.1" in output
+    assert "total_tokens=7" in output
+    assert "estimated_cost_usd=0" in output
+
+
+def test_summarize_review_themes_ollama_command_output_omits_raw_text(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+
+    exit_code = main(
+        [
+            "summarize-review-themes-ollama",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "ReadySetRentables Review Theme Summary" not in output
+    assert "Raw local model output should not be printed." not in output
+    assert "Bright apartment with a spotless kitchen" not in output
+    assert "Prompt template:" not in output
+
+
+def test_summarize_review_themes_ollama_handles_model_client_error_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", FailingOllamaClient)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-ollama",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "local Ollama smoke check failed safely" in combined_output
+    assert "Bright apartment with a spotless kitchen" not in combined_output
+    assert "Prompt template:" not in combined_output
+
+
+def test_summarize_review_themes_ollama_invalid_representative_review_limit_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("OllamaModelClient should not be created for invalid limits")
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-ollama",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--model",
+                "llama3.1",
+                "--max-representative-reviews",
+                "-1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
 def test_ollama_smoke_check_succeeds_with_mocked_client(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

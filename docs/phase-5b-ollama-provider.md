@@ -244,6 +244,33 @@ This check:
 - does not print raw prompt text, raw model output text, or payload contents
 - is intentionally not part of `make check`
 
+## Local Review Theme Summary Command
+
+Daedalus also has an explicit local Ollama path for the review theme summary
+agent. It reads an existing normalized review artifact, builds the same compact
+deterministic input used by the fake path, calls `ReviewThemeSummaryAgent`
+through `OllamaModelClient`, and writes `review_theme_summary.md`.
+
+```bash
+.venv/bin/daedalus summarize-review-themes-ollama \
+  --input artifacts/readysetrentables/normalized_reviews.json \
+  --output artifacts/readysetrentables/review_theme_summary.md \
+  --model llama3.1
+```
+
+The optional local Makefile check normalizes the sample data first and then runs
+the Ollama-backed summary command:
+
+```bash
+make ollama-summary-local-check
+```
+
+This command is manual and local-only. It is not part of `make check`, does not
+persist to Postgres, does not record model invocations, and is not wired into
+`run-workflow` or LangGraph. CLI output is limited to run ID, output path,
+provider, model, token, and cost metadata; raw prompt text, model output text,
+representative review text, and request payload contents are not printed.
+
 ## Testing Strategy
 
 Unit tests for `OllamaModelClient` should use mocked HTTP. They should not

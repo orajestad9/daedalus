@@ -261,12 +261,13 @@ The first implementation should use `RecordingModelClient` where persistence is
 available so successful and failed model calls create `ModelInvocationRecord`
 objects.
 
-Ollama is planned as the first real local provider after the fake graph path.
-The design lives in
-[`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md). It should
-satisfy the same `ModelClient` protocol so this agent can switch from
-`FakeModelClient` to a local provider without changing prompt identity,
-artifact writing, or invocation persistence.
+Ollama is the first real local provider after the fake graph path. The design
+lives in [`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md).
+`OllamaModelClient` satisfies the same `ModelClient` protocol, and the explicit
+`summarize-review-themes-ollama` CLI path can now run this agent against local
+Ollama and write `review_theme_summary.md`. That command is manual,
+artifact-only, and not wired into `run-workflow` or LangGraph; it does not
+persist model invocations yet.
 
 ## Budget Enforcement
 

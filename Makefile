@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check ollama-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -42,6 +42,14 @@ graph-fake-summary-check:
 
 ollama-local-check:
 	$(PYTHON) -m daedalus.cli ollama-smoke-check --model llama3.1
+
+ollama-summary-local-check:
+	@$(MAKE) clean
+	$(PYTHON) -m daedalus.cli normalize-reviews --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
+	$(PYTHON) -m daedalus.cli summarize-review-themes-ollama --input artifacts/readysetrentables/normalized_reviews.json --output artifacts/readysetrentables/review_theme_summary.md --model llama3.1
+	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
+	@echo "ollama-summary-local-check passed: artifacts/readysetrentables/review_theme_summary.md was created."
+	@$(MAKE) clean
 
 db-up:
 	docker compose up -d postgres

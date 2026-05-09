@@ -93,6 +93,11 @@ After a workflow run has been persisted, the generated markdown can be recorded
 explicitly with `record-review-theme-summary-artifact` so `show-run` can display
 the `review_theme_summary` artifact.
 
+For an explicit local Ollama run of the same agent, use
+`summarize-review-themes-ollama --model llama3.1` after creating
+`artifacts/readysetrentables/normalized_reviews.json`. This is optional,
+local-only, and not part of `make check`.
+
 To verify that local fake summary path end to end without Docker or `.env`:
 
 ```sh

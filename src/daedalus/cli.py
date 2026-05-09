@@ -218,6 +218,45 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "summarize-review-themes-ollama":
+        try:
+            run_id = args.run_id or uuid4()
+            batch = load_review_batch_json(args.input)
+            input_data = build_review_theme_summary_input(
+                run_id=run_id,
+                batch=batch,
+                max_representative_reviews=args.max_representative_reviews,
+            )
+            ollama_settings = OllamaModelClientSettings(
+                enabled=True,
+                base_url=args.base_url,
+                model_name=args.model,
+                request_timeout_seconds=args.timeout_seconds,
+            )
+            agent = ReviewThemeSummaryAgent(
+                model_client=OllamaModelClient(settings=ollama_settings),
+                model_provider=ModelProvider.OLLAMA,
+                model_name=args.model,
+            )
+            theme_summary_result = agent.summarize(input_data)
+            write_review_theme_summary_markdown(
+                result=theme_summary_result,
+                output_path=args.output,
+            )
+        except (FileNotFoundError, ValueError, OllamaModelClientError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Wrote Ollama review theme summary "
+            f"run_id={theme_summary_result.run_id} "
+            f"output={args.output} "
+            f"provider={theme_summary_result.model_provider.value} "
+            f"model_name={theme_summary_result.model_name} "
+            f"total_tokens={theme_summary_result.total_tokens} "
+            f"estimated_cost_usd={theme_summary_result.estimated_cost_usd}"
+        )
+        return 0
+
     if args.command == "ollama-smoke-check":
         try:
             response = _run_ollama_smoke_check(
@@ -401,6 +440,51 @@ def _build_parser() -> argparse.ArgumentParser:
         default=5,
         type=_non_negative_int_arg,
         help="Maximum number of representative review texts to include in fake input.",
+    )
+
+    summarize_review_themes_ollama = subparsers.add_parser(
+        "summarize-review-themes-ollama",
+        help="Run the review theme summary agent explicitly with local Ollama.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--input",
+        required=True,
+        type=Path,
+        help="Path to a normalized reviews JSON artifact.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Path where the Ollama review theme summary markdown should be written.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--model",
+        required=True,
+        help="Local Ollama model name to use for the review theme summary.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--base-url",
+        default="http://localhost:11434",
+        help="Local Ollama base URL.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--timeout-seconds",
+        default=60.0,
+        type=_positive_float_arg,
+        help="Timeout in seconds for the local Ollama request.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional workflow run UUID to associate with the summary.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--max-representative-reviews",
+        default=5,
+        type=_non_negative_int_arg,
+        help="Maximum number of representative review texts to include in compact input.",
     )
 
     ollama_smoke_check = subparsers.add_parser(
