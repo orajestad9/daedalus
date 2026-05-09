@@ -60,6 +60,12 @@ Domain-specific evaluation modules should own the checks that require product or
 workflow knowledge. The first domain-specific module can live under the
 ReadySetRentables review domain and evaluate `review_theme_summary.md`.
 
+The first ReadySetRentables evaluator now exists as
+`evaluate_review_theme_summary_markdown(...)` in
+`src/daedalus/domains/readysetrentables_reviews/theme_summary_evaluator.py`. It
+returns a generic `EvaluationReport` and keeps all checks deterministic,
+local, and provider-free.
+
 Domain-specific evaluation should include:
 
 - ReadySetRentables review theme summary checks
