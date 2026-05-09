@@ -81,13 +81,14 @@ as an index of generated files.
 Phase 4 also recognizes `review_theme_summary` as an artifact type for the
 fake/local review theme summary markdown output. The current
 `summarize-review-themes-fake` command writes `review_theme_summary.md` as a
-file artifact only; persisted artifact records for that file are intentionally
-deferred.
+file artifact. The explicit `record-review-theme-summary-artifact` command can
+then attach that existing markdown file to a persisted workflow run as an
+`ArtifactRecord` with artifact type `review_theme_summary`.
 
-In a later Phase 4 step, review theme summaries are expected to become persisted
-artifact records attached to workflow runs. `show-run` should then display the
-normal workflow artifacts, the `review_theme_summary` artifact, and any related
-model invocation metadata together.
+After the record command is used, `show-run` can display the normal workflow
+artifacts, the `review_theme_summary` artifact, and any related model invocation
+metadata together. Automatic workflow or LangGraph persistence of review theme
+summary artifacts is still future work.
 
 ## Human Inspection
 
@@ -201,6 +202,9 @@ provider calls:
 - `summarize-review-themes-fake` exercises the review theme summary agent with
   `FakeModelClient` and writes a file artifact, but does not persist model
   invocation rows yet.
+- `record-review-theme-summary-artifact` records an existing
+  `review_theme_summary.md` file as an artifact row for an existing persisted
+  workflow run without printing artifact contents.
 
 Model calls should attach to the workflow `run_id`, and to a `step_id` whenever
 the call happens inside an observable workflow step. Agents, LangGraph nodes,
@@ -261,6 +265,12 @@ workflow run, records one fake model invocation through `RecordingModelClient`,
 then calls `show-run` to verify the Model Invocations section is visible. This
 uses `FakeModelClient` only; it does not use provider SDKs, network calls, cloud
 models, raw prompt logging, or raw response logging.
+
+`make fake-summary-db-check` is a local-only Phase 4 check for the fake review
+theme summary artifact path. It creates a persisted workflow run, writes
+`review_theme_summary.md` with `FakeModelClient`, records the markdown file as a
+`review_theme_summary` artifact, and verifies that `show-run` displays it. This
+target requires Docker and a local ignored `.env`.
 
 Keeping these commands separate lets normal development and CI stay fast while
 still providing an end-to-end local persistence inspection check.

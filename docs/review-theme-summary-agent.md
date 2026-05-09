@@ -45,8 +45,9 @@ agent through the shared `ModelClient` protocol, and writes:
 - `review_theme_summary.md`
 
 `review_theme_summary` is now a recognized `ArtifactType` for future
-persistence and lineage tracking. The fake/local CLI writes the markdown file
-only; it does not automatically create a persisted artifact record yet.
+persistence and lineage tracking. The fake/local CLI writes the markdown file;
+an explicit companion CLI can record that file as an artifact for an existing
+persisted workflow run.
 
 The command prints only safe metadata such as `run_id`, output path, provider,
 model name, token counts, and estimated cost. It does not print raw prompt text,
@@ -66,8 +67,9 @@ make clean
   --output artifacts/readysetrentables/review_theme_summary.md
 ```
 
-This path is file/artifact-only. It is not wired into `run-workflow`, LangGraph
-nodes, Postgres persistence, or real provider execution yet.
+The summary generation path is file/artifact-only. It is not wired into
+`run-workflow`, LangGraph nodes, automatic Postgres persistence, or real
+provider execution yet.
 
 To verify this path without Docker, Postgres, `.env`, provider SDKs, or real
 model calls, run:
@@ -89,7 +91,9 @@ Current implemented pieces include:
 - `ReviewThemeSummaryAgent`
 - `write_review_theme_summary_markdown(...)`
 - `summarize-review-themes-fake`
+- `record-review-theme-summary-artifact`
 - `make fake-summary-check`
+- `make fake-summary-db-check` for optional Docker/Postgres verification
 
 ## Expected Inputs
 
@@ -122,13 +126,61 @@ The artifact should be linked to the workflow run through artifact records when
 persistence is enabled. The model invocation record should point to the input
 and output artifact paths.
 
-## Planned Artifact Persistence
+## Artifact Persistence
 
 `review_theme_summary.md` is now represented by the recognized artifact type:
 
 - `review_theme_summary`
 
-The future persisted flow should be:
+### Recording The Summary Artifact
+
+Daedalus now has an explicit local CLI path for attaching a generated fake
+review theme summary artifact to an existing persisted workflow run:
+
+- `record-review-theme-summary-artifact`
+
+The command records an existing `review_theme_summary.md` file as an
+`ArtifactRecord` with `ArtifactType.REVIEW_THEME_SUMMARY`. It does not read or
+print the file contents, raw prompt text, raw model output text, or raw review
+datasets. After the artifact is recorded, `show-run` can display the
+`review_theme_summary` artifact alongside the normal persisted workflow
+artifacts.
+
+Safe manual flow:
+
+```sh
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --persist
+
+.venv/bin/daedalus summarize-review-themes-fake \
+  --input artifacts/readysetrentables/normalized_reviews.json \
+  --output artifacts/readysetrentables/review_theme_summary.md \
+  --run-id <run-id>
+
+.venv/bin/daedalus record-review-theme-summary-artifact \
+  --run-id <run-id> \
+  --path artifacts/readysetrentables/review_theme_summary.md
+
+.venv/bin/daedalus show-run --run-id <run-id>
+```
+
+This is currently an explicit/manual CLI path. The review theme summary agent is
+not automatically invoked by `run-workflow`, and no LangGraph node wires this
+artifact into the graph yet.
+
+If Docker and a local ignored `.env` are available, the local integration target
+can exercise the persisted path:
+
+```sh
+make fake-summary-db-check
+```
+
+That target creates a persisted workflow run, writes the fake summary markdown,
+records the `review_theme_summary` artifact row, and verifies that `show-run`
+can display it.
+
+The later automatic persisted flow should be:
 
 1. Run the ReadySetRentables review workflow.
 2. Build compact review theme summary input from the normalized review batch.
@@ -145,9 +197,9 @@ Later `show-run` output should make the full path inspectable:
 - model invocation metadata
 - provider, model, prompt, version, token, and cost fields
 
-This persistence wiring is not implemented yet. The current
-`summarize-review-themes-fake` command writes the markdown artifact only and is
-not wired into `run-workflow`, LangGraph, or Postgres persistence.
+Automatic workflow and LangGraph persistence wiring is not implemented yet. The
+current commands keep fake summary generation and artifact recording explicit so
+the boundary remains easy to inspect.
 
 ## Prompt Template Usage
 

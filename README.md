@@ -78,6 +78,9 @@ For the fake/local Phase 4 review theme summary path:
 
 This uses `FakeModelClient` only. It does not call real LLMs, use provider SDKs,
 or print raw prompts, raw model output, or raw review datasets.
+After a workflow run has been persisted, the generated markdown can be recorded
+explicitly with `record-review-theme-summary-artifact` so `show-run` can display
+the `review_theme_summary` artifact.
 
 To verify that local fake summary path end to end without Docker or `.env`:
 

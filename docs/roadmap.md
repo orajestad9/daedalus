@@ -84,8 +84,12 @@ budget validation, model invocation records and repositories, fake model
 invocation inspection through `show-run`, versioned prompt templates, review
 theme summary input/result models, deterministic compact input building, a
 review theme summary agent tested with `FakeModelClient`, a markdown artifact
-writer, the `summarize-review-themes-fake` CLI command, and `make
-fake-summary-check` for a no-Docker local artifact check.
+writer, the `summarize-review-themes-fake` CLI command, recognized
+`review_theme_summary` artifact records, the
+`record-review-theme-summary-artifact` CLI command, `make fake-summary-check`
+for a no-Docker local artifact check, and optional `make fake-summary-db-check`
+coverage for recording the fake summary artifact and inspecting it with
+`show-run`.
 
 The first AI-assisted feature path is the ReadySetRentables review theme summary
 agent, which summarizes compact normalized review inputs through the shared
@@ -100,9 +104,8 @@ See `docs/review-theme-summary-agent.md` for the current fake/local agent path.
 
 Upcoming Phase 4 work should stay incremental:
 
-- persist `review_theme_summary` artifact records
-- optional LangGraph wiring for the fake review theme summary path
-- optional fake summary workflow integration
+- optional LangGraph fake summary node
+- optional `run-workflow` integration for fake review theme summaries
 - Ollama/local provider design
 - real local provider implementation only after the fake path is stable
 
