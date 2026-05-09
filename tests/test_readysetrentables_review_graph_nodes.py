@@ -10,6 +10,7 @@ from daedalus.domains.readysetrentables_reviews.graph_nodes import (
     write_metadata_artifact_node,
     write_normalized_artifact_node,
     write_run_record_artifact_node,
+    write_review_theme_summary_artifact_node,
     write_summary_artifact_node,
 )
 from daedalus.domains.readysetrentables_reviews.graph_state import (
@@ -330,6 +331,89 @@ def test_run_fake_review_theme_summary_agent_node_requires_summary_input() -> No
 
     with pytest.raises(ValueError, match="summary input is built"):
         run_fake_review_theme_summary_agent_node(state)
+
+
+def test_write_review_theme_summary_artifact_node_writes_markdown(
+    tmp_path: Path,
+) -> None:
+    output_json_path = tmp_path / "normalized_reviews.json"
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=output_json_path,
+    )
+    result_state = run_fake_review_theme_summary_agent_node(
+        build_review_theme_summary_input_node(load_reviews_node(state))
+    )
+
+    updated_state = write_review_theme_summary_artifact_node(result_state)
+
+    expected_summary_path = tmp_path / "review_theme_summary.md"
+    assert updated_state.review_theme_summary_markdown_path == expected_summary_path
+    assert expected_summary_path.exists()
+    assert updated_state.run_id == result_state.run_id
+    assert updated_state.output_json_path == output_json_path
+    assert updated_state.review_theme_summary_result == result_state.review_theme_summary_result
+
+
+def test_write_review_theme_summary_artifact_node_writes_expected_markdown_content(
+    tmp_path: Path,
+) -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=tmp_path / "normalized_reviews.json",
+    )
+    result_state = run_fake_review_theme_summary_agent_node(
+        build_review_theme_summary_input_node(load_reviews_node(state))
+    )
+
+    updated_state = write_review_theme_summary_artifact_node(result_state)
+
+    assert updated_state.review_theme_summary_markdown_path is not None
+    markdown = updated_state.review_theme_summary_markdown_path.read_text(encoding="utf-8")
+    assert str(state.run_id) in markdown
+    assert "fake model response" in markdown
+    assert "readysetrentables/review_theme_summary" in markdown
+    assert "v0" in markdown
+    assert "fake" in markdown
+    assert "fake-model" in markdown
+
+
+def test_write_review_theme_summary_artifact_node_preserves_existing_steps_and_appends_completed_step(
+    tmp_path: Path,
+) -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=tmp_path / "normalized_reviews.json",
+    )
+    result_state = run_fake_review_theme_summary_agent_node(
+        build_review_theme_summary_input_node(load_reviews_node(state))
+    )
+
+    updated_state = write_review_theme_summary_artifact_node(result_state)
+
+    assert [step.step_name for step in updated_state.steps] == [
+        "load_reviews",
+        "build_review_theme_summary_input",
+        "run_fake_review_theme_summary_agent",
+        "write_review_theme_summary_artifact",
+    ]
+    assert updated_state.steps[:3] == result_state.steps
+    step = updated_state.steps[3]
+    assert step.run_id == state.run_id
+    assert step.status == WorkflowStatus.COMPLETED
+    assert step.completed_at_utc is not None
+    assert step.duration_ms is not None
+    assert step.duration_ms >= 0
+
+
+def test_write_review_theme_summary_artifact_node_requires_summary_result() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+
+    with pytest.raises(ValueError, match="summary result is available"):
+        write_review_theme_summary_artifact_node(state)
 
 
 def test_write_summary_artifact_node_writes_summary_and_preserves_state(

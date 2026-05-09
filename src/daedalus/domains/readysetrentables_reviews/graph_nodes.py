@@ -20,6 +20,9 @@ from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_rev
 from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
     ReviewThemeSummaryAgent,
 )
+from daedalus.domains.readysetrentables_reviews.theme_summary_artifacts import (
+    write_review_theme_summary_markdown,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder import (
     build_review_theme_summary_input,
 )
@@ -177,6 +180,40 @@ def run_fake_review_theme_summary_agent_node(
             "steps": [*state.steps, step.complete()],
         }
     )
+
+
+def write_review_theme_summary_artifact_node(
+    state: ReadySetRentablesReviewGraphState,
+) -> ReadySetRentablesReviewGraphState:
+    """Write the fake review theme summary markdown artifact from graph state."""
+    if state.review_theme_summary_result is None:
+        msg = "Cannot write review theme summary artifact before summary result is available."
+        raise ValueError(msg)
+
+    review_theme_summary_markdown_path = _review_theme_summary_path_for(state.output_json_path)
+    step = WorkflowStepRecord.start(
+        run_id=state.run_id,
+        step_name="write_review_theme_summary_artifact",
+    )
+    try:
+        written_review_theme_summary_path = write_review_theme_summary_markdown(
+            result=state.review_theme_summary_result,
+            output_path=review_theme_summary_markdown_path,
+        )
+    except Exception as exc:
+        state.steps.append(step.fail(str(exc)))
+        raise
+
+    return state.model_copy(
+        update={
+            "review_theme_summary_markdown_path": written_review_theme_summary_path,
+            "steps": [*state.steps, step.complete()],
+        }
+    )
+
+
+def _review_theme_summary_path_for(output_json_path: Path) -> Path:
+    return output_json_path.with_name("review_theme_summary.md")
 
 
 def write_summary_artifact_node(
