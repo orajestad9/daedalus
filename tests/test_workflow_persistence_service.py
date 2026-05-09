@@ -6,9 +6,15 @@ from uuid import uuid4
 import pytest
 
 from daedalus.memory.artifact_repository import ArtifactRepository
+from daedalus.memory.model_invocation_repository import ModelInvocationRepository
 from daedalus.memory.workflow_persistence import WorkflowPersistenceService
 from daedalus.memory.workflow_run_repository import WorkflowRunRepository
 from daedalus.memory.workflow_step_repository import WorkflowStepRepository
+from daedalus.model_clients.invocation_record import (
+    ModelInvocationRecord,
+    ModelInvocationStatus,
+)
+from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import WorkflowRunRecord
@@ -85,6 +91,43 @@ def test_save_review_normalization_run_does_not_add_review_theme_summary_by_defa
     }
 
 
+def test_save_review_normalization_run_saves_model_invocations_when_present() -> None:
+    model_invocation_repository = FakeModelInvocationRepository()
+    service = WorkflowPersistenceService(
+        workflow_run_repository=cast(WorkflowRunRepository, FakeWorkflowRunRepository()),
+        artifact_repository=cast(ArtifactRepository, FakeArtifactRepository()),
+        model_invocation_repository=cast(
+            ModelInvocationRepository,
+            model_invocation_repository,
+        ),
+    )
+    record = _workflow_run_record()
+    model_invocation = _model_invocation_record(run_id=record.run_id)
+
+    service.save_review_normalization_run(
+        record,
+        model_invocation_records=[model_invocation],
+    )
+
+    assert model_invocation_repository.saved_records == [model_invocation]
+
+
+def test_save_review_normalization_run_does_not_save_model_invocations_when_absent() -> None:
+    model_invocation_repository = FakeModelInvocationRepository()
+    service = WorkflowPersistenceService(
+        workflow_run_repository=cast(WorkflowRunRepository, FakeWorkflowRunRepository()),
+        artifact_repository=cast(ArtifactRepository, FakeArtifactRepository()),
+        model_invocation_repository=cast(
+            ModelInvocationRepository,
+            model_invocation_repository,
+        ),
+    )
+
+    service.save_review_normalization_run(_workflow_run_record())
+
+    assert model_invocation_repository.saved_records == []
+
+
 def test_save_review_normalization_run_saves_all_steps_when_repository_configured() -> None:
     step_repository = FakeWorkflowStepRepository()
     service = WorkflowPersistenceService(
@@ -139,6 +182,14 @@ class FakeWorkflowStepRepository:
         self.saved_records.append(record)
 
 
+class FakeModelInvocationRepository:
+    def __init__(self) -> None:
+        self.saved_records: list[ModelInvocationRecord] = []
+
+    def save(self, record: ModelInvocationRecord) -> None:
+        self.saved_records.append(record)
+
+
 def _workflow_run_record() -> WorkflowRunRecord:
     return WorkflowRunRecord(
         run_id=uuid4(),
@@ -173,4 +224,22 @@ def _workflow_step_record(
         completed_at_utc=datetime(2026, 5, 7, 10, 1, tzinfo=UTC),
         duration_ms=60_000,
         error_message=None,
+    )
+
+
+def _model_invocation_record(*, run_id: Any) -> ModelInvocationRecord:
+    return ModelInvocationRecord(
+        invocation_id=uuid4(),
+        run_id=run_id,
+        provider=ModelProvider.FAKE,
+        model_name="fake-model",
+        prompt_name="readysetrentables/review_theme_summary",
+        prompt_version="v0",
+        input_tokens=10,
+        output_tokens=3,
+        total_tokens=13,
+        status=ModelInvocationStatus.SUCCEEDED,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+        duration_ms=1_000,
     )

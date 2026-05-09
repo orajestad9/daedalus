@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TypeVar
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from daedalus.domains.readysetrentables_reviews.artifacts import (
     ReviewBatchArtifactMetadata,
@@ -21,6 +21,7 @@ from daedalus.domains.readysetrentables_reviews.artifacts import (
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 from daedalus.orchestrator.artifact_type import ArtifactType
+from daedalus.model_clients.invocation_record import ModelInvocationRecord
 from daedalus.orchestrator.run_lifecycle import calculate_duration_ms, utc_now
 from daedalus.orchestrator.run_record import (
     WorkflowRunRecord,
@@ -51,6 +52,7 @@ class ReviewNormalizationWorkflowResult(BaseModel):
     approval_required: bool
     approved: bool
     steps: list[WorkflowStepRecord]
+    model_invocations: list[ModelInvocationRecord] = Field(default_factory=list)
 
 
 def run_review_normalization_workflow(

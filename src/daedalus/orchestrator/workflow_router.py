@@ -152,4 +152,5 @@ def _review_result_from_graph_state(
         approval_required=state.approval_required,
         approved=state.approved,
         steps=state.steps,
+        model_invocations=state.model_invocations,
     )

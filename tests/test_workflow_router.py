@@ -11,6 +11,8 @@ from daedalus.orchestrator.workflow_router import (
     WorkflowApprovalRequiredError,
     run_workflow_from_manifest_path,
 )
+from daedalus.model_clients.invocation_record import ModelInvocationStatus
+from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.step_record import WorkflowStepRecord
 from daedalus.shared.workflow_manifest import WorkflowExecutionEngine
 
@@ -82,6 +84,9 @@ def test_run_workflow_from_langgraph_manifest_succeeds() -> None:
     assert result.run_record_json_path.is_file()
     assert result.review_theme_summary_markdown_path is not None
     assert result.review_theme_summary_markdown_path.is_file()
+    assert len(result.model_invocations) == 1
+    assert result.model_invocations[0].provider == ModelProvider.FAKE
+    assert result.model_invocations[0].status == ModelInvocationStatus.SUCCEEDED
     assert result.review_count == 8
     assert [step.step_name for step in result.steps] == EXPECTED_STEP_NAMES
 

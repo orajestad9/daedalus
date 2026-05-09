@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -7,6 +8,10 @@ from daedalus.domains.readysetrentables_reviews.graph_state import (
 from daedalus.domains.readysetrentables_reviews.theme_summary_models import (
     ReviewThemeSummaryInput,
     ReviewThemeSummaryResult,
+)
+from daedalus.model_clients.invocation_record import (
+    ModelInvocationRecord,
+    ModelInvocationStatus,
 )
 from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.step_record import WorkflowStepRecord
@@ -40,6 +45,7 @@ def test_graph_state_create_starts_with_empty_workflow_data() -> None:
     assert state.review_theme_summary_input is None
     assert state.review_theme_summary_result is None
     assert state.review_theme_summary_markdown_path is None
+    assert state.model_invocations == []
     assert state.steps == []
     assert state.approval_required is False
     assert state.approved is False
@@ -71,6 +77,22 @@ def test_graph_state_steps_are_not_shared_between_instances() -> None:
 
     assert len(first_state.steps) == 1
     assert second_state.steps == []
+
+
+def test_graph_state_model_invocations_are_not_shared_between_instances() -> None:
+    first_state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=Path("first.csv"),
+        output_json_path=Path("first.json"),
+    )
+    second_state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=Path("second.csv"),
+        output_json_path=Path("second.json"),
+    )
+
+    first_state.model_invocations.append(_model_invocation_record(run_id=first_state.run_id))
+
+    assert len(first_state.model_invocations) == 1
+    assert second_state.model_invocations == []
 
 
 def test_graph_state_accepts_review_theme_summary_fields() -> None:
@@ -105,3 +127,18 @@ def test_graph_state_accepts_review_theme_summary_fields() -> None:
     assert updated_state.review_theme_summary_input == summary_input
     assert updated_state.review_theme_summary_result == summary_result
     assert updated_state.review_theme_summary_markdown_path == summary_path
+
+
+def _model_invocation_record(run_id: UUID) -> ModelInvocationRecord:
+    return ModelInvocationRecord(
+        invocation_id=uuid4(),
+        run_id=run_id,
+        provider=ModelProvider.FAKE,
+        model_name="fake-model",
+        prompt_name="readysetrentables/review_theme_summary",
+        prompt_version="v0",
+        status=ModelInvocationStatus.SUCCEEDED,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+        duration_ms=1_000,
+    )

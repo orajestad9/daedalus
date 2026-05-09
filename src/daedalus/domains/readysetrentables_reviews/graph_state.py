@@ -16,6 +16,7 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_models import (
     ReviewThemeSummaryInput,
     ReviewThemeSummaryResult,
 )
+from daedalus.model_clients.invocation_record import ModelInvocationRecord
 from daedalus.orchestrator.run_lifecycle import utc_now
 from daedalus.orchestrator.step_record import WorkflowStepRecord
 
@@ -34,6 +35,7 @@ class ReadySetRentablesReviewGraphState(BaseModel):
     review_theme_summary_input: ReviewThemeSummaryInput | None = None
     review_theme_summary_result: ReviewThemeSummaryResult | None = None
     review_theme_summary_markdown_path: Path | None = None
+    model_invocations: list[ModelInvocationRecord] = Field(default_factory=list)
     steps: list[WorkflowStepRecord] = Field(default_factory=list)
     approval_required: bool = False
     approved: bool = False

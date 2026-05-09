@@ -56,10 +56,12 @@ class WorkflowPersistenceService:
         workflow_run_repository: WorkflowRunRepository,
         artifact_repository: ArtifactRepository,
         workflow_step_repository: WorkflowStepRepository | None = None,
+        model_invocation_repository: ModelInvocationRepository | None = None,
     ) -> None:
         self._workflow_run_repository = workflow_run_repository
         self._artifact_repository = artifact_repository
         self._workflow_step_repository = workflow_step_repository
+        self._model_invocation_repository = model_invocation_repository
 
     def persist_completed_workflow(
         self,
@@ -79,10 +81,14 @@ class WorkflowPersistenceService:
         record: WorkflowRunRecord,
         steps: list[WorkflowStepRecord] | None = None,
         extra_artifact_records: Sequence[ArtifactRecord] | None = None,
+        model_invocation_records: Sequence[ModelInvocationRecord] | None = None,
     ) -> list[ArtifactRecord]:
         """Save a review normalization run, optional steps, and artifact records."""
         if steps and self._workflow_step_repository is None:
             msg = "Step persistence requires WorkflowStepRepository"
+            raise ValueError(msg)
+        if model_invocation_records and self._model_invocation_repository is None:
+            msg = "Model invocation persistence requires ModelInvocationRepository"
             raise ValueError(msg)
 
         self._workflow_run_repository.save(record)
@@ -96,6 +102,10 @@ class WorkflowPersistenceService:
         ]
         for artifact_record in artifact_records:
             self._artifact_repository.save(artifact_record)
+
+        for model_invocation_record in model_invocation_records or []:
+            if self._model_invocation_repository is not None:
+                self._model_invocation_repository.save(model_invocation_record)
 
         return artifact_records
 
@@ -118,18 +128,21 @@ def persist_review_normalization_workflow_result(
             workflow_run_repository=WorkflowRunRepository(connection),
             artifact_repository=ArtifactRepository(connection),
             workflow_step_repository=WorkflowStepRepository(connection),
+            model_invocation_repository=ModelInvocationRepository(connection),
         )
         artifact_records = service.save_review_normalization_run(
             record=_run_record_from_result(result),
             steps=result.steps,
             extra_artifact_records=_extra_artifact_records_from_result(result),
+            model_invocation_records=result.model_invocations,
         )
         connection.commit()
         logger.info(
-            "Persistence completed run_id=%s artifact_count=%s step_count=%s",
+            "Persistence completed run_id=%s artifact_count=%s step_count=%s model_invocation_count=%s",
             result.run_id,
             len(artifact_records),
             len(result.steps),
+            len(result.model_invocations),
         )
     except Exception as exc:
         connection.rollback()

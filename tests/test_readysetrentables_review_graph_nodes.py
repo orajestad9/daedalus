@@ -16,6 +16,7 @@ from daedalus.domains.readysetrentables_reviews.graph_nodes import (
 from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
 )
+from daedalus.model_clients.invocation_record import ModelInvocationStatus
 from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.status import WorkflowStatus
 
@@ -291,6 +292,19 @@ def test_run_fake_review_theme_summary_agent_node_populates_result() -> None:
     assert result.output_tokens is not None
     assert result.total_tokens is not None
     assert result.estimated_cost_usd is not None
+    assert len(updated_state.model_invocations) == 1
+    invocation = updated_state.model_invocations[0]
+    assert invocation.run_id == state.run_id
+    assert invocation.provider == ModelProvider.FAKE
+    assert invocation.model_name == "fake-model"
+    assert invocation.prompt_name == result.prompt_name
+    assert invocation.prompt_version == result.prompt_version
+    assert invocation.status == ModelInvocationStatus.SUCCEEDED
+    assert invocation.input_tokens == result.input_tokens
+    assert invocation.output_tokens == result.output_tokens
+    assert invocation.total_tokens == result.total_tokens
+    assert invocation.estimated_cost_usd == result.estimated_cost_usd
+    assert invocation.duration_ms >= 0
     assert updated_state.run_id == summary_input_state.run_id
     assert updated_state.review_theme_summary_input == (
         summary_input_state.review_theme_summary_input

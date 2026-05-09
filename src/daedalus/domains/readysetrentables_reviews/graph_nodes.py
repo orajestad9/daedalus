@@ -6,6 +6,7 @@ state, and WorkflowStepRecord data through LangGraph state.
 """
 
 from pathlib import Path
+from typing import cast
 
 from daedalus.domains.readysetrentables_reviews.artifacts import (
     ReviewBatchArtifactMetadata,
@@ -27,6 +28,10 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder impo
     build_review_theme_summary_input,
 )
 from daedalus.model_clients.fake import FakeModelClient
+from daedalus.memory.model_invocation_repository import ModelInvocationRepository
+from daedalus.model_clients.invocation_record import ModelInvocationRecord
+from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
+from daedalus.model_clients.recording import RecordingModelClient
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_lifecycle import calculate_duration_ms, utc_now
 from daedalus.orchestrator.run_record import (
@@ -167,8 +172,18 @@ def run_fake_review_theme_summary_agent_node(
         run_id=state.run_id,
         step_name="run_fake_review_theme_summary_agent",
     )
+    model_invocation_repository = _InMemoryModelInvocationRepository()
+    recording_client = RecordingModelClient(
+        inner_client=FakeModelClient(),
+        recorder=ModelInvocationRecorder(
+            cast(ModelInvocationRepository, model_invocation_repository)
+        ),
+        step_id=step.step_id,
+        agent_name="review_theme_summary_agent",
+        output_artifact_path=_review_theme_summary_path_for(state.output_json_path),
+    )
     try:
-        agent = ReviewThemeSummaryAgent(model_client=FakeModelClient())
+        agent = ReviewThemeSummaryAgent(model_client=recording_client)
         review_theme_summary_result = agent.summarize(state.review_theme_summary_input)
     except Exception as exc:
         state.steps.append(step.fail(str(exc)))
@@ -177,6 +192,10 @@ def run_fake_review_theme_summary_agent_node(
     return state.model_copy(
         update={
             "review_theme_summary_result": review_theme_summary_result,
+            "model_invocations": [
+                *state.model_invocations,
+                *model_invocation_repository.saved_records,
+            ],
             "steps": [*state.steps, step.complete()],
         }
     )
@@ -214,6 +233,16 @@ def write_review_theme_summary_artifact_node(
 
 def _review_theme_summary_path_for(output_json_path: Path) -> Path:
     return output_json_path.with_name("review_theme_summary.md")
+
+
+class _InMemoryModelInvocationRepository:
+    """Collect model invocation records during local graph execution."""
+
+    def __init__(self) -> None:
+        self.saved_records: list[ModelInvocationRecord] = []
+
+    def save(self, record: ModelInvocationRecord) -> None:
+        self.saved_records.append(record)
 
 
 def write_summary_artifact_node(

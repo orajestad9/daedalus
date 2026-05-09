@@ -8,6 +8,8 @@ from daedalus.domains.readysetrentables_reviews.graph_workflow import (
     build_readysetrentables_review_graph,
     run_readysetrentables_review_graph,
 )
+from daedalus.model_clients.invocation_record import ModelInvocationStatus
+from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.status import WorkflowStatus
 
 
@@ -71,6 +73,11 @@ def test_run_readysetrentables_review_graph_returns_typed_populated_state(
     assert final_state.review_theme_summary_input is not None
     assert final_state.review_theme_summary_result is not None
     assert final_state.review_theme_summary_markdown_path is not None
+    assert len(final_state.model_invocations) == 1
+    invocation = final_state.model_invocations[0]
+    assert invocation.run_id == final_state.run_id
+    assert invocation.provider == ModelProvider.FAKE
+    assert invocation.status == ModelInvocationStatus.SUCCEEDED
     assert final_state.approval_required is True
     assert final_state.approved is True
 

@@ -14,7 +14,10 @@ from daedalus.memory.workflow_persistence import (
     load_workflow_run_details,
     persist_review_normalization_workflow_result,
 )
-from daedalus.model_clients.invocation_record import ModelInvocationStatus
+from daedalus.model_clients.invocation_record import (
+    ModelInvocationRecord,
+    ModelInvocationStatus,
+)
 from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_record import (
@@ -76,6 +79,35 @@ def test_persist_review_normalization_workflow_result_persists_review_theme_summ
     assert any(
         params[2] == ArtifactType.REVIEW_THEME_SUMMARY.value
         and params[3] == str(tmp_path / "review_theme_summary.md")
+        for params in connection.executed_params
+    )
+
+
+def test_persist_review_normalization_workflow_result_persists_model_invocations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = FakeConnection()
+    result = _workflow_result(tmp_path)
+    model_invocation = _model_invocation_record(run_id=result.run_id)
+    result = result.model_copy(update={"model_invocations": [model_invocation]})
+    monkeypatch.setattr(
+        "daedalus.memory.workflow_persistence.load_postgres_settings",
+        _postgres_settings,
+    )
+    monkeypatch.setattr(
+        "daedalus.memory.workflow_persistence.connect_postgres",
+        lambda _: connection,
+    )
+
+    artifact_count = persist_review_normalization_workflow_result(result)
+
+    assert artifact_count == 4
+    assert _insert_count(connection.executed_sql, "model_invocations") == 1
+    assert any(
+        params[0] == model_invocation.invocation_id
+        and params[4] == ModelProvider.FAKE.value
+        and params[12] == ModelInvocationStatus.SUCCEEDED.value
         for params in connection.executed_params
     )
 
@@ -351,4 +383,27 @@ def _model_invocation_row(run_id: UUID) -> tuple[object, ...]:
         "artifacts/input.json",
         "artifacts/output.json",
         None,
+    )
+
+
+def _model_invocation_record(*, run_id: UUID) -> ModelInvocationRecord:
+    return ModelInvocationRecord(
+        invocation_id=uuid4(),
+        run_id=run_id,
+        step_id=uuid4(),
+        agent_name="review_theme_summary_agent",
+        provider=ModelProvider.FAKE,
+        model_name="fake-model",
+        prompt_name="readysetrentables/review_theme_summary",
+        prompt_version="v0",
+        input_tokens=10,
+        output_tokens=3,
+        total_tokens=13,
+        estimated_cost_usd=Decimal("0"),
+        status=ModelInvocationStatus.SUCCEEDED,
+        started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+        completed_at_utc=datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+        duration_ms=1_000,
+        input_artifact_path=Path("prompts/readysetrentables/review_theme_summary/v0.md"),
+        output_artifact_path=Path("artifacts/readysetrentables/review_theme_summary.md"),
     )
