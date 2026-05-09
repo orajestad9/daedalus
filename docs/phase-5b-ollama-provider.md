@@ -267,20 +267,21 @@ make ollama-summary-local-check
 ```
 
 This command is manual and local-only. It is not part of `make check`, does not
-persist to Postgres, does not record model invocations, and is not wired into
-`run-workflow` or LangGraph. CLI output is limited to run ID, output path,
-provider, model, token, and cost metadata; raw prompt text, model output text,
-representative review text, and request payload contents are not printed.
+persist to Postgres unless an explicit persistence flag is supplied, and is not
+wired into `run-workflow` or LangGraph. CLI output is limited to run ID, output
+path, provider, model, token, cost, and persistence-status metadata; raw prompt
+text, model output text, representative review text, artifact contents, and
+request payload contents are not printed.
 
 This differs from the fake LangGraph path: LangGraph still uses
 `FakeModelClient` and can persist fake invocation metadata through
 `run-workflow --execution-engine langgraph --persist`. The Ollama path is a
 separate manual CLI path for local provider testing.
 
-### Optional Invocation Persistence
+### Optional Artifact And Invocation Persistence
 
-The Ollama summary command can optionally record model invocation metadata for
-an existing persisted run:
+The Ollama summary command can optionally record the generated artifact and/or
+model invocation metadata for an existing persisted run:
 
 ```bash
 .venv/bin/daedalus summarize-review-themes-ollama \
@@ -291,14 +292,29 @@ an existing persisted run:
   --persist-invocation
 ```
 
-`--persist-invocation` requires `--run-id`. When it is present, the command
-wraps `OllamaModelClient` with `RecordingModelClient`, writes one
-`model_invocations` row through `ModelInvocationRecorder`, and commits only on
-success. Without the flag, the command remains file/artifact-only and does not
-open Postgres. The persisted row stores provider, model, prompt identity,
-status, token, cost, and timing metadata only; it does not store raw prompt
-text, raw model output text, representative review text, or request payload
-contents.
+To record the generated markdown artifact as `ArtifactType.REVIEW_THEME_SUMMARY`
+without recording an invocation, use:
+
+```bash
+.venv/bin/daedalus summarize-review-themes-ollama \
+  --input artifacts/readysetrentables/normalized_reviews.json \
+  --output artifacts/readysetrentables/review_theme_summary.md \
+  --model llama3.1 \
+  --run-id <run-id> \
+  --persist-artifact
+```
+
+`--persist-artifact` and `--persist-invocation` both require `--run-id`. They
+can be used independently or together. When both are present, the command uses
+one Postgres connection and one transaction, persists the `review_theme_summary`
+artifact record and the `model_invocations` row, then commits once on success.
+If any part fails, the transaction is rolled back.
+
+Without either persistence flag, the command remains file/artifact-only and
+does not open Postgres. The persisted invocation row stores provider, model,
+prompt identity, status, token, cost, and timing metadata only; it does not
+store raw prompt text, raw model output text, representative review text,
+artifact contents, or request payload contents.
 
 ## Testing Strategy
 

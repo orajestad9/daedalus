@@ -220,9 +220,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "summarize-review-themes-ollama":
+        connection = None
         try:
-            if args.persist_invocation and args.run_id is None:
-                parser.error("--persist-invocation requires --run-id")
+            if (args.persist_invocation or args.persist_artifact) and args.run_id is None:
+                parser.error("--persist-invocation or --persist-artifact requires --run-id")
             run_id = args.run_id or uuid4()
             batch = load_review_batch_json(args.input)
             input_data = build_review_theme_summary_input(
@@ -237,9 +238,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 request_timeout_seconds=args.timeout_seconds,
             )
             model_client: ModelClient = OllamaModelClient(settings=ollama_settings)
-            connection = None
-            if args.persist_invocation:
+            if args.persist_invocation or args.persist_artifact:
                 connection = connect_postgres(load_postgres_settings())
+            if args.persist_invocation:
+                assert connection is not None
                 repository = ModelInvocationRepository(connection)
                 recorder = ModelInvocationRecorder(repository)
                 model_client = RecordingModelClient(
@@ -258,21 +260,29 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result=theme_summary_result,
                 output_path=args.output,
             )
+            if args.persist_artifact:
+                assert connection is not None
+                artifact_record = ArtifactRecord.create(
+                    run_id=run_id,
+                    artifact_type=ArtifactType.REVIEW_THEME_SUMMARY,
+                    artifact_path=args.output,
+                )
+                ArtifactRepository(connection).save(artifact_record)
             if connection is not None:
                 connection.commit()
         except (FileNotFoundError, ValueError, OllamaModelClientError) as exc:
-            if "connection" in locals() and connection is not None:
+            if connection is not None:
                 connection.rollback()
                 connection.close()
             parser.error(str(exc))
         except Exception:
-            if "connection" in locals() and connection is not None:
+            if connection is not None:
                 connection.rollback()
                 connection.close()
-            msg = "Failed to persist Ollama model invocation"
+            msg = "Failed to persist Ollama summary metadata"
             parser.error(msg)
         else:
-            if "connection" in locals() and connection is not None:
+            if connection is not None:
                 connection.close()
 
         print(
@@ -282,7 +292,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"provider={theme_summary_result.model_provider.value} "
             f"model_name={theme_summary_result.model_name} "
             f"total_tokens={theme_summary_result.total_tokens} "
-            f"estimated_cost_usd={theme_summary_result.estimated_cost_usd}"
+            f"estimated_cost_usd={theme_summary_result.estimated_cost_usd} "
+            f"artifact_persisted={'yes' if args.persist_artifact else 'no'} "
+            f"invocation_persisted={'yes' if args.persist_invocation else 'no'}"
         )
         return 0
 
@@ -519,6 +531,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--persist-invocation",
         action="store_true",
         help="Persist the Ollama model invocation metadata for an existing --run-id.",
+    )
+    summarize_review_themes_ollama.add_argument(
+        "--persist-artifact",
+        action="store_true",
+        help="Persist the generated review theme summary artifact for an existing --run-id.",
     )
 
     ollama_smoke_check = subparsers.add_parser(

@@ -141,8 +141,8 @@ The review theme summary agent can run through four explicit paths:
   invocation metadata for `show-run`.
 - `summarize-review-themes-ollama`: standalone local Ollama path using
   `OllamaModelClient`; writes `review_theme_summary.md` and can optionally
-  record model invocation metadata with `--persist-invocation --run-id
-  <run-id>`.
+  record the generated artifact with `--persist-artifact --run-id <run-id>`
+  and model invocation metadata with `--persist-invocation --run-id <run-id>`.
 
 The Ollama CLI path remains manual and local-only. It is not wired into
 LangGraph, `run-workflow`, or the deterministic workflow, and Ollama is not a
@@ -288,8 +288,8 @@ lives in [`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md).
 `summarize-review-themes-ollama` CLI path can now run this agent against local
 Ollama and write `review_theme_summary.md`. That command is manual,
 artifact-only, and not wired into `run-workflow` or LangGraph; it does not
-persist model invocations unless `--persist-invocation` is explicitly supplied
-with an existing `--run-id`.
+persist artifact or model invocation rows unless `--persist-artifact` or
+`--persist-invocation` is explicitly supplied with an existing `--run-id`.
 
 ## Budget Enforcement
 

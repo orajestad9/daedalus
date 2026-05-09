@@ -96,8 +96,10 @@ the `review_theme_summary` artifact.
 For an explicit local Ollama run of the same agent, use
 `summarize-review-themes-ollama --model llama3.1` after creating
 `artifacts/readysetrentables/normalized_reviews.json`. This is optional,
-local-only, and not part of `make check`. Add `--persist-invocation --run-id
-<run-id>` only when you want to record metadata for an existing persisted run.
+local-only, and not part of `make check`. Add `--persist-artifact --run-id
+<run-id>` to record the generated markdown artifact, and add
+`--persist-invocation --run-id <run-id>` only when you want to record model
+invocation metadata for an existing persisted run.
 
 To verify that local fake summary path end to end without Docker or `.env`:
 

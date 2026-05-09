@@ -684,9 +684,11 @@ def test_summarize_review_themes_ollama_command_succeeds_with_mocked_client(
     assert "model_name=llama3.1" in output
     assert "total_tokens=7" in output
     assert "estimated_cost_usd=0" in output
+    assert "artifact_persisted=no" in output
+    assert "invocation_persisted=no" in output
 
 
-def test_summarize_review_themes_ollama_without_persist_does_not_connect_to_postgres(
+def test_summarize_review_themes_ollama_without_persistence_does_not_connect_to_postgres(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -695,7 +697,7 @@ def test_summarize_review_themes_ollama_without_persist_does_not_connect_to_post
     monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
 
     def fail_if_called(_: object) -> object:
-        raise AssertionError("Postgres should not be opened without --persist-invocation")
+        raise AssertionError("Postgres should not be opened without persistence flags")
 
     monkeypatch.setattr("daedalus.cli.connect_postgres", fail_if_called)
 
@@ -737,6 +739,35 @@ def test_summarize_review_themes_ollama_persist_invocation_requires_run_id(
                 "--model",
                 "llama3.1",
                 "--persist-invocation",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_summarize_review_themes_ollama_persist_artifact_requires_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    def fail_if_called(_: object) -> object:
+        raise AssertionError("Postgres should not be opened without --run-id")
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-ollama",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--model",
+                "llama3.1",
+                "--persist-artifact",
             ]
         )
 
@@ -786,9 +817,14 @@ def test_summarize_review_themes_ollama_persist_invocation_records_model_invocat
     assert "model_name=llama3.1" in output
     assert "total_tokens=7" in output
     assert "estimated_cost_usd=0" in output
+    assert "artifact_persisted=no" in output
+    assert "invocation_persisted=yes" in output
     assert "Raw local model output should not be printed." not in output
     assert "Bright apartment with a spotless kitchen" not in output
     assert any("insert into model_invocations" in sql.lower() for sql in connection.executed_sql)
+    assert not any(
+        "insert into workflow_artifacts" in sql.lower() for sql in connection.executed_sql
+    )
     assert connection.executed_params[0][1] == run_id
     assert connection.executed_params[0][4] == ModelProvider.OLLAMA.value
     assert connection.executed_params[0][5] == "llama3.1"
@@ -798,6 +834,110 @@ def test_summarize_review_themes_ollama_persist_invocation_records_model_invocat
     assert connection.executed_params[0][9] == 3
     assert connection.executed_params[0][10] == 7
     assert connection.executed_params[0][12] == ModelInvocationStatus.SUCCEEDED.value
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+
+
+def test_summarize_review_themes_ollama_persist_artifact_records_review_theme_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "summarize-review-themes-ollama",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--model",
+            "llama3.1",
+            "--run-id",
+            str(run_id),
+            "--persist-artifact",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert "artifact_persisted=yes" in output
+    assert "invocation_persisted=no" in output
+    assert "Raw local model output should not be printed." not in output
+    assert "Bright apartment with a spotless kitchen" not in output
+    assert "ReadySetRentables Review Theme Summary" not in output
+    assert any("insert into workflow_artifacts" in sql.lower() for sql in connection.executed_sql)
+    assert not any(
+        "insert into model_invocations" in sql.lower() for sql in connection.executed_sql
+    )
+    assert connection.executed_params[0][1] == run_id
+    assert connection.executed_params[0][2] == ArtifactType.REVIEW_THEME_SUMMARY.value
+    assert connection.executed_params[0][3] == str(output_path)
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+
+
+def test_summarize_review_themes_ollama_persist_artifact_and_invocation_records_both(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "summarize-review-themes-ollama",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--model",
+            "llama3.1",
+            "--run-id",
+            str(run_id),
+            "--persist-artifact",
+            "--persist-invocation",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "artifact_persisted=yes" in output
+    assert "invocation_persisted=yes" in output
+    assert any("insert into model_invocations" in sql.lower() for sql in connection.executed_sql)
+    assert any("insert into workflow_artifacts" in sql.lower() for sql in connection.executed_sql)
     assert connection.committed is True
     assert connection.rolled_back is False
     assert connection.closed is True
@@ -847,6 +987,52 @@ def test_summarize_review_themes_ollama_persist_invocation_rolls_back_on_failure
     assert connection.closed is True
     assert "Bright apartment with a spotless kitchen" not in combined_output
     assert "Prompt template:" not in combined_output
+
+
+def test_summarize_review_themes_ollama_persist_artifact_rolls_back_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FailingArtifactConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    input_path = _write_normalized_reviews_json(tmp_path)
+    output_path = tmp_path / "review_theme_summary.md"
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", SuccessfulOllamaClient)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "summarize-review-themes-ollama",
+                "--input",
+                str(input_path),
+                "--output",
+                str(output_path),
+                "--model",
+                "llama3.1",
+                "--run-id",
+                str(uuid4()),
+                "--persist-artifact",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert connection.committed is False
+    assert connection.rolled_back is True
+    assert connection.closed is True
+    assert "Raw local model output should not be printed." not in combined_output
+    assert "ReadySetRentables Review Theme Summary" not in combined_output
 
 
 def test_summarize_review_themes_ollama_command_output_omits_raw_text(
@@ -1300,6 +1486,14 @@ class FakeModelInvocationConnection:
 
     def close(self) -> None:
         self.closed = True
+
+
+class FailingArtifactConnection(FakeModelInvocationConnection):
+    def execute(self, sql: str, params: tuple[object, ...]) -> None:
+        super().execute(sql, params)
+        if "insert into workflow_artifacts" in sql.lower():
+            msg = "synthetic artifact insert failure"
+            raise RuntimeError(msg)
 
 
 class SuccessfulOllamaClient:

@@ -223,6 +223,10 @@ calls:
 - `summarize-review-themes-ollama --persist-invocation --run-id <run-id>` can
   record metadata for a manual local Ollama review theme summary call. Without
   `--persist-invocation`, that command does not connect to Postgres.
+- `summarize-review-themes-ollama --persist-artifact --run-id <run-id>` can
+  record the generated `review_theme_summary.md` as an artifact row for a
+  manual local Ollama summary. The artifact and invocation flags can be combined
+  in one transaction.
 
 Model calls should attach to the workflow `run_id`, and to a `step_id` whenever
 the call happens inside an observable workflow step. Agents, LangGraph nodes,
@@ -268,6 +272,10 @@ safe.
 LangGraph path and the optional Ollama CLI persistence path. In both cases it
 shows provider, model, prompt identity, status, token, cost, duration, and
 artifact-path metadata only.
+
+When the manual Ollama summary artifact is recorded with `--persist-artifact`,
+`show-run` can also display the `review_theme_summary` artifact path. It does
+not display artifact contents.
 
 For the integrated LangGraph fake summary path, the persisted model invocation
 record contains metadata such as `provider=fake`, `model_name`, `prompt_name`,
