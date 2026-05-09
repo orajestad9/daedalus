@@ -6,9 +6,12 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from daedalus.domains.readysetrentables_reviews.graph_nodes import (
+    build_review_theme_summary_input_node,
     load_reviews_node,
+    run_fake_review_theme_summary_agent_node,
     write_metadata_artifact_node,
     write_normalized_artifact_node,
+    write_review_theme_summary_artifact_node,
     write_run_record_artifact_node,
     write_summary_artifact_node,
 )
@@ -38,13 +41,28 @@ def build_readysetrentables_review_graph() -> ReadySetRentablesReviewCompiledGra
     graph.add_node("write_metadata_artifact", write_metadata_artifact_node)
     graph.add_node("write_summary_artifact", write_summary_artifact_node)
     graph.add_node("write_run_record_artifact", write_run_record_artifact_node)
+    graph.add_node("build_review_theme_summary_input", build_review_theme_summary_input_node)
+    graph.add_node(
+        "run_fake_review_theme_summary_agent",
+        run_fake_review_theme_summary_agent_node,
+    )
+    graph.add_node(
+        "write_review_theme_summary_artifact",
+        write_review_theme_summary_artifact_node,
+    )
 
     graph.set_entry_point("load_reviews")
     graph.add_edge("load_reviews", "write_normalized_artifact")
     graph.add_edge("write_normalized_artifact", "write_metadata_artifact")
     graph.add_edge("write_metadata_artifact", "write_summary_artifact")
     graph.add_edge("write_summary_artifact", "write_run_record_artifact")
-    graph.add_edge("write_run_record_artifact", END)
+    graph.add_edge("write_run_record_artifact", "build_review_theme_summary_input")
+    graph.add_edge("build_review_theme_summary_input", "run_fake_review_theme_summary_agent")
+    graph.add_edge(
+        "run_fake_review_theme_summary_agent",
+        "write_review_theme_summary_artifact",
+    )
+    graph.add_edge("write_review_theme_summary_artifact", END)
 
     return graph.compile()
 

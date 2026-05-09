@@ -19,6 +19,9 @@ EXPECTED_STEP_NAMES = [
     "write_metadata_artifact",
     "write_summary_artifact",
     "write_run_record_artifact",
+    "build_review_theme_summary_input",
+    "run_fake_review_theme_summary_agent",
+    "write_review_theme_summary_artifact",
 ]
 
 
@@ -42,9 +45,11 @@ def test_run_readysetrentables_review_graph_writes_artifacts(
     assert final_state.metadata_json_path == tmp_path / "normalized_reviews.metadata.json"
     assert final_state.summary_markdown_path == tmp_path / "normalized_reviews.summary.md"
     assert final_state.run_record_json_path == tmp_path / "normalized_reviews.run.json"
+    assert final_state.review_theme_summary_markdown_path == (tmp_path / "review_theme_summary.md")
     assert final_state.metadata_json_path.is_file()
     assert final_state.summary_markdown_path.is_file()
     assert final_state.run_record_json_path.is_file()
+    assert final_state.review_theme_summary_markdown_path.is_file()
 
 
 def test_run_readysetrentables_review_graph_returns_typed_populated_state(
@@ -63,6 +68,9 @@ def test_run_readysetrentables_review_graph_returns_typed_populated_state(
     assert final_state.metadata_json_path is not None
     assert final_state.summary_markdown_path is not None
     assert final_state.run_record_json_path is not None
+    assert final_state.review_theme_summary_input is not None
+    assert final_state.review_theme_summary_result is not None
+    assert final_state.review_theme_summary_markdown_path is not None
     assert final_state.approval_required is True
     assert final_state.approved is True
 
