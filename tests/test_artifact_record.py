@@ -45,6 +45,20 @@ def test_artifact_record_create_generates_identity_and_timestamp() -> None:
     assert record.created_at_utc.utcoffset() is not None
 
 
+def test_artifact_record_can_represent_review_theme_summary_artifact() -> None:
+    run_id = uuid4()
+
+    record = ArtifactRecord.create(
+        run_id=run_id,
+        artifact_type=ArtifactType.REVIEW_THEME_SUMMARY,
+        artifact_path=Path("artifacts/readysetrentables/review_theme_summary.md"),
+    )
+
+    assert record.run_id == run_id
+    assert record.artifact_type == ArtifactType.REVIEW_THEME_SUMMARY
+    assert record.artifact_path == Path("artifacts/readysetrentables/review_theme_summary.md")
+
+
 def test_artifact_record_json_serializes_artifact_type_value() -> None:
     record = ArtifactRecord(
         artifact_id=uuid4(),
@@ -58,3 +72,18 @@ def test_artifact_record_json_serializes_artifact_type_value() -> None:
 
     assert data["artifact_type"] == "workflow_run_record"
     assert data["artifact_path"] == "artifacts/readysetrentables/normalized_reviews.run.json"
+
+
+def test_review_theme_summary_artifact_json_serializes_artifact_type_value() -> None:
+    record = ArtifactRecord(
+        artifact_id=uuid4(),
+        run_id=uuid4(),
+        artifact_type=ArtifactType.REVIEW_THEME_SUMMARY,
+        artifact_path=Path("artifacts/readysetrentables/review_theme_summary.md"),
+        created_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+    )
+
+    data = cast(dict[str, Any], json.loads(record.model_dump_json()))
+
+    assert data["artifact_type"] == "review_theme_summary"
+    assert data["artifact_path"] == "artifacts/readysetrentables/review_theme_summary.md"

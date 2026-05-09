@@ -62,6 +62,7 @@ def test_artifact_type_values_are_stable() -> None:
     assert ArtifactType.REVIEW_METADATA.value == "review_metadata"
     assert ArtifactType.WORKFLOW_SUMMARY.value == "workflow_summary"
     assert ArtifactType.WORKFLOW_RUN_RECORD.value == "workflow_run_record"
+    assert ArtifactType.REVIEW_THEME_SUMMARY.value == "review_theme_summary"
     assert ArtifactType.APPROVAL_RECORD.value == "approval_record"
     assert ArtifactType.AGENT_OUTPUT.value == "agent_output"
     assert ArtifactType.VALIDATION_REPORT.value == "validation_report"

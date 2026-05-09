@@ -78,6 +78,12 @@ input path, output path, artifact type, creation timestamp, and review count.
 When persistence is enabled, artifact records are stored in `workflow_artifacts`
 as an index of generated files.
 
+Phase 4 also recognizes `review_theme_summary` as an artifact type for the
+fake/local review theme summary markdown output. The current
+`summarize-review-themes-fake` command writes `review_theme_summary.md` as a
+file artifact only; persisted artifact records for that file are intentionally
+deferred.
+
 ## Human Inspection
 
 There are two inspection paths:

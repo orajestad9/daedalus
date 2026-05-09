@@ -44,6 +44,10 @@ agent through the shared `ModelClient` protocol, and writes:
 
 - `review_theme_summary.md`
 
+`review_theme_summary` is now a recognized `ArtifactType` for future
+persistence and lineage tracking. The fake/local CLI writes the markdown file
+only; it does not automatically create a persisted artifact record yet.
+
 The command prints only safe metadata such as `run_id`, output path, provider,
 model name, token counts, and estimated cost. It does not print raw prompt text,
 raw model output text, or raw review datasets.
