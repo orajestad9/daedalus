@@ -21,9 +21,9 @@ mixed together.
 The first graph reproduces the existing deterministic workflow before Daedalus
 adds branching, retries, model calls, or agents.
 
-Phase 5A is planned to add the first fake/local agent node to this graph. See
+Phase 5A adds the first fake/local agent path to this graph. See
 [`docs/phase-5a-fake-agent-langgraph.md`](phase-5a-fake-agent-langgraph.md) for
-the review theme summary integration plan.
+the review theme summary integration details.
 
 ## Current LangGraph Status
 
@@ -35,12 +35,19 @@ remains the trusted default. LangGraph is opt-in through one of these paths:
 - a manifest with `execution_engine: langgraph`
 - a temporary `run-workflow --execution-engine langgraph` CLI override
 
-The LangGraph path writes the same file artifact set as the deterministic path:
+The LangGraph path writes the deterministic workflow artifact set:
 
 - `normalized_reviews.json`
 - `normalized_reviews.metadata.json`
 - `normalized_reviews.summary.md`
 - `normalized_reviews.run.json`
+
+It now also writes a fake review theme summary artifact:
+
+- `review_theme_summary.md`
+
+The deterministic workflow remains unchanged and does not produce
+`review_theme_summary.md`.
 
 Graph parity tests compare stable normalized review fields against the
 deterministic workflow so the graph can evolve without quietly changing the
@@ -98,15 +105,23 @@ load_reviews
   -> write_metadata_artifact
   -> write_summary_artifact
   -> write_run_record_artifact
+  -> build_review_theme_summary_input
+  -> run_fake_review_theme_summary_agent
+  -> write_review_theme_summary_artifact
 ```
 
 Each node maps directly to a `WorkflowStepRecord.step_name` with the same name.
 That shared vocabulary keeps markdown summaries, persisted `workflow_steps`,
 `show-run`, and future LangGraph trace views aligned.
 
+The fake summary agent node uses `FakeModelClient` only through the shared
+`ModelClient` boundary. No real LLM calls, provider SDKs, network calls, model
+invocation persistence, or review theme summary `ArtifactRecord` persistence are
+part of the graph path yet.
+
 The nodes use existing domain ingestion and artifact helpers. They do not own
 CSV parsing rules, Pydantic domain models, artifact serialization details,
-Postgres SQL, provider calls, or approval persistence.
+Postgres SQL, real provider calls, or approval persistence.
 
 ## Manifest Execution Engine
 

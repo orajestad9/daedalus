@@ -2,9 +2,10 @@
 
 Phase 5A wires the existing fake/local ReadySetRentables review theme summary
 agent into the LangGraph workflow before Daedalus adds any real local provider
-support. The purpose is to prove the graph, model-client, artifact, budget, and
-observability boundaries together while the model behavior is still fully
-deterministic and local.
+support. The compiled LangGraph workflow now includes the fake summary nodes and
+writes `review_theme_summary.md` as part of graph execution. The purpose is to
+prove the graph, model-client, artifact, budget, and observability boundaries
+together while the model behavior is still fully deterministic and local.
 
 No real provider SDKs, network calls, real LLM calls, cloud model usage,
 OpenTelemetry, or new migrations should be added in Phase 5A.
@@ -26,9 +27,9 @@ Ollama or another local provider should satisfy the same `ModelClient` contract
 later. If the fake graph path is stable first, a future `OllamaModelClient` can
 replace `FakeModelClient` behind the same boundary with less workflow churn.
 
-## Current Separate Pieces
+## Current Integrated Pieces
 
-The current system has these pieces, but they are not yet joined in the graph:
+The current system has these pieces joined in the LangGraph path:
 
 - `ReadySetRentablesReviewGraphState`
 - deterministic LangGraph nodes for loading reviews and writing normalization
@@ -46,36 +47,36 @@ The current system has these pieces, but they are not yet joined in the graph:
 - `summarize-review-themes-fake`
 - `record-review-theme-summary-artifact`
 
-Today, `summarize-review-themes-fake` is a manual file/artifact path. It is not
-automatically invoked by `run-workflow`, and the LangGraph workflow does not yet
-include review theme summary nodes.
+`summarize-review-themes-fake` remains a manual file/artifact path for running
+the fake summary agent outside the workflow. The LangGraph execution path now
+creates `review_theme_summary.md` as part of graph execution. The deterministic
+workflow remains unchanged and does not create this artifact.
 
-## Target Integrated Workflow
+## Integrated Workflow
 
-The target Phase 5A graph should extend the current deterministic graph with a
-fake agent branch after normalized review data exists and before the final run
-record is written.
+The Phase 5A graph extends the deterministic graph with a fake agent branch
+after the run record artifact is written.
 
-Proposed node order:
+Current node order:
 
 ```text
 load_reviews
   -> write_normalized_artifact
   -> write_metadata_artifact
+  -> write_summary_artifact
+  -> write_run_record_artifact
   -> build_review_theme_summary_input
   -> run_fake_review_theme_summary_agent
   -> write_review_theme_summary_artifact
-  -> write_summary_artifact
-  -> write_run_record_artifact
 ```
 
-The first integrated path should use `FakeModelClient` only. All model-like
+The integrated path uses `FakeModelClient` only. All model-like
 behavior must still go through the `ModelClient` protocol so later local
 provider work can reuse the same graph shape.
 
-## Proposed Graph State Additions
+## Graph State Additions
 
-`ReadySetRentablesReviewGraphState` should add typed fields for the fake summary
+`ReadySetRentablesReviewGraphState` has typed fields for the fake summary
 path:
 
 - `review_theme_summary_input`
@@ -87,11 +88,11 @@ text or raw model output text. The existing `run_id`, `batch`, artifact paths,
 approval flags, and `steps` list should continue to be preserved across node
 transitions.
 
-## Proposed Graph Nodes
+## Graph Nodes
 
 ### `build_review_theme_summary_input`
 
-This node should:
+This node:
 
 - require `state.batch` to be populated
 - call `build_review_theme_summary_input(...)`
@@ -100,16 +101,14 @@ This node should:
 - append a completed `WorkflowStepRecord` named
   `build_review_theme_summary_input`
 
-It should not call a model client, read provider settings, or write artifacts.
+It does not call a model client, read provider settings, or write artifacts.
 
 ### `run_fake_review_theme_summary_agent`
 
-This node should:
+This node:
 
 - require `state.review_theme_summary_input` to be populated
-- construct `ReviewThemeSummaryAgent` with `FakeModelClient` first
-- use `RecordingModelClient` and `ModelInvocationRecorder` when persistence is
-  available in the graph execution path
+- construct `ReviewThemeSummaryAgent` with `FakeModelClient`
 - call `agent.summarize(...)`
 - store `review_theme_summary_result` in graph state
 - append a completed `WorkflowStepRecord` named
@@ -121,7 +120,7 @@ calls.
 
 ### `write_review_theme_summary_artifact`
 
-This node should:
+This node:
 
 - require `state.review_theme_summary_result` to be populated
 - write `review_theme_summary.md` with
@@ -130,24 +129,26 @@ This node should:
 - append a completed `WorkflowStepRecord` named
   `write_review_theme_summary_artifact`
 
-It should write the artifact file, not print artifact contents.
+It writes the artifact file and does not print artifact contents.
 
 ## Recording And Persistence
 
 Phase 5A should keep persistence explicit and safe.
 
-The first graph integration should produce a local `review_theme_summary.md`
-artifact path. Later persistence work should create an `ArtifactRecord` with:
+The graph integration produces a local `review_theme_summary.md` artifact path.
+ArtifactRecord persistence for this file is still future work. Later persistence
+work should create an `ArtifactRecord` with:
 
 - `ArtifactType.REVIEW_THEME_SUMMARY`
 - the same workflow `run_id`
 - the generated `review_theme_summary.md` path
 
-When a `RecordingModelClient` is used with a `ModelInvocationRecorder`, fake
-model invocation metadata should be recorded with provider, model, prompt,
-version, token, cost, status, duration, and artifact-path fields. Raw prompt
-text, raw model output text, full review datasets, and artifact contents should
-not be printed or blindly persisted.
+Model invocation persistence from the graph path is also future work. When a
+`RecordingModelClient` is later used with a `ModelInvocationRecorder`, fake model
+invocation metadata should be recorded with provider, model, prompt, version,
+token, cost, status, duration, and artifact-path fields. Raw prompt text, raw
+model output text, full review datasets, and artifact contents should not be
+printed or blindly persisted.
 
 Eventually, `show-run` should display:
 

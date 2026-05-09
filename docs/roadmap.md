@@ -104,21 +104,27 @@ See `docs/review-theme-summary-agent.md` for the current fake/local agent path.
 
 ### Phase 5A: Fake-Agent LangGraph Integration
 
-Phase 5A is active next. It should wire the fake/local
-ReadySetRentables review theme summary agent into the LangGraph workflow before
-Daedalus adds Ollama or any other real provider client.
+Phase 5A is active. It wires the fake/local ReadySetRentables review theme
+summary agent into the LangGraph workflow before Daedalus adds Ollama or any
+other real provider client.
 
-The goal is to prove the integrated graph path with `FakeModelClient`,
-`RecordingModelClient`, `ModelInvocationRecorder`, versioned prompts, budget
-validation, workflow steps, and `review_theme_summary.md` artifact output while
+Current Phase 5A progress includes graph state fields for review theme summary
+data, fake summary input building, a fake summary agent node using
+`FakeModelClient`, a `write_review_theme_summary_artifact` node, and compiled
+LangGraph wiring that writes `review_theme_summary.md`. The deterministic
+workflow remains unchanged.
+
+The goal is to prove the integrated graph path with `FakeModelClient`, versioned
+prompts, workflow steps, and `review_theme_summary.md` artifact output while
 keeping real provider SDKs, network calls, and real LLM calls out of scope.
 
 See `docs/phase-5a-fake-agent-langgraph.md` for the integration plan.
 
 Upcoming Phase 5A work should stay incremental:
 
-- optional LangGraph fake summary node
-- optional `run-workflow` integration for fake review theme summaries
+- optional `review_theme_summary` artifact-record persistence for graph runs
+- optional model invocation persistence for the fake graph agent path
+- optional local checks for graph-generated fake summary artifacts
 - Ollama/local provider design
 - real local provider implementation only after the fake path is stable
 

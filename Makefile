@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -31,6 +31,13 @@ fake-summary-check:
 	$(PYTHON) -m daedalus.cli summarize-review-themes-fake --input artifacts/readysetrentables/normalized_reviews.json --output artifacts/readysetrentables/review_theme_summary.md
 	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
 	@echo "fake-summary-check passed: artifacts/readysetrentables/review_theme_summary.md was created."
+	@$(MAKE) clean
+
+graph-fake-summary-check:
+	@$(MAKE) clean
+	$(PYTHON) -m daedalus.cli run-review-graph --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
+	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
+	@echo "graph-fake-summary-check passed: LangGraph created artifacts/readysetrentables/review_theme_summary.md."
 	@$(MAKE) clean
 
 db-up:

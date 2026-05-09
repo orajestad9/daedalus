@@ -72,6 +72,10 @@ For a direct local graph run:
 .venv/bin/daedalus run-review-graph --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
 ```
 
+The LangGraph path now also writes `review_theme_summary.md` through the
+fake/local review theme summary agent. It still uses `FakeModelClient` only and
+does not persist that artifact as an artifact record automatically.
+
 For the fake/local Phase 4 review theme summary path:
 
 ```sh
@@ -88,6 +92,13 @@ To verify that local fake summary path end to end without Docker or `.env`:
 
 ```sh
 make fake-summary-check
+```
+
+To verify the LangGraph-generated fake summary artifact without Docker or
+`.env`:
+
+```sh
+make graph-fake-summary-check
 ```
 
 ## Local Postgres

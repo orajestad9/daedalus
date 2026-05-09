@@ -1,9 +1,9 @@
 # ReadySetRentables Review Theme Summary Agent
 
 This document describes the first AI-assisted Daedalus agent foundation. The
-agent exists today behind a fake/local CLI path, using `FakeModelClient` only.
-No provider SDK, network call, real model call, `run-workflow` wiring, or
-LangGraph wiring exists yet.
+agent exists today behind fake/local paths using `FakeModelClient` only. No
+provider SDK, network call, real model call, graph model invocation persistence,
+or automatic artifact-record persistence exists yet.
 
 ## Purpose
 
@@ -30,7 +30,7 @@ network calls, real LLM calls, or cloud model usage.
 
 ## Current Fake/Local Implementation
 
-Daedalus now includes a fake/local CLI path:
+Daedalus includes a fake/local standalone CLI path:
 
 - `summarize-review-themes-fake`
 
@@ -67,9 +67,21 @@ make clean
   --output artifacts/readysetrentables/review_theme_summary.md
 ```
 
-The summary generation path is file/artifact-only. It is not wired into
-`run-workflow`, LangGraph nodes, automatic Postgres persistence, or real
-provider execution yet.
+The standalone summary command is file/artifact-only. It is separate from
+`run-workflow`, automatic Postgres persistence, and real provider execution.
+
+The LangGraph workflow now also runs the fake summary path when explicitly
+selected:
+
+```sh
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --execution-engine langgraph
+```
+
+That graph path writes `review_theme_summary.md` next to the normalized review
+artifact. The deterministic `run-workflow` path remains unchanged and does not
+create `review_theme_summary.md`.
 
 To verify this path without Docker, Postgres, `.env`, provider SDKs, or real
 model calls, run:
@@ -91,8 +103,10 @@ Current implemented pieces include:
 - `ReviewThemeSummaryAgent`
 - `write_review_theme_summary_markdown(...)`
 - `summarize-review-themes-fake`
+- `run-workflow --execution-engine langgraph` fake summary artifact generation
 - `record-review-theme-summary-artifact`
 - `make fake-summary-check`
+- `make graph-fake-summary-check`
 - `make fake-summary-db-check` for optional Docker/Postgres verification
 
 ## Expected Inputs
@@ -165,9 +179,9 @@ Safe manual flow:
 .venv/bin/daedalus show-run --run-id <run-id>
 ```
 
-This is currently an explicit/manual CLI path. The review theme summary agent is
-not automatically invoked by `run-workflow`, and no LangGraph node wires this
-artifact into the graph yet.
+This is currently an explicit/manual artifact-recording CLI path. The LangGraph
+workflow can generate `review_theme_summary.md`, but it does not automatically
+persist that file as an `ArtifactRecord` yet.
 
 If Docker and a local ignored `.env` are available, the local integration target
 can exercise the persisted path:
@@ -197,9 +211,9 @@ Later `show-run` output should make the full path inspectable:
 - model invocation metadata
 - provider, model, prompt, version, token, and cost fields
 
-Automatic workflow and LangGraph persistence wiring is not implemented yet. The
-current commands keep fake summary generation and artifact recording explicit so
-the boundary remains easy to inspect.
+Automatic `ArtifactRecord` persistence and graph model invocation persistence
+are not implemented yet. The current commands keep artifact recording explicit
+so the boundary remains easy to inspect.
 
 ## Prompt Template Usage
 
@@ -279,20 +293,23 @@ keeps `show-run` focused on metadata rather than raw prompt bodies.
 
 ## LangGraph Fit
 
-Later, the agent can become a LangGraph node after the deterministic artifact
-steps. A likely graph shape is:
+The agent now runs in the LangGraph path after the deterministic run record
+artifact step. The current graph shape is:
 
 ```text
 load_reviews
   -> write_normalized_artifact
   -> write_metadata_artifact
-  -> write_review_theme_summary_artifact
   -> write_summary_artifact
   -> write_run_record_artifact
+  -> build_review_theme_summary_input
+  -> run_fake_review_theme_summary_agent
+  -> write_review_theme_summary_artifact
 ```
 
-The node should map to a `WorkflowStepRecord`, attach invocations to the same
-`run_id`, and include `step_id` when available.
+The nodes map to `WorkflowStepRecord` entries and preserve the same `run_id`.
+Model invocation persistence and `step_id` attachment for the fake model call
+remain future work.
 
 ## Intentionally Deferred
 
@@ -303,7 +320,8 @@ The node should map to a `WorkflowStepRecord`, attach invocations to the same
 - cloud model execution
 - autonomous planning
 - agent-to-agent coordination
-- full LangGraph wiring for the agent
+- graph model invocation persistence
+- automatic `review_theme_summary` artifact-record persistence
 - new database migrations
 - OpenTelemetry spans
 - dashboards or UI
