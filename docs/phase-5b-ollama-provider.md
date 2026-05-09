@@ -32,6 +32,9 @@ machine.
 
 ## Proposed Classes
 
+Phase 5B now includes the typed settings model
+`OllamaModelClientSettings`. The real client is still intentionally deferred.
+
 ### `OllamaModelClient`
 
 `OllamaModelClient` should implement:
@@ -46,14 +49,14 @@ status, token metadata when available, and safe error information when needed.
 
 ### `OllamaModelClientSettings`
 
-The settings model should be explicit and local by default:
+The settings model is explicit and local by default:
 
 - `base_url`
 - `model_name`
 - `request_timeout_seconds`
 - `enabled`
 
-Safe defaults should be local and fail closed:
+Current safe defaults are local and fail closed:
 
 - `base_url`: `http://localhost:11434`
 - `enabled`: `false` unless explicitly configured
