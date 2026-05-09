@@ -254,9 +254,10 @@ for the fake review theme summary graph integration plan.
 ## Intentionally Deferred
 
 - provider SDK installation
-- real local/cloud provider clients
+- cloud provider clients
+- workflow or LangGraph routing to Ollama
 - production agents
-- real LLM calls
+- production LLM workflows
 - cloud model execution
 - OpenTelemetry spans
 - production secret management

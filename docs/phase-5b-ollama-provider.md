@@ -189,12 +189,12 @@ the explicit persistence boundary.
 
 ## Configuration Strategy
 
-Ollama configuration should be explicit and local. A future settings loader may
-read ignored local environment values such as whether Ollama is enabled, which
-local model to use, and the request timeout. Documentation and tests should use
-placeholder values only.
+Ollama configuration is explicit and local. The settings model can read ignored
+local environment values such as whether Ollama is enabled, which local model to
+use, and the request timeout. Documentation and tests should use placeholder
+values only.
 
-Recommended future settings fields:
+Settings fields:
 
 - `base_url`
 - `model_name`
@@ -337,7 +337,7 @@ Tests should cover:
 Optional integration tests or local checks can require a developer-managed
 Ollama process, but they must not run as part of `make check`.
 
-## Acceptance Criteria Before Real Ollama Usage
+## Acceptance Criteria Before Workflow Ollama Usage
 
 Before Daedalus uses a real local Ollama call in a workflow or graph path:
 
@@ -373,7 +373,6 @@ Daedalus security rules apply:
 ## Intentionally Deferred
 
 - workflow or LangGraph wiring to Ollama
-- live Ollama local checks
 - model download or model-management commands
 - OpenAI provider
 - Anthropic provider

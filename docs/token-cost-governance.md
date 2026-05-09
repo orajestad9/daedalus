@@ -5,10 +5,11 @@ gates, and persistence. Token and cost governance must exist before those pieces
 start calling LLM providers, because every model invocation can affect privacy,
 latency, reproducibility, and operating cost.
 
-This document defines the governance baseline. Phase 4 now includes fake/local
+This document defines the governance baseline. Phase 4 added fake/local
 model-client infrastructure, model invocation metadata, and the
-`model_invocations` schema, but no real provider clients, provider SDKs, network
-calls, real LLM calls, OpenTelemetry, dashboards, or production autonomy.
+`model_invocations` schema. Phase 5B adds explicit manual local Ollama CLI
+paths. Cloud providers, provider SDKs, OpenTelemetry, dashboards, production
+autonomy, and workflow/LangGraph Ollama routing remain deferred.
 
 ## Why Governance Matters
 
@@ -207,8 +208,9 @@ CREATE TABLE model_invocations (
 );
 ```
 
-Repository and recorder support exists for fake/local checks. Real provider
-clients and real LLM calls are still deferred.
+Repository and recorder support exists for fake/local checks and optional manual
+local Ollama invocation persistence. Cloud provider clients and workflow-level
+LLM routing are still deferred.
 
 ## What Must Never Be Logged
 

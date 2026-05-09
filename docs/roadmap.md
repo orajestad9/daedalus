@@ -60,8 +60,9 @@ override, and `make db-check` coverage for persisted LangGraph execution.
 The deterministic workflow remains the default execution engine. LangGraph is
 opt-in through direct graph execution, manifest `execution_engine: langgraph`,
 or the CLI override. Phase 3 itself orchestrated deterministic nodes only; Phase
-5A has since added a fake/local agent node with `FakeModelClient`. There are
-still no real provider clients or real LLM calls.
+5A has since added a fake/local agent node with `FakeModelClient`, and Phase 5B
+has since added explicit manual local Ollama CLI paths. LangGraph itself still
+does not call real providers.
 
 LangGraph should initially own workflow control flow and structured graph state,
 while domain parsing, artifact writing, Postgres repositories, and model
@@ -94,9 +95,9 @@ artifact and fake model invocation metadata with `show-run`.
 
 The first AI-assisted feature path is the ReadySetRentables review theme summary
 agent, which summarizes compact normalized review inputs through the shared
-`ModelClient` boundary and writes an inspectable summary artifact. It is still
-fake/local only: no real provider clients, provider SDKs, network calls, or real
-LLM calls exist yet.
+`ModelClient` boundary and writes an inspectable summary artifact. Phase 4
+itself was fake/local only; Phase 5B now adds explicit manual local Ollama usage
+without making Ollama a workflow or LangGraph default.
 
 See `docs/model-client-architecture.md` for the Phase 4 design baseline. Future
 provider implementation should favor a local Ollama adapter before any cloud

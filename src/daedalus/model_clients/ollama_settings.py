@@ -1,4 +1,4 @@
-"""Settings for the future local Ollama model client."""
+"""Settings for the local Ollama model client."""
 
 import os
 from collections.abc import Mapping
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class OllamaModelClientSettings(BaseModel):
-    """Configuration for a future OllamaModelClient.
+    """Configuration for OllamaModelClient.
 
     These settings are local-first and fail closed by default. They do not carry
     API keys or secrets, and they do not perform any network calls.

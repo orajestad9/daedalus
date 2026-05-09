@@ -363,10 +363,9 @@ without opening database connections. When the graph result is persisted,
 
 ## Intentionally Deferred
 
-- real Ollama adapter
+- Ollama wiring into LangGraph or `run-workflow`
 - OpenAI or Anthropic provider adapters
 - provider SDK dependencies
-- network calls
 - cloud model execution
 - autonomous planning
 - agent-to-agent coordination
