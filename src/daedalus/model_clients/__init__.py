@@ -8,6 +8,7 @@ from daedalus.model_clients.invocation_record import (
     ModelInvocationRecord,
     ModelInvocationStatus,
 )
+from daedalus.model_clients.ollama import OllamaModelClient, OllamaModelClientError
 from daedalus.model_clients.ollama_request import ollama_generate_payload_from_model_request
 from daedalus.model_clients.ollama_response import model_response_from_ollama_generate_payload
 from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
@@ -22,6 +23,8 @@ __all__ = [
     "ModelInvocationRecord",
     "ModelInvocationRecorder",
     "ModelInvocationStatus",
+    "OllamaModelClient",
+    "OllamaModelClientError",
     "OllamaModelClientSettings",
     "RecordingModelClient",
     "ollama_generate_payload_from_model_request",

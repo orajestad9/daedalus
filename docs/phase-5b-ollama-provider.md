@@ -8,12 +8,12 @@ model invocation records, prompt templates, artifact writing, and persisted
 `show-run` inspection.
 
 The goal is to replace fake model behavior behind the same protocol in a later
-implementation step, not to change workflow routing, add cloud providers, or
-introduce autonomous behavior.
+Phase 5B step, not to change workflow routing, add cloud providers, or
+introduce autonomous behavior. The local Ollama adapter now exists, but it is
+not wired into workflows or LangGraph.
 
-No implementation code, provider SDK dependencies, network calls, real LLM
-calls, OpenTelemetry, migrations, cloud model usage, or workflow wiring should
-be added by this design document.
+No provider SDK dependencies, cloud model usage, OpenTelemetry, migrations, or
+workflow wiring should be added by Phase 5B Ollama client work.
 
 ## Why Ollama Comes After The Fake Graph Path
 
@@ -34,8 +34,10 @@ machine.
 
 Phase 5B now includes the typed settings model
 `OllamaModelClientSettings`, pure Ollama generate-request payload helpers, and
-pure Ollama generate-response parsing helpers. The real client and HTTP calls
-are still intentionally deferred.
+pure Ollama generate-response parsing helpers. It also includes
+`OllamaModelClient`, which implements `ModelClient` with injectable transport
+for tests and a standard-library local HTTP transport. The client is not wired
+into workflows, LangGraph, or CLI model execution yet.
 
 ### `OllamaModelClient`
 
@@ -289,8 +291,6 @@ Daedalus security rules apply:
 
 ## Intentionally Deferred
 
-- `OllamaModelClient` implementation
-- `OllamaModelClientSettings` implementation
 - workflow or LangGraph wiring to Ollama
 - live Ollama local checks
 - model download or model-management commands
