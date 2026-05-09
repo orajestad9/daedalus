@@ -262,6 +262,17 @@ write the report. The command prints only target identity, pass/fail counts, and
 written report paths; it does not print artifact contents, raw prompt text, raw
 model output text, raw datasets, or provider payloads.
 
+The file-only local check can be run with:
+
+```sh
+make evaluation-check
+```
+
+That target runs the LangGraph fake summary path, evaluates
+`review_theme_summary.md`, verifies the JSON and Markdown evaluation artifacts
+exist, and cleans generated artifacts. It does not require Docker, `.env`,
+Ollama, provider SDKs, or network access.
+
 The broader generic command shape can come later. The important boundary is that
 evaluation is opt-in, deterministic by default, and artifact oriented.
 

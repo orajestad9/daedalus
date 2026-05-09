@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -38,6 +38,16 @@ graph-fake-summary-check:
 	$(PYTHON) -m daedalus.cli run-review-graph --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
 	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
 	@echo "graph-fake-summary-check passed: LangGraph created artifacts/readysetrentables/review_theme_summary.md."
+	@$(MAKE) clean
+
+evaluation-check:
+	@$(MAKE) clean
+	.venv/bin/daedalus run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --execution-engine langgraph
+	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
+	.venv/bin/daedalus evaluate-review-theme-summary --summary artifacts/readysetrentables/review_theme_summary.md --output-json artifacts/readysetrentables/review_theme_summary.evaluation.json --output-md artifacts/readysetrentables/review_theme_summary.evaluation.md
+	@test -f artifacts/readysetrentables/review_theme_summary.evaluation.json || (echo "Missing artifacts/readysetrentables/review_theme_summary.evaluation.json"; exit 1)
+	@test -f artifacts/readysetrentables/review_theme_summary.evaluation.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.evaluation.md"; exit 1)
+	@echo "evaluation-check passed: review theme summary evaluation JSON and Markdown artifacts were created."
 	@$(MAKE) clean
 
 ollama-local-check:
