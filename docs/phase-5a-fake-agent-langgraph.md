@@ -52,6 +52,13 @@ the fake summary agent outside the workflow. The LangGraph execution path now
 creates `review_theme_summary.md` as part of graph execution. The deterministic
 workflow remains unchanged and does not create this artifact.
 
+When `run-workflow` is executed with `--execution-engine langgraph --persist`,
+Daedalus now persists both the `review_theme_summary` artifact record and the
+fake model invocation metadata produced by the integrated summary node. The
+graph node still does not open database connections; it carries
+`ModelInvocationRecord` objects through graph state, and the existing
+persistence service saves them at the explicit `--persist` boundary.
+
 ## Integrated Workflow
 
 The Phase 5A graph extends the deterministic graph with a fake agent branch
@@ -82,6 +89,7 @@ path:
 - `review_theme_summary_input`
 - `review_theme_summary_result`
 - `review_theme_summary_markdown_path`
+- `model_invocations`
 
 These fields should carry structured domain objects and paths, not loose prompt
 text or raw model output text. The existing `run_id`, `batch`, artifact paths,
@@ -108,15 +116,18 @@ It does not call a model client, read provider settings, or write artifacts.
 This node:
 
 - require `state.review_theme_summary_input` to be populated
-- construct `ReviewThemeSummaryAgent` with `FakeModelClient`
+- construct `ReviewThemeSummaryAgent` with `RecordingModelClient` wrapping
+  `FakeModelClient`
 - call `agent.summarize(...)`
 - store `review_theme_summary_result` in graph state
+- append a succeeded fake `ModelInvocationRecord` to graph state
 - append a completed `WorkflowStepRecord` named
   `run_fake_review_theme_summary_agent`
 
 The node must not call provider SDKs directly. It must not read API keys,
 provider environment variables, or cloud configuration. It must not make network
-calls.
+calls. It must not store raw prompt text or raw model output text in the
+invocation record.
 
 ### `write_review_theme_summary_artifact`
 
@@ -133,29 +144,35 @@ It writes the artifact file and does not print artifact contents.
 
 ## Recording And Persistence
 
-Phase 5A should keep persistence explicit and safe.
+Phase 5A keeps persistence explicit and safe.
 
 The graph integration produces a local `review_theme_summary.md` artifact path.
-ArtifactRecord persistence for this file is still future work. Later persistence
-work should create an `ArtifactRecord` with:
+When the caller uses `run-workflow --execution-engine langgraph --persist`, the
+workflow result carries that path to the persistence service, which creates an
+`ArtifactRecord` with:
 
 - `ArtifactType.REVIEW_THEME_SUMMARY`
 - the same workflow `run_id`
 - the generated `review_theme_summary.md` path
 
-Model invocation persistence from the graph path is also future work. When a
-`RecordingModelClient` is later used with a `ModelInvocationRecorder`, fake model
-invocation metadata should be recorded with provider, model, prompt, version,
-token, cost, status, duration, and artifact-path fields. Raw prompt text, raw
-model output text, full review datasets, and artifact contents should not be
-printed or blindly persisted.
+The fake agent node also carries model invocation records in graph state. When
+the same persisted LangGraph path is used, `WorkflowPersistenceService` saves
+those records through `ModelInvocationRepository`. The persisted metadata
+includes provider, model, prompt, version, token, cost, status, duration, and
+artifact-path fields. Raw prompt text, raw model output text, full review
+datasets, and artifact contents are not printed or persisted in
+`model_invocations`.
 
-Eventually, `show-run` should display:
+`show-run` displays:
 
 - normal workflow artifacts
 - the `review_theme_summary` artifact
 - workflow steps for the fake summary nodes
 - model invocation metadata for the fake agent call
+
+The deterministic workflow remains unchanged. Deterministic persisted runs do
+not create `review_theme_summary` artifact records or fake model invocation
+records unless a separate explicit command records them.
 
 ## Preparing For OllamaModelClient
 

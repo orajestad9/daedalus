@@ -74,7 +74,10 @@ For a direct local graph run:
 
 The LangGraph path now also writes `review_theme_summary.md` through the
 fake/local review theme summary agent. It still uses `FakeModelClient` only and
-does not persist that artifact as an artifact record automatically.
+does not make real LLM calls. When run through
+`run-workflow --execution-engine langgraph --persist`, it can persist the
+`review_theme_summary` artifact record and fake model invocation metadata for
+`show-run` inspection.
 
 For the fake/local Phase 4 review theme summary path:
 

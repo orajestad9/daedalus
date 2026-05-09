@@ -2,8 +2,7 @@
 
 This document describes the first AI-assisted Daedalus agent foundation. The
 agent exists today behind fake/local paths using `FakeModelClient` only. No
-provider SDK, network call, real model call, graph model invocation persistence,
-or automatic artifact-record persistence exists yet.
+provider SDK, network call, or real model call exists yet.
 
 ## Purpose
 
@@ -82,6 +81,22 @@ selected:
 That graph path writes `review_theme_summary.md` next to the normalized review
 artifact. The deterministic `run-workflow` path remains unchanged and does not
 create `review_theme_summary.md`.
+
+When the LangGraph path is run with persistence enabled, it also persists the
+summary artifact record and fake model invocation metadata:
+
+```sh
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --execution-engine langgraph \
+  --persist
+```
+
+`show-run` can then display the `review_theme_summary` artifact plus fake
+provider, model, prompt, version, token, cost, status, and duration metadata for
+the summary agent invocation. It displays metadata only; raw prompt text, raw
+model output text, and raw review datasets are not persisted in
+`model_invocations`.
 
 To verify this path without Docker, Postgres, `.env`, provider SDKs, or real
 model calls, run:
@@ -179,9 +194,10 @@ Safe manual flow:
 .venv/bin/daedalus show-run --run-id <run-id>
 ```
 
-This is currently an explicit/manual artifact-recording CLI path. The LangGraph
-workflow can generate `review_theme_summary.md`, but it does not automatically
-persist that file as an `ArtifactRecord` yet.
+This command remains useful for the standalone fake summary CLI path. The
+integrated LangGraph path now persists the graph-generated
+`review_theme_summary.md` artifact automatically when the workflow is run with
+`--execution-engine langgraph --persist`.
 
 If Docker and a local ignored `.env` are available, the local integration target
 can exercise the persisted path:
@@ -190,11 +206,11 @@ can exercise the persisted path:
 make fake-summary-db-check
 ```
 
-That target creates a persisted workflow run, writes the fake summary markdown,
-records the `review_theme_summary` artifact row, and verifies that `show-run`
-can display it.
+That target runs the persisted LangGraph path, verifies that `show-run` can
+display the `review_theme_summary` artifact, and verifies that `show-run`
+displays fake model invocation metadata.
 
-The later automatic persisted flow should be:
+The persisted LangGraph flow is now:
 
 1. Run the ReadySetRentables review workflow.
 2. Build compact review theme summary input from the normalized review batch.
@@ -204,16 +220,15 @@ The later automatic persisted flow should be:
 6. Persist model invocation metadata when a `RecordingModelClient` is used.
 7. Inspect the run with `show-run`.
 
-Later `show-run` output should make the full path inspectable:
+`show-run` output can make the full path inspectable:
 
 - normal workflow artifacts
 - the `review_theme_summary` artifact path
 - model invocation metadata
 - provider, model, prompt, version, token, and cost fields
 
-Automatic `ArtifactRecord` persistence and graph model invocation persistence
-are not implemented yet. The current commands keep artifact recording explicit
-so the boundary remains easy to inspect.
+The deterministic workflow remains unchanged and does not create the fake
+summary artifact or fake model invocation records.
 
 ## Prompt Template Usage
 
@@ -308,8 +323,10 @@ load_reviews
 ```
 
 The nodes map to `WorkflowStepRecord` entries and preserve the same `run_id`.
-Model invocation persistence and `step_id` attachment for the fake model call
-remain future work.
+The fake agent node records a fake `ModelInvocationRecord` in graph state
+without opening database connections. When the graph result is persisted,
+`WorkflowPersistenceService` saves that invocation record through
+`ModelInvocationRepository`.
 
 ## Intentionally Deferred
 
@@ -320,8 +337,6 @@ remain future work.
 - cloud model execution
 - autonomous planning
 - agent-to-agent coordination
-- graph model invocation persistence
-- automatic `review_theme_summary` artifact-record persistence
 - new database migrations
 - OpenTelemetry spans
 - dashboards or UI

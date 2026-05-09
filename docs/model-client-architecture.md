@@ -210,9 +210,11 @@ redacted summaries instead of secret-bearing values.
 
 ## Relationship To LangGraph
 
-LangGraph currently orchestrates deterministic nodes only. Future model-backed
-nodes should call `ModelClient`, not provider SDKs. Graph state should carry
-structured domain objects and artifact references, not loose prompt text.
+LangGraph now includes a fake/local review theme summary agent node. It still
+uses the shared `ModelClient` boundary with `FakeModelClient`, not provider
+SDKs. Future model-backed nodes should follow the same pattern. Graph state
+should carry structured domain objects, model invocation metadata, and artifact
+references, not loose prompt text.
 
 See [`docs/langgraph-orchestration.md`](langgraph-orchestration.md) before
 adding model-backed graph nodes.

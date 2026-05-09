@@ -3,11 +3,12 @@
 Phase 3 introduces a LangGraph orchestration baseline for Daedalus without
 changing the behavior of the deterministic ReadySetRentables review workflow.
 LangGraph is now available as a project dependency for this workflow path, but
-Phase 3 still does not create agents, add model clients, or make LLM calls.
+Phase 3 did not create agents, add model clients, or make LLM calls. Phase 5A
+adds a fake/local review theme summary agent path to the LangGraph workflow.
+That path uses `FakeModelClient` only and still makes no real LLM calls.
 
-LangGraph currently orchestrates deterministic Python nodes only. It is not yet
-used for model invocation, agent behavior, human review loops, or distributed
-tracing.
+LangGraph is not yet used for real provider invocation, human review loops, or
+distributed tracing.
 
 ## Why LangGraph Now
 
@@ -48,6 +49,13 @@ It now also writes a fake review theme summary artifact:
 
 The deterministic workflow remains unchanged and does not produce
 `review_theme_summary.md`.
+
+When the graph path is run through
+`run-workflow --execution-engine langgraph --persist`, Daedalus also persists
+the `review_theme_summary` artifact record and fake model invocation metadata.
+`show-run` can display the fake provider, model, prompt, token, cost, status,
+and duration metadata without displaying raw prompt text or raw model output
+text.
 
 Graph parity tests compare stable normalized review fields against the
 deterministic workflow so the graph can evolve without quietly changing the

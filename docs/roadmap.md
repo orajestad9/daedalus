@@ -59,8 +59,9 @@ override, and `make db-check` coverage for persisted LangGraph execution.
 
 The deterministic workflow remains the default execution engine. LangGraph is
 opt-in through direct graph execution, manifest `execution_engine: langgraph`,
-or the CLI override. LangGraph currently orchestrates deterministic nodes only;
-there are still no agents, model clients, or LLM calls.
+or the CLI override. Phase 3 itself orchestrated deterministic nodes only; Phase
+5A has since added a fake/local agent node with `FakeModelClient`. There are
+still no real provider clients or real LLM calls.
 
 LangGraph should initially own workflow control flow and structured graph state,
 while domain parsing, artifact writing, Postgres repositories, and model
@@ -111,19 +112,20 @@ other real provider client.
 Current Phase 5A progress includes graph state fields for review theme summary
 data, fake summary input building, a fake summary agent node using
 `FakeModelClient`, a `write_review_theme_summary_artifact` node, and compiled
-LangGraph wiring that writes `review_theme_summary.md`. The deterministic
-workflow remains unchanged.
+LangGraph wiring that writes `review_theme_summary.md`. Persisted LangGraph runs
+now also save the `review_theme_summary` artifact record and fake model
+invocation metadata so `show-run` can display provider, model, prompt, token,
+cost, and status fields. The deterministic workflow remains unchanged.
 
 The goal is to prove the integrated graph path with `FakeModelClient`, versioned
-prompts, workflow steps, and `review_theme_summary.md` artifact output while
-keeping real provider SDKs, network calls, and real LLM calls out of scope.
+prompts, workflow steps, `review_theme_summary.md` artifact output, artifact
+record persistence, and fake invocation metadata while keeping real provider
+SDKs, network calls, and real LLM calls out of scope.
 
 See `docs/phase-5a-fake-agent-langgraph.md` for the integration plan.
 
 Upcoming Phase 5A work should stay incremental:
 
-- optional `review_theme_summary` artifact-record persistence for graph runs
-- optional model invocation persistence for the fake graph agent path
 - optional local checks for graph-generated fake summary artifacts
 - Ollama/local provider design
 - real local provider implementation only after the fake path is stable

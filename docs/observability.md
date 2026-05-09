@@ -79,16 +79,25 @@ When persistence is enabled, artifact records are stored in `workflow_artifacts`
 as an index of generated files.
 
 Phase 4 also recognizes `review_theme_summary` as an artifact type for the
-fake/local review theme summary markdown output. The current
+fake/local review theme summary markdown output. The standalone
 `summarize-review-themes-fake` command writes `review_theme_summary.md` as a
 file artifact. The explicit `record-review-theme-summary-artifact` command can
-then attach that existing markdown file to a persisted workflow run as an
+attach that existing markdown file to a persisted workflow run as an
 `ArtifactRecord` with artifact type `review_theme_summary`.
 
-After the record command is used, `show-run` can display the normal workflow
-artifacts, the `review_theme_summary` artifact, and any related model invocation
-metadata together. Automatic workflow or LangGraph persistence of review theme
-summary artifacts is still future work.
+Phase 5A also persists the graph-generated summary artifact automatically when
+the LangGraph path is run with:
+
+```sh
+.venv/bin/daedalus run-workflow \
+  --manifest workflows/readysetrentables_review_normalization.yaml \
+  --execution-engine langgraph \
+  --persist
+```
+
+After persistence, `show-run` can display the normal workflow artifacts, the
+`review_theme_summary` artifact, and related fake model invocation metadata
+together.
 
 ## Human Inspection
 
@@ -199,9 +208,12 @@ provider calls:
 
 - `make fake-model-db-check` persists a workflow run, records one fake model
   invocation, and verifies that `show-run` displays it.
-- `summarize-review-themes-fake` exercises the review theme summary agent with
-  `FakeModelClient` and writes a file artifact, but does not persist model
-  invocation rows yet.
+- `run-workflow --execution-engine langgraph --persist` runs the integrated fake
+  review theme summary graph path, persists the `review_theme_summary` artifact,
+  and persists fake model invocation metadata for the summary agent call.
+- `summarize-review-themes-fake` remains a standalone file/artifact path. It
+  exercises the review theme summary agent with `FakeModelClient` and writes a
+  markdown artifact, but does not persist model invocation rows by itself.
 - `record-review-theme-summary-artifact` records an existing
   `review_theme_summary.md` file as an artifact row for an existing persisted
   workflow run without printing artifact contents.
@@ -246,9 +258,14 @@ references to sanitized input and output artifacts instead, and only persist
 prompt/response bodies when an explicit data classification decision says it is
 safe.
 
-LangGraph node tracing can later attach node-level model calls to both `run_id`
-and `step_id`, and future agents can use the same model invocation records to
-make cost, token usage, and failure inspection visible.
+For the integrated LangGraph fake summary path, the persisted model invocation
+record contains metadata such as `provider=fake`, `model_name`, `prompt_name`,
+`prompt_version`, token counts, estimated cost, status, and duration. It does
+not contain raw prompt text, raw model output text, or the review dataset.
+
+LangGraph node tracing can later add richer graph-level spans, and future agents
+can use the same model invocation records to make cost, token usage, and failure
+inspection visible.
 
 ## Checks
 
@@ -266,11 +283,12 @@ then calls `show-run` to verify the Model Invocations section is visible. This
 uses `FakeModelClient` only; it does not use provider SDKs, network calls, cloud
 models, raw prompt logging, or raw response logging.
 
-`make fake-summary-db-check` is a local-only Phase 4 check for the fake review
-theme summary artifact path. It creates a persisted workflow run, writes
-`review_theme_summary.md` with `FakeModelClient`, records the markdown file as a
-`review_theme_summary` artifact, and verifies that `show-run` displays it. This
-target requires Docker and a local ignored `.env`.
+`make fake-summary-db-check` is a local-only Phase 5A check for the integrated
+LangGraph fake review theme summary path. It runs
+`run-workflow --execution-engine langgraph --persist`, then verifies that
+`show-run` displays the `review_theme_summary` artifact and a fake model
+invocation with `provider=fake`. This target requires Docker and a local ignored
+`.env`.
 
 Keeping these commands separate lets normal development and CI stay fast while
 still providing an end-to-end local persistence inspection check.
