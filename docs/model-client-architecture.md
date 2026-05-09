@@ -1,9 +1,9 @@
 # Model Client Architecture
 
-Phase 4 starts by defining the model-client boundary before Daedalus adds
-agents, provider SDKs, or LLM calls. This document is design guidance only. It
-does not add implementation code, dependencies, cloud model usage, or database
-tables.
+Phase 4 starts by defining the model-client boundary before Daedalus adds real
+provider SDKs or LLM calls. Daedalus now has a fake/local model-client
+foundation for testing agent boundaries, prompt versioning, budgets, invocation
+recording, and artifact output without cloud model usage.
 
 Daedalus is local-first and human-approved. Model calls must be deliberate,
 observable, budgeted, and attached to workflow context from the beginning.
@@ -35,22 +35,35 @@ The graph node or agent should know what task it needs performed. The
 provider, enforce budgets, capture invocation metadata, and return a structured
 response. Provider adapters should own provider-specific API details.
 
-## Proposed Future Interfaces
+## Implemented Foundation
 
-These names describe the intended shape. They are not implemented yet.
+The current Phase 4 foundation includes:
 
-- `ModelClient`: shared entry point for all model calls.
+- `ModelClient`: protocol shared by fake, local, and future cloud clients.
 - `ModelRequest`: structured request with run context, prompt identity, input
   artifact references, output schema expectations, provider constraints, and
   budget context.
 - `ModelResponse`: structured response with status, parsed output, token
   counts when available, model metadata, and output artifact paths.
-- `ModelProvider`: provider adapter interface implemented by local and cloud
+- `ModelProvider`: provider identifier enum for fake, local, and future cloud
   providers.
-- `ModelInvocationRecord`: audit record for one model call, attached to
-  `run_id` and `step_id` when available.
-- `ModelBudget`: manifest or runtime budget object covering token, cost,
-  invocation count, provider, and model constraints.
+- `ModelBudget`: runtime budget object covering token, cost, invocation count,
+  provider, and model constraints.
+- `FakeModelClient`: deterministic local client for tests and fake workflows.
+- `RecordingModelClient`: wrapper that records successful and failed calls.
+- `ModelInvocationRecord`: audit record for one model call, attached to `run_id`
+  and `step_id` when available.
+- `ModelInvocationRepository`: Postgres repository for persisted invocation
+  records.
+- `ModelInvocationRecorder`: service that creates and saves invocation records.
+- budget validation through `validate_model_budget(...)`.
+- versioned prompt template loading from `prompts/`.
+- `show-run` display for persisted model invocation records.
+- `summarize-review-themes-fake`: first fake/local model-client consumer.
+
+Real provider clients are not implemented yet. There are no Ollama, OpenAI, or
+Anthropic adapters, no provider SDK dependencies, no network calls, and no real
+LLM calls.
 
 ## Provider Strategy
 
@@ -104,8 +117,7 @@ context for human review.
 
 ## Model Invocation Logging
 
-Future model invocation records should be first-class observability events. They
-should attach to:
+Model invocation records are first-class observability events. They attach to:
 
 - `run_id`
 - `step_id` when the call happens inside a workflow step
@@ -123,7 +135,7 @@ should attach to:
 - output artifact path
 
 See [`docs/observability.md`](observability.md) for the current run, artifact,
-step, and future model invocation observability model.
+step, and model invocation observability model.
 
 ## Prompt And Version Tracking
 
@@ -208,10 +220,9 @@ adding model-backed graph nodes.
 ## Intentionally Deferred
 
 - provider SDK installation
-- actual model clients
-- agents
-- LLM calls
-- token/model invocation database tables
+- real local/cloud provider clients
+- production agents
+- real LLM calls
 - cloud model execution
 - OpenTelemetry spans
 - production secret management

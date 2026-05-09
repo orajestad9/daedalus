@@ -84,7 +84,8 @@ budget validation, model invocation records and repositories, fake model
 invocation inspection through `show-run`, versioned prompt templates, review
 theme summary input/result models, deterministic compact input building, a
 review theme summary agent tested with `FakeModelClient`, a markdown artifact
-writer, and the `summarize-review-themes-fake` CLI command.
+writer, the `summarize-review-themes-fake` CLI command, and `make
+fake-summary-check` for a no-Docker local artifact check.
 
 The first AI-assisted feature path is the ReadySetRentables review theme summary
 agent, which summarizes compact normalized review inputs through the shared
@@ -95,9 +96,16 @@ LLM calls exist yet.
 See `docs/model-client-architecture.md` for the Phase 4 design baseline. The
 first implementation steps should favor a fake/in-memory model client or local
 Ollama adapter before any cloud provider integration.
-See `docs/review-theme-summary-agent.md` for the first planned agent design.
+See `docs/review-theme-summary-agent.md` for the current fake/local agent path.
 
-OpenTelemetry, LangGraph node tracing, dashboards, Kubernetes execution,
-production deployment, autonomous planning, token/model invocation tables, and
-production-grade LLM workflows remain deferred until a later task explicitly
-narrows one of those areas.
+Upcoming Phase 4 work should stay incremental:
+
+- optional LangGraph wiring for the fake review theme summary path
+- optional artifact records for `review_theme_summary.md`
+- Ollama/local provider design
+- real local provider implementation only after the fake path is stable
+
+OpenTelemetry, dashboards, Kubernetes execution, production deployment,
+autonomous planning, cloud provider clients, provider SDKs, and production-grade
+LLM workflows remain deferred until a later task explicitly narrows one of those
+areas.

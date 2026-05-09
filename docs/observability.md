@@ -175,16 +175,29 @@ Logs are intentionally lightweight and safe. They should not include passwords,
 password-bearing DSNs, `.env` contents, raw private datasets, API keys, provider
 tokens, or sensitive prompt/response bodies.
 
-## Future Model Invocation Observability
+## Model Invocation Observability
 
-Future model calls should be tracked as first-class workflow events. They should
-attach to the workflow `run_id`, and to a `step_id` whenever the call happens
-inside an observable workflow step. Agents, LangGraph nodes, and direct workflow
-code should not call providers directly; they should go through a future shared
-`ModelClient` abstraction that can enforce budgets, emit consistent artifacts,
-and record invocation metadata.
+Phase 4 has added the first model invocation observability foundation. The
+`model_invocations` table exists, `ModelInvocationRepository` can save and list
+records, `ModelInvocationRecorder` creates safe invocation records, and
+`show-run` can display persisted model invocation metadata when records exist.
 
-Each future model invocation record should include:
+The current fake/local checks can create fake invocation records without real
+provider calls:
+
+- `make fake-model-db-check` persists a workflow run, records one fake model
+  invocation, and verifies that `show-run` displays it.
+- `summarize-review-themes-fake` exercises the review theme summary agent with
+  `FakeModelClient` and writes a file artifact, but does not persist model
+  invocation rows yet.
+
+Model calls should attach to the workflow `run_id`, and to a `step_id` whenever
+the call happens inside an observable workflow step. Agents, LangGraph nodes,
+and direct workflow code should not call providers directly; they should go
+through the shared `ModelClient` abstraction so budgets, artifacts, and
+invocation metadata stay consistent.
+
+Each model invocation record includes:
 
 - `invocation_id`
 - `run_id`
@@ -212,15 +225,15 @@ checked before a provider call is made, not reconstructed afterward from logs.
 
 Model outputs should be written as artifacts when they are useful to inspect,
 validate, approve, or replay. Raw prompts and responses should not be blindly
-persisted in Postgres, especially when they may contain private data, secrets, or
-large user-provided context. Store references to sanitized input and output
-artifacts instead, and only persist prompt/response bodies when an explicit data
-classification decision says it is safe.
+persisted in Postgres, and `model_invocations` intentionally stores metadata and
+artifact paths rather than raw prompt text or raw response text. Store
+references to sanitized input and output artifacts instead, and only persist
+prompt/response bodies when an explicit data classification decision says it is
+safe.
 
-Later `show-run` output can include a model invocation section alongside run,
-artifact, and step records. LangGraph node tracing can attach node-level model
-calls to both `run_id` and `step_id`, and future agents can use the same model
-invocation records to make cost, token usage, and failure inspection visible.
+LangGraph node tracing can later attach node-level model calls to both `run_id`
+and `step_id`, and future agents can use the same model invocation records to
+make cost, token usage, and failure inspection visible.
 
 ## Checks
 
@@ -259,7 +272,8 @@ work:
 - OpenTelemetry
 - distributed tracing
 - LangGraph node tracing
-- agent/model invocation tracking
-- token/cost database tables
+- production agent tracing
+- real provider invocation tracking
+- token/cost budget dashboards
 - dashboards/UI
 - production observability deployment

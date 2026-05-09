@@ -53,7 +53,7 @@ treats token usage, cloud-model opt-in, model-call tracking, and prompt privacy
 as first-class design constraints.
 For the Phase 4 model-client design baseline, see
 [`docs/model-client-architecture.md`](docs/model-client-architecture.md).
-For the first planned AI-assisted agent design, see
+For the current fake/local review theme summary agent path, see
 [`docs/review-theme-summary-agent.md`](docs/review-theme-summary-agent.md).
 
 For the current run, step, artifact, logging, and persisted inspection model,

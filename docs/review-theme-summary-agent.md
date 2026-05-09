@@ -1,8 +1,9 @@
 # ReadySetRentables Review Theme Summary Agent
 
-This document describes the first planned AI-assisted Daedalus agent. It is a
-design baseline only: no agent, provider SDK, network call, real model call, or
-workflow wiring is added by this document.
+This document describes the first AI-assisted Daedalus agent foundation. The
+agent exists today behind a fake/local CLI path, using `FakeModelClient` only.
+No provider SDK, network call, real model call, `run-workflow` wiring, or
+LangGraph wiring exists yet.
 
 ## Purpose
 
@@ -22,9 +23,10 @@ workflow step records, local persistence, prompt versioning, and model
 invocation observability. The model can operate on a compact, sanitized view of
 review data instead of raw source files or full workflow history.
 
-The first implementation should use `FakeModelClient` in tests so Daedalus can
-validate agent boundaries, artifacts, budgets, and invocation recording without
-provider SDKs, network calls, real LLM calls, or cloud model usage.
+The first implementation uses `FakeModelClient` in tests and in the
+`summarize-review-themes-fake` CLI path so Daedalus can validate agent
+boundaries, artifacts, budgets, and invocation recording without provider SDKs,
+network calls, real LLM calls, or cloud model usage.
 
 ## Current Fake/Local Implementation
 
@@ -73,6 +75,17 @@ make fake-summary-check
 The target normalizes the sample reviews, runs `summarize-review-themes-fake`,
 verifies `artifacts/readysetrentables/review_theme_summary.md` exists, and then
 cleans generated artifacts.
+
+Current implemented pieces include:
+
+- `ReviewThemeSummaryInput`
+- `ReviewThemeSummaryTheme`
+- `ReviewThemeSummaryResult`
+- `build_review_theme_summary_input(...)`
+- `ReviewThemeSummaryAgent`
+- `write_review_theme_summary_markdown(...)`
+- `summarize-review-themes-fake`
+- `make fake-summary-check`
 
 ## Expected Inputs
 
