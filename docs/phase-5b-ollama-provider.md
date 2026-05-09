@@ -36,8 +36,9 @@ Phase 5B now includes the typed settings model
 `OllamaModelClientSettings`, pure Ollama generate-request payload helpers, and
 pure Ollama generate-response parsing helpers. It also includes
 `OllamaModelClient`, which implements `ModelClient` with injectable transport
-for tests and a standard-library local HTTP transport. The client is not wired
-into workflows, LangGraph, or CLI model execution yet.
+for tests and a standard-library local HTTP transport. The client is available
+through explicit local CLI commands, but it is not wired into workflows,
+LangGraph, or `run-workflow` yet.
 
 ### `OllamaModelClient`
 
@@ -270,6 +271,11 @@ persist to Postgres, does not record model invocations, and is not wired into
 `run-workflow` or LangGraph. CLI output is limited to run ID, output path,
 provider, model, token, and cost metadata; raw prompt text, model output text,
 representative review text, and request payload contents are not printed.
+
+This differs from the fake LangGraph path: LangGraph still uses
+`FakeModelClient` and can persist fake invocation metadata through
+`run-workflow --execution-engine langgraph --persist`. The Ollama path is a
+separate manual CLI path for local provider testing.
 
 ### Optional Invocation Persistence
 

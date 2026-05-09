@@ -60,14 +60,39 @@ The current Phase 4 foundation includes:
 - versioned prompt template loading from `prompts/`.
 - `show-run` display for persisted model invocation records.
 - `summarize-review-themes-fake`: first fake/local model-client consumer.
+- `OllamaModelClientSettings`, Ollama request/response helpers, and
+  `OllamaModelClient`: explicit local Ollama provider support without provider
+  SDK dependencies.
+- `ollama-smoke-check` and `summarize-review-themes-ollama`: manual local CLI
+  paths that exercise `OllamaModelClient` outside workflow and LangGraph
+  routing.
 
-Real provider clients are not implemented yet. There are no Ollama, OpenAI, or
-Anthropic adapters, no provider SDK dependencies, no network calls, and no real
-LLM calls.
+Cloud provider clients are not implemented yet. There are no OpenAI or
+Anthropic adapters, no provider SDK dependencies, and no cloud model calls.
+Ollama support is explicit and local-only; it is not wired into `run-workflow`
+or LangGraph.
 
-Phase 5B starts the design for a local `OllamaModelClient` provider. See
+Phase 5B contains the current local `OllamaModelClient` provider work. See
 [`docs/phase-5b-ollama-provider.md`](phase-5b-ollama-provider.md) before adding
-any Ollama implementation code.
+new Ollama workflow or graph integration.
+
+## Current Local Provider Boundary
+
+`FakeModelClient` and `OllamaModelClient` both satisfy the same `ModelClient`
+protocol. Agents such as `ReviewThemeSummaryAgent` depend on that protocol, so
+the caller can choose the provider explicitly without changing agent logic.
+
+`RecordingModelClient` can wrap either client:
+
+- with `FakeModelClient`, it records deterministic fake invocation metadata
+  for tests and fake/local graph paths.
+- with `OllamaModelClient`, it can record local Ollama invocation metadata when
+  a command explicitly opts in, such as `summarize-review-themes-ollama
+  --persist-invocation --run-id <run-id>`.
+
+The Ollama path remains manual, local-only, and disabled from workflow routing.
+It should not become a fallback or default provider just because local Ollama is
+available.
 
 ## Provider Strategy
 
@@ -81,9 +106,10 @@ local machine.
 theme summary agent boundary and artifact output without real LLM calls,
 provider SDKs, network access, or cloud model usage.
 
-Proposed provider order:
+Provider order:
 
-1. Ollama or another local provider first.
+1. Ollama or another local provider first. Ollama is now the first explicit
+   local provider implementation.
 2. OpenAI provider later.
 3. Anthropic provider later.
 

@@ -3,9 +3,11 @@
 Daedalus observability is intentionally local-first today. Phase 2 records enough
 run, step, artifact, and log context to inspect a completed workflow without
 adding OpenTelemetry, agents, dashboards, or production infrastructure yet.
-Phase 4 added model invocation metadata through fake/local model clients, and
-Phase 5A now persists fake LangGraph summary invocation metadata when explicitly
-requested. No real provider calls happen yet.
+Phase 4 added model invocation metadata through fake/local model clients.
+Phase 5A persists fake LangGraph summary invocation metadata when explicitly
+requested, and Phase 5B adds optional metadata persistence for the manual local
+Ollama summary CLI path. Ollama remains explicit and local-only; it is not wired
+into workflows or LangGraph.
 
 The current scope answers three practical questions:
 
@@ -204,8 +206,8 @@ Phase 4 has added the first model invocation observability foundation. The
 records, `ModelInvocationRecorder` creates safe invocation records, and
 `show-run` can display persisted model invocation metadata when records exist.
 
-The current fake/local checks can create fake invocation records without real
-provider calls:
+The current local paths can create model invocation records without cloud model
+calls:
 
 - `make fake-model-db-check` persists a workflow run, records one fake model
   invocation, and verifies that `show-run` displays it.
@@ -218,6 +220,9 @@ provider calls:
 - `record-review-theme-summary-artifact` records an existing
   `review_theme_summary.md` file as an artifact row for an existing persisted
   workflow run without printing artifact contents.
+- `summarize-review-themes-ollama --persist-invocation --run-id <run-id>` can
+  record metadata for a manual local Ollama review theme summary call. Without
+  `--persist-invocation`, that command does not connect to Postgres.
 
 Model calls should attach to the workflow `run_id`, and to a `step_id` whenever
 the call happens inside an observable workflow step. Agents, LangGraph nodes,
@@ -258,6 +263,11 @@ artifact paths rather than raw prompt text or raw response text. Store
 references to sanitized input and output artifacts instead, and only persist
 prompt/response bodies when an explicit data classification decision says it is
 safe.
+
+`show-run` can display persisted model invocation metadata from both the fake
+LangGraph path and the optional Ollama CLI persistence path. In both cases it
+shows provider, model, prompt identity, status, token, cost, duration, and
+artifact-path metadata only.
 
 For the integrated LangGraph fake summary path, the persisted model invocation
 record contains metadata such as `provider=fake`, `model_name`, `prompt_name`,

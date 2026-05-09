@@ -126,24 +126,32 @@ See `docs/phase-5a-fake-agent-langgraph.md` for the integration baseline.
 
 ### Phase 5B: Local Ollama Provider
 
-Phase 5B is active/next. It starts by designing a local `OllamaModelClient`
-provider that satisfies the existing `ModelClient` protocol without adding
-cloud provider SDKs, cloud model usage, or real LLM calls in the design step.
+Phase 5B is active. It adds a local `OllamaModelClient` provider that satisfies
+the existing `ModelClient` protocol without adding cloud provider SDKs or cloud
+model usage.
 
 The Phase 5B path should keep Daedalus local-first and explicit. Ollama support
 should be opt-in, use safe local defaults, preserve `RecordingModelClient`,
 budget validation, prompt versioning, artifact outputs, and model invocation
 metadata, and leave `make check` free from live Ollama requirements.
 
+Current Phase 5B progress includes `OllamaModelClientSettings`, Ollama
+request/response helpers, `OllamaModelClient` with injectable transport,
+`ollama-smoke-check`, `summarize-review-themes-ollama`,
+`make ollama-local-check`, `make ollama-summary-local-check`, and optional
+model invocation persistence through `summarize-review-themes-ollama
+--persist-invocation --run-id <run-id>`.
+
 See `docs/phase-5b-ollama-provider.md` for the Ollama provider design.
 
 Upcoming Phase 5B work should stay incremental:
 
-- implement `OllamaModelClientSettings`
-- implement `OllamaModelClient` with mocked-HTTP unit tests
-- add an optional local Ollama check outside `make check`
-- wire Ollama into the review theme summary path only after the fake path
+- add Ollama-backed review summary artifact-record persistence if a later task
+  needs the standalone Ollama artifact visible in `show-run`
+- add optional local Ollama evaluation examples outside `make check`
+- consider a LangGraph Ollama opt-in path only after the manual Ollama path
   remains stable
+- keep deterministic and fake LangGraph paths unchanged while Ollama matures
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade

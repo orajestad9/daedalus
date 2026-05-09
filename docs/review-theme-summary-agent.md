@@ -1,8 +1,9 @@
 # ReadySetRentables Review Theme Summary Agent
 
 This document describes the first AI-assisted Daedalus agent foundation. The
-agent exists today behind fake/local paths using `FakeModelClient` only. No
-provider SDK, network call, or real model call exists yet.
+agent exists today behind fake/local paths using `FakeModelClient`, and behind
+an explicit manual local Ollama CLI path using `OllamaModelClient`. No provider
+SDKs, cloud model calls, or automatic Ollama workflow/LangGraph wiring exist.
 
 ## Purpose
 
@@ -126,6 +127,26 @@ Current implemented pieces include:
 - `make graph-fake-summary-check`
 - `make fake-summary-db-check` for optional Docker/Postgres verification of
   the persisted graph artifact and fake invocation metadata
+
+## Current Execution Options
+
+The review theme summary agent can run through four explicit paths:
+
+- `summarize-review-themes-fake`: standalone file/artifact path using
+  `FakeModelClient`; no real provider call and no Postgres persistence.
+- `run-workflow --execution-engine langgraph`: integrated fake LangGraph path
+  using `FakeModelClient`; writes `review_theme_summary.md`.
+- `run-workflow --execution-engine langgraph --persist`: persisted fake
+  LangGraph path; records the `review_theme_summary` artifact and fake model
+  invocation metadata for `show-run`.
+- `summarize-review-themes-ollama`: standalone local Ollama path using
+  `OllamaModelClient`; writes `review_theme_summary.md` and can optionally
+  record model invocation metadata with `--persist-invocation --run-id
+  <run-id>`.
+
+The Ollama CLI path remains manual and local-only. It is not wired into
+LangGraph, `run-workflow`, or the deterministic workflow, and Ollama is not a
+default provider.
 
 ## Expected Inputs
 
@@ -254,7 +275,7 @@ The agent must not call provider SDKs directly. It should depend on the shared
 `ModelClient` protocol and should be able to run against:
 
 - `FakeModelClient` for tests and local boundary checks
-- a future local provider adapter, such as Ollama
+- `OllamaModelClient` for explicit manual local Ollama runs
 - future cloud provider adapters only when explicitly opted in
 
 The first implementation should use `RecordingModelClient` where persistence is
