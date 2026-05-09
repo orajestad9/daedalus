@@ -139,15 +139,13 @@ Current Phase 5B progress includes `OllamaModelClientSettings`, Ollama
 request/response helpers, `OllamaModelClient` with injectable transport,
 `ollama-smoke-check`, `summarize-review-themes-ollama`,
 `make ollama-local-check`, `make ollama-summary-local-check`, and optional
-model invocation persistence through `summarize-review-themes-ollama
---persist-invocation --run-id <run-id>`.
+artifact and model invocation persistence through `summarize-review-themes-ollama
+--persist-artifact --persist-invocation --run-id <run-id>`.
 
 See `docs/phase-5b-ollama-provider.md` for the Ollama provider design.
 
 Upcoming Phase 5B work should stay incremental:
 
-- add Ollama-backed review summary artifact-record persistence if a later task
-  needs the standalone Ollama artifact visible in `show-run`
 - add optional local Ollama evaluation examples outside `make check`
 - consider a LangGraph Ollama opt-in path only after the manual Ollama path
   remains stable
