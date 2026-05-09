@@ -23,11 +23,18 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
 from daedalus.domains.readysetrentables_reviews.theme_summary_artifacts import (
     write_review_theme_summary_markdown,
 )
+from daedalus.domains.readysetrentables_reviews.theme_summary_evaluator import (
+    evaluate_review_theme_summary_markdown,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder import (
     build_review_theme_summary_input,
 )
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
+)
+from daedalus.evaluation import (
+    write_evaluation_report_json,
+    write_evaluation_report_markdown,
 )
 from daedalus.memory.artifact_repository import ArtifactRepository
 from daedalus.memory.model_invocation_repository import ModelInvocationRepository
@@ -320,6 +327,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "evaluate-review-theme-summary":
+        output_json_path = args.output_json
+        output_md_path = args.output_md
+        if output_json_path is None and output_md_path is None:
+            output_json_path = _default_evaluation_json_path(args.summary)
+
+        report = evaluate_review_theme_summary_markdown(
+            summary_path=args.summary,
+            run_id=args.run_id,
+        )
+        written_paths: list[Path] = []
+        if output_json_path is not None:
+            written_paths.append(
+                write_evaluation_report_json(
+                    report=report,
+                    output_path=output_json_path,
+                )
+            )
+        if output_md_path is not None:
+            written_paths.append(
+                write_evaluation_report_markdown(
+                    report=report,
+                    output_path=output_md_path,
+                )
+            )
+
+        print(
+            "Wrote review theme summary evaluation "
+            f"target_name={report.target_name} "
+            f"passed={report.passed} "
+            f"failed_count={report.failed_count} "
+            f"warning_count={report.warning_count} "
+            f"error_count={report.error_count} "
+            f"outputs={','.join(str(path) for path in written_paths)}"
+        )
+        return 0
+
     if args.command == "list-runs":
         try:
             runs = load_recent_workflow_runs(
@@ -564,6 +608,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Synthetic prompt for the optional local smoke check.",
     )
 
+    evaluate_review_theme_summary = subparsers.add_parser(
+        "evaluate-review-theme-summary",
+        help="Evaluate a review_theme_summary.md artifact with deterministic local checks.",
+    )
+    evaluate_review_theme_summary.add_argument(
+        "--summary",
+        required=True,
+        type=Path,
+        help="Path to a review_theme_summary.md artifact.",
+    )
+    evaluate_review_theme_summary.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional workflow run UUID expected in the summary artifact.",
+    )
+    evaluate_review_theme_summary.add_argument(
+        "--output-json",
+        default=None,
+        type=Path,
+        help="Optional path for the JSON evaluation report artifact.",
+    )
+    evaluate_review_theme_summary.add_argument(
+        "--output-md",
+        default=None,
+        type=Path,
+        help="Optional path for the Markdown evaluation report artifact.",
+    )
+
     list_runs = subparsers.add_parser(
         "list-runs",
         help="List recent persisted workflow runs from Postgres.",
@@ -685,6 +758,10 @@ def _run_ollama_smoke_check(
         input_artifact_path=Path("prompts/ollama_smoke_check/v0"),
     )
     return client.complete(request)
+
+
+def _default_evaluation_json_path(summary_path: Path) -> Path:
+    return summary_path.with_name(f"{summary_path.stem}.evaluation.json")
 
 
 def _uuid_arg(value: str) -> UUID:

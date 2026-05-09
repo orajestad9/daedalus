@@ -152,7 +152,8 @@ Phase 6 includes the first deterministic evaluation helper for
 `review_theme_summary.md`: `evaluate_review_theme_summary_markdown(...)`. It
 checks artifact existence, expected sections, run/prompt/model metadata,
 token/cost metadata when available, and obvious placeholder-only output without
-calling model providers. See
+calling model providers. The explicit `evaluate-review-theme-summary` CLI can
+write JSON and Markdown evaluation report artifacts for a summary file. See
 [`docs/phase-6-evaluation-harness.md`](phase-6-evaluation-harness.md).
 
 ## Expected Inputs

@@ -1,6 +1,8 @@
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -648,6 +650,229 @@ def test_summarize_review_themes_fake_command_invalid_representative_review_limi
         )
 
     assert exc_info.value.code == 2
+
+
+def test_evaluate_review_theme_summary_succeeds_for_valid_summary_artifact(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path, run_id=run_id)
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+            "--run-id",
+            str(run_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert "target_name=review_theme_summary.md" in output
+    assert "passed=True" in output
+
+
+def test_evaluate_review_theme_summary_default_json_output_path_is_created(
+    tmp_path: Path,
+) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert (tmp_path / "review_theme_summary.evaluation.json").is_file()
+
+
+def test_evaluate_review_theme_summary_output_json_writes_report(tmp_path: Path) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+    output_json_path = tmp_path / "custom_evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["target_type"] == "review_theme_summary"
+    assert data["evaluator_name"] == "readysetrentables_review_theme_summary_basic"
+
+
+def test_evaluate_review_theme_summary_output_md_writes_report(tmp_path: Path) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+    output_md_path = tmp_path / "custom_evaluation.md"
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    markdown = output_md_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert "Evaluation Report" in markdown
+    assert "Target name: `review_theme_summary.md`" in markdown
+
+
+def test_evaluate_review_theme_summary_writes_json_and_markdown_together(
+    tmp_path: Path,
+) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+    output_json_path = tmp_path / "evaluation.json"
+    output_md_path = tmp_path / "evaluation.md"
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+            "--output-json",
+            str(output_json_path),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert output_md_path.is_file()
+
+
+def test_evaluate_review_theme_summary_run_id_is_preserved_in_report(
+    tmp_path: Path,
+) -> None:
+    run_id = uuid4()
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path, run_id=run_id)
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+            "--run-id",
+            str(run_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["run_id"] == str(run_id)
+
+
+def test_evaluate_review_theme_summary_command_output_includes_counts(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "target_name=review_theme_summary.md" in output
+    assert "passed=True" in output
+    assert "failed_count=0" in output
+    assert "warning_count=0" in output
+    assert "error_count=0" in output
+
+
+def test_evaluate_review_theme_summary_missing_summary_still_writes_failed_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    summary_path = tmp_path / "missing_review_theme_summary.md"
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert "passed=False" in output
+    assert any(
+        check["check_name"] == "artifact_exists" and check["status"] == "failed"
+        for check in data["checks"]
+    )
+
+
+def test_evaluate_review_theme_summary_invalid_run_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "evaluate-review-theme-summary",
+                "--summary",
+                str(summary_path),
+                "--run-id",
+                "not-a-uuid",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_evaluate_review_theme_summary_command_does_not_print_artifact_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    summary_path = _write_review_theme_summary_markdown_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-review-theme-summary",
+            "--summary",
+            str(summary_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Artifact body that must stay out of stdout." not in output
+    assert "ReadySetRentables Review Theme Summary" not in output
+    assert "readysetrentables/review_theme_summary" not in output
 
 
 def test_summarize_review_themes_ollama_command_succeeds_with_mocked_client(
@@ -1405,6 +1630,46 @@ def _write_normalized_reviews_json(tmp_path: Path) -> Path:
     batch = load_airbnb_reviews_csv(SAMPLE_CSV_PATH)
     output_path = tmp_path / "normalized_reviews.json"
     return write_review_batch_json(batch, output_path)
+
+
+def _write_review_theme_summary_markdown_artifact(
+    tmp_path: Path,
+    *,
+    run_id: UUID | None = None,
+) -> Path:
+    summary_run_id = run_id or uuid4()
+    output_path = tmp_path / "review_theme_summary.md"
+    output_path.write_text(
+        "\n".join(
+            [
+                "# ReadySetRentables Review Theme Summary",
+                "",
+                f"- Run ID: `{summary_run_id}`",
+                "- Prompt: `readysetrentables/review_theme_summary`",
+                "- Prompt version: `v0`",
+                "- Model provider: `fake`",
+                "- Model name: `fake-model`",
+                "",
+                "## Summary",
+                "",
+                "Artifact body that must stay out of stdout.",
+                "",
+                "## Token And Cost Metadata",
+                "",
+                "- Input tokens: 10",
+                "- Output tokens: 20",
+                "- Total tokens: 30",
+                "- Estimated cost USD: 0",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return output_path
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
 
 
 def _workflow_run_details(

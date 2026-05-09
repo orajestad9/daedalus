@@ -246,15 +246,24 @@ should be recorded like any other model call.
 
 ## CLI And Inspection Strategy
 
-The first CLI pattern can be explicit and local, for example:
+The first explicit local evaluation CLI now exists:
 
-```text
-daedalus evaluate-artifact --artifact-path <path> --evaluator <name>
+```sh
+.venv/bin/daedalus evaluate-review-theme-summary \
+  --summary artifacts/readysetrentables/review_theme_summary.md \
+  --output-json artifacts/readysetrentables/review_theme_summary.evaluation.json \
+  --output-md artifacts/readysetrentables/review_theme_summary.evaluation.md
 ```
 
-The exact command shape should come later with implementation. The important
-boundary is that evaluation is opt-in, deterministic by default, and artifact
-oriented.
+If no output path is provided, the command writes JSON next to the summary as
+`review_theme_summary.evaluation.json`. Failed checks are evaluation results,
+not CLI execution failures, so the command still exits successfully when it can
+write the report. The command prints only target identity, pass/fail counts, and
+written report paths; it does not print artifact contents, raw prompt text, raw
+model output text, raw datasets, or provider payloads.
+
+The broader generic command shape can come later. The important boundary is that
+evaluation is opt-in, deterministic by default, and artifact oriented.
 
 `show-run` could later display evaluation artifacts or summary counts, such as:
 
