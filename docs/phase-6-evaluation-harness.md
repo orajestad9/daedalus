@@ -44,9 +44,10 @@ Generic infrastructure should include:
 - evaluation CLI and inspection patterns
 - optional persistence later
 
-The generic core models now exist in `src/daedalus/evaluation/models.py`.
-Domain-specific checks, artifact writers, CLI commands, and persistence remain
-intentionally deferred.
+The generic core models now exist in `src/daedalus/evaluation/models.py`, and
+generic report artifact writers now exist in
+`src/daedalus/evaluation/artifacts.py`. Domain-specific checks, CLI commands,
+and persistence remain intentionally deferred.
 
 Generic evaluation code should know how to represent checks, aggregate pass and
 failure counts, write reports, and connect reports to artifacts and runs. It
