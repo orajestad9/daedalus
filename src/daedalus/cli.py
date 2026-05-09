@@ -29,6 +29,7 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder impo
 from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
+from daedalus.memory.artifact_repository import ArtifactRepository
 from daedalus.memory.model_invocation_repository import ModelInvocationRepository
 from daedalus.memory.migrations import apply_migrations
 from daedalus.memory.postgres import connect_postgres
@@ -47,6 +48,8 @@ from daedalus.model_clients.fake import FakeModelClient
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
 from daedalus.model_clients.recording import RecordingModelClient
 from daedalus.model_clients.types import ModelBudget, ModelProvider, ModelRequest, ModelResponse
+from daedalus.orchestrator.artifact_record import ArtifactRecord
+from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_inspection_formatter import format_run_inspection
 from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.workflow_router import (
@@ -164,6 +167,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"model_name={response.model_name} "
             f"total_tokens={response.total_tokens} "
             f"estimated_cost_usd={response.estimated_cost_usd}"
+        )
+        return 0
+
+    if args.command == "record-review-theme-summary-artifact":
+        try:
+            artifact_record = _record_review_theme_summary_artifact(
+                run_id=args.run_id,
+                artifact_path=args.path,
+            )
+        except (FileNotFoundError, ValueError, WorkflowPersistenceError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Recorded review theme summary artifact "
+            f"run_id={artifact_record.run_id} "
+            f"artifact_type={artifact_record.artifact_type.value} "
+            f"artifact_path={artifact_record.artifact_path}"
         )
         return 0
 
@@ -313,6 +333,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Workflow run UUID to attach the fake model invocation to.",
     )
 
+    record_review_theme_summary_artifact = subparsers.add_parser(
+        "record-review-theme-summary-artifact",
+        help="Record a review theme summary markdown artifact for a persisted workflow run.",
+    )
+    record_review_theme_summary_artifact.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Workflow run UUID to attach the review theme summary artifact to.",
+    )
+    record_review_theme_summary_artifact.add_argument(
+        "--path",
+        required=True,
+        type=Path,
+        help="Path to an existing review theme summary markdown artifact.",
+    )
+
     summarize_review_themes_fake = subparsers.add_parser(
         "summarize-review-themes-fake",
         help="Run the review theme summary agent locally with FakeModelClient.",
@@ -407,6 +444,35 @@ def _record_fake_model_invocation(run_id: UUID) -> ModelResponse:
         connection.close()
 
     return response
+
+
+def _record_review_theme_summary_artifact(
+    *,
+    run_id: UUID,
+    artifact_path: Path,
+) -> ArtifactRecord:
+    if not artifact_path.is_file():
+        msg = f"Review theme summary artifact path does not exist: {artifact_path}"
+        raise FileNotFoundError(msg)
+
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+    try:
+        artifact_record = ArtifactRecord.create(
+            run_id=run_id,
+            artifact_type=ArtifactType.REVIEW_THEME_SUMMARY,
+            artifact_path=artifact_path,
+        )
+        ArtifactRepository(connection).save(artifact_record)
+        connection.commit()
+    except Exception as exc:
+        connection.rollback()
+        msg = "Failed to record review theme summary artifact"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
+
+    return artifact_record
 
 
 def _uuid_arg(value: str) -> UUID:
