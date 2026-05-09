@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from daedalus.domains.readysetrentables_reviews.artifacts import (
     ReviewBatchArtifactMetadata,
+    load_review_batch_json,
     write_review_batch_json,
     write_review_batch_metadata_json,
     write_review_normalization_summary_markdown,
@@ -50,6 +51,17 @@ def test_review_batch_json_contains_expected_content(tmp_path: Path) -> None:
     assert first_review["rating"] == 5.0
     assert first_review["raw_record"]["source_data"]["review_id"] == "rr_syn_0001"
     assert first_review["raw_record"]["source_data"]["rating"] == "5"
+
+
+def test_loads_review_batch_json_artifact(tmp_path: Path) -> None:
+    batch = load_airbnb_reviews_csv(SAMPLE_CSV_PATH)
+    output_path = tmp_path / "review_batch.json"
+    write_review_batch_json(batch, output_path)
+
+    loaded_batch = load_review_batch_json(output_path)
+
+    assert loaded_batch.review_count == EXPECTED_SAMPLE_REVIEW_COUNT
+    assert loaded_batch.reviews[0].review_id == "rr_syn_0001"
 
 
 def test_writes_review_batch_metadata_json(tmp_path: Path) -> None:

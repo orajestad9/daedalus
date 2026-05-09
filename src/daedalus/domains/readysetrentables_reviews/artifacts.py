@@ -36,6 +36,11 @@ def write_review_batch_json(batch: ReviewBatch, output_path: Path) -> Path:
     return output_path
 
 
+def load_review_batch_json(input_path: Path) -> ReviewBatch:
+    """Load a normalized review batch JSON artifact from disk."""
+    return ReviewBatch.model_validate_json(input_path.read_text(encoding="utf-8"))
+
+
 def write_review_batch_metadata_json(
     metadata: ReviewBatchArtifactMetadata,
     output_path: Path,
