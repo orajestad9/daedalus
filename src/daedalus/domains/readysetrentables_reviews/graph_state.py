@@ -12,6 +12,10 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 
 from daedalus.domains.readysetrentables_reviews.models import ReviewBatch
+from daedalus.domains.readysetrentables_reviews.theme_summary_models import (
+    ReviewThemeSummaryInput,
+    ReviewThemeSummaryResult,
+)
 from daedalus.orchestrator.run_lifecycle import utc_now
 from daedalus.orchestrator.step_record import WorkflowStepRecord
 
@@ -27,6 +31,9 @@ class ReadySetRentablesReviewGraphState(BaseModel):
     metadata_json_path: Path | None = None
     summary_markdown_path: Path | None = None
     run_record_json_path: Path | None = None
+    review_theme_summary_input: ReviewThemeSummaryInput | None = None
+    review_theme_summary_result: ReviewThemeSummaryResult | None = None
+    review_theme_summary_markdown_path: Path | None = None
     steps: list[WorkflowStepRecord] = Field(default_factory=list)
     approval_required: bool = False
     approved: bool = False

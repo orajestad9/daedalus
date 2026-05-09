@@ -4,6 +4,11 @@ from uuid import UUID, uuid4
 from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
 )
+from daedalus.domains.readysetrentables_reviews.theme_summary_models import (
+    ReviewThemeSummaryInput,
+    ReviewThemeSummaryResult,
+)
+from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.step_record import WorkflowStepRecord
 
 
@@ -32,6 +37,9 @@ def test_graph_state_create_starts_with_empty_workflow_data() -> None:
     assert state.metadata_json_path is None
     assert state.summary_markdown_path is None
     assert state.run_record_json_path is None
+    assert state.review_theme_summary_input is None
+    assert state.review_theme_summary_result is None
+    assert state.review_theme_summary_markdown_path is None
     assert state.steps == []
     assert state.approval_required is False
     assert state.approved is False
@@ -63,3 +71,37 @@ def test_graph_state_steps_are_not_shared_between_instances() -> None:
 
     assert len(first_state.steps) == 1
     assert second_state.steps == []
+
+
+def test_graph_state_accepts_review_theme_summary_fields() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=Path("reviews.csv"),
+        output_json_path=Path("normalized_reviews.json"),
+    )
+    summary_input = ReviewThemeSummaryInput(
+        run_id=state.run_id,
+        review_count=2,
+        representative_reviews=["Great location.", "Clean apartment."],
+        rating_distribution={"5": 2},
+    )
+    summary_result = ReviewThemeSummaryResult(
+        run_id=state.run_id,
+        summary_text="Guests mention location and cleanliness.",
+        prompt_name=summary_input.prompt_name,
+        prompt_version=summary_input.prompt_version,
+        model_provider=ModelProvider.FAKE,
+        model_name="fake-model",
+    )
+    summary_path = Path("artifacts/readysetrentables/review_theme_summary.md")
+
+    updated_state = state.model_copy(
+        update={
+            "review_theme_summary_input": summary_input,
+            "review_theme_summary_result": summary_result,
+            "review_theme_summary_markdown_path": summary_path,
+        }
+    )
+
+    assert updated_state.review_theme_summary_input == summary_input
+    assert updated_state.review_theme_summary_result == summary_result
+    assert updated_state.review_theme_summary_markdown_path == summary_path
