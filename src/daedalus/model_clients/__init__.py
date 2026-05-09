@@ -8,6 +8,7 @@ from daedalus.model_clients.invocation_record import (
     ModelInvocationRecord,
     ModelInvocationStatus,
 )
+from daedalus.model_clients.ollama_response import model_response_from_ollama_generate_payload
 from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ __all__ = [
     "ModelInvocationStatus",
     "OllamaModelClientSettings",
     "RecordingModelClient",
+    "model_response_from_ollama_generate_payload",
 ]
 
 

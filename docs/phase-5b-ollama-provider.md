@@ -33,7 +33,8 @@ machine.
 ## Proposed Classes
 
 Phase 5B now includes the typed settings model
-`OllamaModelClientSettings`. The real client is still intentionally deferred.
+`OllamaModelClientSettings` and pure Ollama generate-response parsing helpers.
+The real client and HTTP calls are still intentionally deferred.
 
 ### `OllamaModelClient`
 
