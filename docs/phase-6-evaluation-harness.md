@@ -273,6 +273,19 @@ That target runs the LangGraph fake summary path, evaluates
 exist, and cleans generated artifacts. It does not require Docker, `.env`,
 Ollama, provider SDKs, or network access.
 
+An existing persisted workflow run can manually attach an evaluation report
+artifact with:
+
+```sh
+.venv/bin/daedalus record-evaluation-report-artifact \
+  --run-id <run-id> \
+  --path artifacts/readysetrentables/review_theme_summary.evaluation.json
+```
+
+The command records the file as `ArtifactType.EVALUATION_REPORT` so `show-run`
+can display the artifact path. It is explicit/manual and does not wire
+evaluation into workflows, LangGraph, or automatic persistence.
+
 The broader generic command shape can come later. The important boundary is that
 evaluation is opt-in, deterministic by default, and artifact oriented.
 
