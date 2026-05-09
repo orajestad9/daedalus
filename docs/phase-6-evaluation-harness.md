@@ -120,9 +120,10 @@ inspect them. Initial artifact names can be derived from the evaluated artifact:
 - `review_theme_summary.evaluation.md`
 
 JSON is useful for machine inspection and future dashboards. Markdown is useful
-for human review. Evaluation artifacts should later be persisted as
-`ArtifactRecord` rows, either with a generic evaluation artifact type or with a
-domain-specific evaluation artifact type if that proves clearer.
+for human review. `evaluation_report` is now a recognized generic
+`ArtifactType`, so future evaluation JSON or Markdown files can be represented
+as `ArtifactRecord` rows without introducing domain-specific artifact types.
+Automatic evaluation persistence remains intentionally deferred.
 
 Evaluation artifacts should contain check names, statuses, severities, safe
 messages, and metadata. They should not contain artifact contents by default.
