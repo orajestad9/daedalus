@@ -60,6 +60,7 @@ class ModelRequest(BaseModel):
     prompt_name: str
     prompt_version: str
     input_text: str = ""
+    system_prompt: str | None = None
     input_artifact_path: Path
     output_artifact_path: Path | None = None
     response_schema_name: str | None = None
