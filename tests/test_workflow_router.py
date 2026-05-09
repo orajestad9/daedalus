@@ -26,6 +26,9 @@ EXPECTED_STEP_NAMES = [
     "write_metadata_artifact",
     "write_summary_artifact",
     "write_run_record_artifact",
+    "build_review_theme_summary_input",
+    "run_fake_review_theme_summary_agent",
+    "write_review_theme_summary_artifact",
 ]
 
 

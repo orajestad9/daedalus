@@ -84,6 +84,7 @@ def test_run_review_graph_command_succeeds_with_sample_csv(
     assert (tmp_path / "normalized_reviews.metadata.json").is_file()
     assert (tmp_path / "normalized_reviews.summary.md").is_file()
     assert (tmp_path / "normalized_reviews.run.json").is_file()
+    assert (tmp_path / "review_theme_summary.md").is_file()
 
     output = capsys.readouterr().out
     assert "Ran review graph" in output
@@ -93,7 +94,7 @@ def test_run_review_graph_command_succeeds_with_sample_csv(
     assert f"metadata={tmp_path / 'normalized_reviews.metadata.json'}" in output
     assert f"summary={tmp_path / 'normalized_reviews.summary.md'}" in output
     assert f"run_record={tmp_path / 'normalized_reviews.run.json'}" in output
-    assert "steps=5" in output
+    assert "steps=8" in output
 
 
 def test_run_workflow_command_succeeds_with_sample_manifest(
