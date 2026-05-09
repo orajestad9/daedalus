@@ -17,9 +17,13 @@ from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
 )
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
+    ReviewThemeSummaryAgent,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_input_builder import (
     build_review_theme_summary_input,
 )
+from daedalus.model_clients.fake import FakeModelClient
 from daedalus.orchestrator.artifact_type import ArtifactType
 from daedalus.orchestrator.run_lifecycle import calculate_duration_ms, utc_now
 from daedalus.orchestrator.run_record import (
@@ -143,6 +147,33 @@ def build_review_theme_summary_input_node(
     return state.model_copy(
         update={
             "review_theme_summary_input": review_theme_summary_input,
+            "steps": [*state.steps, step.complete()],
+        }
+    )
+
+
+def run_fake_review_theme_summary_agent_node(
+    state: ReadySetRentablesReviewGraphState,
+) -> ReadySetRentablesReviewGraphState:
+    """Run the review theme summary agent with FakeModelClient."""
+    if state.review_theme_summary_input is None:
+        msg = "Cannot run fake review theme summary agent before summary input is built."
+        raise ValueError(msg)
+
+    step = WorkflowStepRecord.start(
+        run_id=state.run_id,
+        step_name="run_fake_review_theme_summary_agent",
+    )
+    try:
+        agent = ReviewThemeSummaryAgent(model_client=FakeModelClient())
+        review_theme_summary_result = agent.summarize(state.review_theme_summary_input)
+    except Exception as exc:
+        state.steps.append(step.fail(str(exc)))
+        raise
+
+    return state.model_copy(
+        update={
+            "review_theme_summary_result": review_theme_summary_result,
             "steps": [*state.steps, step.complete()],
         }
     )

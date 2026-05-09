@@ -6,6 +6,7 @@ import pytest
 from daedalus.domains.readysetrentables_reviews.graph_nodes import (
     build_review_theme_summary_input_node,
     load_reviews_node,
+    run_fake_review_theme_summary_agent_node,
     write_metadata_artifact_node,
     write_normalized_artifact_node,
     write_run_record_artifact_node,
@@ -14,6 +15,7 @@ from daedalus.domains.readysetrentables_reviews.graph_nodes import (
 from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
 )
+from daedalus.model_clients.types import ModelProvider
 from daedalus.orchestrator.status import WorkflowStatus
 
 
@@ -267,6 +269,67 @@ def test_build_review_theme_summary_input_node_requires_loaded_batch() -> None:
 
     with pytest.raises(ValueError, match="review batch is loaded"):
         build_review_theme_summary_input_node(state)
+
+
+def test_run_fake_review_theme_summary_agent_node_populates_result() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+    summary_input_state = build_review_theme_summary_input_node(load_reviews_node(state))
+
+    updated_state = run_fake_review_theme_summary_agent_node(summary_input_state)
+
+    assert updated_state.review_theme_summary_result is not None
+    result = updated_state.review_theme_summary_result
+    assert result.run_id == state.run_id
+    assert result.summary_text == "fake model response"
+    assert result.model_provider == ModelProvider.FAKE
+    assert result.model_name == "fake-model"
+    assert result.input_tokens is not None
+    assert result.output_tokens is not None
+    assert result.total_tokens is not None
+    assert result.estimated_cost_usd is not None
+    assert updated_state.run_id == summary_input_state.run_id
+    assert updated_state.review_theme_summary_input == (
+        summary_input_state.review_theme_summary_input
+    )
+    assert updated_state.batch == summary_input_state.batch
+
+
+def test_run_fake_review_theme_summary_agent_node_preserves_existing_steps_and_appends_completed_step() -> (
+    None
+):
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+    summary_input_state = build_review_theme_summary_input_node(load_reviews_node(state))
+
+    updated_state = run_fake_review_theme_summary_agent_node(summary_input_state)
+
+    assert [step.step_name for step in updated_state.steps] == [
+        "load_reviews",
+        "build_review_theme_summary_input",
+        "run_fake_review_theme_summary_agent",
+    ]
+    assert updated_state.steps[:2] == summary_input_state.steps
+    step = updated_state.steps[2]
+    assert step.run_id == state.run_id
+    assert step.status == WorkflowStatus.COMPLETED
+    assert step.completed_at_utc is not None
+    assert step.duration_ms is not None
+    assert step.duration_ms >= 0
+
+
+def test_run_fake_review_theme_summary_agent_node_requires_summary_input() -> None:
+    state = ReadySetRentablesReviewGraphState.create(
+        input_csv_path=SAMPLE_CSV_PATH,
+        output_json_path=Path("normalized_reviews.json"),
+    )
+
+    with pytest.raises(ValueError, match="summary input is built"):
+        run_fake_review_theme_summary_agent_node(state)
 
 
 def test_write_summary_artifact_node_writes_summary_and_preserves_state(
