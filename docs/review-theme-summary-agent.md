@@ -122,6 +122,33 @@ The artifact should be linked to the workflow run through artifact records when
 persistence is enabled. The model invocation record should point to the input
 and output artifact paths.
 
+## Planned Artifact Persistence
+
+`review_theme_summary.md` is now represented by the recognized artifact type:
+
+- `review_theme_summary`
+
+The future persisted flow should be:
+
+1. Run the ReadySetRentables review workflow.
+2. Build compact review theme summary input from the normalized review batch.
+3. Run `ReviewThemeSummaryAgent` through `ModelClient`.
+4. Write `review_theme_summary.md`.
+5. Create an `ArtifactRecord` with `ArtifactType.REVIEW_THEME_SUMMARY`.
+6. Persist model invocation metadata when a `RecordingModelClient` is used.
+7. Inspect the run with `show-run`.
+
+Later `show-run` output should make the full path inspectable:
+
+- normal workflow artifacts
+- the `review_theme_summary` artifact path
+- model invocation metadata
+- provider, model, prompt, version, token, and cost fields
+
+This persistence wiring is not implemented yet. The current
+`summarize-review-themes-fake` command writes the markdown artifact only and is
+not wired into `run-workflow`, LangGraph, or Postgres persistence.
+
 ## Prompt Template Usage
 
 The agent should load the committed versioned prompt template:

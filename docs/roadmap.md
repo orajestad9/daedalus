@@ -100,8 +100,9 @@ See `docs/review-theme-summary-agent.md` for the current fake/local agent path.
 
 Upcoming Phase 4 work should stay incremental:
 
+- persist `review_theme_summary` artifact records
 - optional LangGraph wiring for the fake review theme summary path
-- optional artifact records for `review_theme_summary.md`
+- optional fake summary workflow integration
 - Ollama/local provider design
 - real local provider implementation only after the fake path is stable
 

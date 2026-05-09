@@ -84,6 +84,11 @@ fake/local review theme summary markdown output. The current
 file artifact only; persisted artifact records for that file are intentionally
 deferred.
 
+In a later Phase 4 step, review theme summaries are expected to become persisted
+artifact records attached to workflow runs. `show-run` should then display the
+normal workflow artifacts, the `review_theme_summary` artifact, and any related
+model invocation metadata together.
+
 ## Human Inspection
 
 There are two inspection paths:
