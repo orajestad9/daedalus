@@ -63,6 +63,17 @@ make clean
 This path is file/artifact-only. It is not wired into `run-workflow`, LangGraph
 nodes, Postgres persistence, or real provider execution yet.
 
+To verify this path without Docker, Postgres, `.env`, provider SDKs, or real
+model calls, run:
+
+```sh
+make fake-summary-check
+```
+
+The target normalizes the sample reviews, runs `summarize-review-themes-fake`,
+verifies `artifacts/readysetrentables/review_theme_summary.md` exists, and then
+cleans generated artifacts.
+
 ## Expected Inputs
 
 The agent should accept structured inputs, not loose prompt text:

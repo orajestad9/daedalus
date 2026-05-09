@@ -79,6 +79,12 @@ For the fake/local Phase 4 review theme summary path:
 This uses `FakeModelClient` only. It does not call real LLMs, use provider SDKs,
 or print raw prompts, raw model output, or raw review datasets.
 
+To verify that local fake summary path end to end without Docker or `.env`:
+
+```sh
+make fake-summary-check
+```
+
 ## Local Postgres
 
 Phase 1 includes optional local Postgres persistence for workflow run records

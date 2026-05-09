@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -24,6 +24,14 @@ check: test lint format-check type-check
 
 normalize-sample:
 	$(PYTHON) -m daedalus.cli normalize-reviews --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
+
+fake-summary-check:
+	@$(MAKE) clean
+	$(PYTHON) -m daedalus.cli normalize-reviews --input sample_data/readysetrentables_reviews/airbnb_reviews_sample.csv --output artifacts/readysetrentables/normalized_reviews.json
+	$(PYTHON) -m daedalus.cli summarize-review-themes-fake --input artifacts/readysetrentables/normalized_reviews.json --output artifacts/readysetrentables/review_theme_summary.md
+	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
+	@echo "fake-summary-check passed: artifacts/readysetrentables/review_theme_summary.md was created."
+	@$(MAKE) clean
 
 db-up:
 	docker compose up -d postgres
