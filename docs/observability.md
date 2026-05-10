@@ -102,6 +102,12 @@ After persistence, `show-run` can display the normal workflow artifacts, the
 `review_theme_summary` artifact, and related fake model invocation metadata
 together.
 
+Phase 6 also recognizes `evaluation_report` as a generic artifact type for
+evaluation JSON or Markdown files. The explicit
+`record-evaluation-report-artifact` command can attach an existing evaluation
+report file to a persisted workflow run. This remains manual; evaluation is not
+automatically wired into workflows or LangGraph yet.
+
 ## Human Inspection
 
 There are two inspection paths:
