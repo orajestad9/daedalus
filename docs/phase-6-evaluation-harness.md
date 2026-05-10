@@ -286,6 +286,13 @@ The command records the file as `ArtifactType.EVALUATION_REPORT` so `show-run`
 can display the artifact path. It is explicit/manual and does not wire
 evaluation into workflows, LangGraph, or automatic persistence.
 
+The `evaluation-db-check` Makefile target verifies the full manual persisted
+evaluation path end-to-end: it runs the LangGraph workflow with `--persist`,
+evaluates `review_theme_summary.md`, records the evaluation JSON as an
+`ArtifactType.EVALUATION_REPORT`, and confirms `show-run` includes
+`evaluation_report`. It is optional, may require Docker, Postgres, and `.env`,
+and does not require Ollama. It is not called by `make check`.
+
 The broader generic command shape can come later. The important boundary is that
 evaluation is opt-in, deterministic by default, and artifact oriented.
 

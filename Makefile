@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -159,6 +159,51 @@ fake-summary-db-check:
 		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q '^Model Invocations:' || { echo "show-run output did not include model invocations."; status=1; }; fi; \
 		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'provider=fake' || { echo "show-run output did not include the fake model invocation."; status=1; }; fi; \
 	fi; \
+	$(MAKE) clean; \
+	$(MAKE) db-down; \
+	exit $$status
+
+evaluation-db-check:
+	@test -f .env || (echo "Missing .env. Copy .env.example to .env and edit it locally before running evaluation-db-check."; exit 1)
+	@$(MAKE) db-up; \
+	status=0; \
+	$(MAKE) migrate-db || status=$$?; \
+	if [ $$status -eq 0 ]; then \
+		$(MAKE) clean; \
+		RUN_OUTPUT=$$(set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --execution-engine langgraph --persist 2>&1); \
+		status=$$?; \
+		printf "%s\n" "$$RUN_OUTPUT"; \
+		RUN_ID=$$(printf "%s\n" "$$RUN_OUTPUT" | sed -n 's/.*run_id=\([^ ]*\).*/\1/p' | head -n 1); \
+		if [ $$status -eq 0 ] && [ -z "$$RUN_ID" ]; then echo "Could not capture run_id from persisted workflow output."; status=1; fi; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		test -f artifacts/readysetrentables/review_theme_summary.md || { echo "Missing artifacts/readysetrentables/review_theme_summary.md"; status=1; }; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli evaluate-review-theme-summary \
+			--summary artifacts/readysetrentables/review_theme_summary.md \
+			--run-id "$$RUN_ID" \
+			--output-json artifacts/readysetrentables/review_theme_summary.evaluation.json \
+			--output-md artifacts/readysetrentables/review_theme_summary.evaluation.md || status=$$?; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		test -f artifacts/readysetrentables/review_theme_summary.evaluation.json || { echo "Missing artifacts/readysetrentables/review_theme_summary.evaluation.json"; status=1; }; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		test -f artifacts/readysetrentables/review_theme_summary.evaluation.md || { echo "Missing artifacts/readysetrentables/review_theme_summary.evaluation.md"; status=1; }; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli record-evaluation-report-artifact \
+			--run-id "$$RUN_ID" \
+			--path artifacts/readysetrentables/review_theme_summary.evaluation.json || status=$$?; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		SHOW_RUN_OUTPUT=$$(set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli show-run --run-id "$$RUN_ID" 2>&1); \
+		status=$$?; \
+		printf "%s\n" "$$SHOW_RUN_OUTPUT"; \
+		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'evaluation_report' || { echo "show-run output did not include evaluation_report."; status=1; }; fi; \
+	fi; \
+	if [ $$status -eq 0 ]; then echo "evaluation-db-check passed: evaluation_report artifact recorded and verified in show-run."; fi; \
 	$(MAKE) clean; \
 	$(MAKE) db-down; \
 	exit $$status
