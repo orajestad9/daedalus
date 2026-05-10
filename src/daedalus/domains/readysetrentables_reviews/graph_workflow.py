@@ -19,6 +19,9 @@ from daedalus.domains.readysetrentables_reviews.graph_state import (
     ReadySetRentablesReviewGraphState,
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 ReadySetRentablesReviewCompiledGraph = CompiledStateGraph[
     ReadySetRentablesReviewGraphState,
@@ -64,6 +67,8 @@ def build_readysetrentables_review_graph() -> ReadySetRentablesReviewCompiledGra
     )
     graph.add_edge("write_review_theme_summary_artifact", END)
 
+    logger.info("Compiled ReadySetRentables review normalization workflow")
+
     return graph.compile()
 
 
@@ -81,6 +86,7 @@ def run_readysetrentables_review_graph(
         approval_required=approval_required,
         approved=approved,
     )
+    logger.info(f"Starting ReadySetRentables review normalization workflow with input={input_csv_path} output={output_json_path}")
     raw_state: object = build_readysetrentables_review_graph().invoke(initial_state)
     if isinstance(raw_state, ReadySetRentablesReviewGraphState):
         return raw_state

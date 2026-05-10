@@ -70,10 +70,12 @@ class WorkflowPersistenceService:
         artifact_records: Sequence[ArtifactRecord],
     ) -> int:
         """Save a completed workflow run and return the number of artifacts saved."""
+        logger.info(f"Persisting completed workflow run_id={run_record.run_id}")
         self._workflow_run_repository.save(run_record)
         for artifact_record in artifact_records:
             self._artifact_repository.save(artifact_record)
 
+        logger.info(f"Persisted {len(artifact_records)} artifacts for run_id={run_record.run_id}")
         return len(artifact_records)
 
     def save_review_normalization_run(
@@ -91,6 +93,7 @@ class WorkflowPersistenceService:
             msg = "Model invocation persistence requires ModelInvocationRepository"
             raise ValueError(msg)
 
+        logger.info(f"Saving review normalization run_id={record.run_id}")
         self._workflow_run_repository.save(record)
         for step in steps or []:
             if self._workflow_step_repository is not None:
@@ -107,6 +110,11 @@ class WorkflowPersistenceService:
             if self._model_invocation_repository is not None:
                 self._model_invocation_repository.save(model_invocation_record)
 
+        logger.info(
+            f"Saved {len(steps) if steps else 0} steps, "
+            f"{len(artifact_records)} artifacts, and "
+            f"{len(model_invocation_records) if model_invocation_records else 0} model invocations for run_id={record.run_id}"
+        )
         return artifact_records
 
 
@@ -169,6 +177,7 @@ def load_workflow_run_details(run_id: UUID) -> WorkflowRunDetails:
             msg = f"Workflow run not found: run_id={run_id}"
             raise WorkflowRunNotFoundError(msg)
 
+        logger.info(f"Loaded workflow run details for run_id={run_id}")
         return WorkflowRunDetails(
             run_record=run_record,
             artifact_records=artifact_repository.list_for_run(run_id),
@@ -195,6 +204,7 @@ def load_recent_workflow_runs(
     connection = connect_postgres(settings)
 
     try:
+        logger.info(f"Loading recent workflow runs with limit={limit} domain={domain} status={status}")
         return WorkflowRunRepository(connection).list_recent(
             limit=limit,
             domain=domain,

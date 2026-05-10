@@ -1,11 +1,3 @@
-"""Command-line entry point for Daedalus.
-
-The CLI is intentionally thin: it parses user intent, configures process-level
-logging, and delegates workflow execution to domain or orchestrator functions.
-Routing and approval enforcement live outside this module so future automation
-can reuse the same behavior without shelling out to the CLI.
-"""
-
 import argparse
 from collections.abc import Sequence
 from decimal import Decimal
@@ -70,6 +62,9 @@ from daedalus.orchestrator.workflow_router import (
 from daedalus.shared.workflow_manifest import WorkflowExecutionEngine
 from daedalus.telemetry.logging import configure_logging
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the Daedalus CLI and return a process exit code."""
@@ -78,11 +73,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     configure_logging(args.log_level)
 
     if args.command == "normalize-reviews":
+        logger.info(f"Starting normalize-reviews with input={args.input} output={args.output}")
         result = run_review_normalization_workflow(
             input_csv_path=args.input,
             output_json_path=args.output,
         )
-        print(
+        logger.info(
             f"Normalized {result.review_count} reviews "
             f"to {result.output_json_path} "
             f"metadata={result.metadata_json_path} "
@@ -93,12 +89,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "run-review-graph":
+        logger.info(f"Starting run-review-graph with input={args.input} output={args.output}")
         graph_result = run_readysetrentables_review_graph(
             input_csv_path=args.input,
             output_json_path=args.output,
         )
         review_count = graph_result.batch.review_count if graph_result.batch is not None else 0
-        print(
+        logger.info(
             f"Ran review graph run_id={graph_result.run_id} "
             f"review_count={review_count} "
             f"output={graph_result.output_json_path} "
@@ -111,6 +108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "run-workflow":
         try:
+            logger.info(f"Starting run-workflow with manifest={args.manifest}")
             result = run_workflow_from_manifest_path(
                 args.manifest,
                 approved=args.approve,
@@ -124,7 +122,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 persisted_artifact_count = persist_review_normalization_workflow_result(result)
             except (ValueError, WorkflowPersistenceError) as exc:
                 parser.error(str(exc))
-        print(
+        logger.info(
             f"Ran workflow run_id={result.run_id} "
             f"review_count={result.review_count} "
             f"output={result.output_json_path} "
@@ -133,7 +131,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"run_record={result.run_record_json_path}"
         )
         if persisted_artifact_count is not None:
-            print(
+            logger.info(
                 f"Persisted workflow run {result.run_id} "
                 f"with {persisted_artifact_count} artifact record(s)."
             )
@@ -146,7 +144,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error(str(exc))
 
         applied_migrations = apply_migrations(settings)
-        print(f"Applied {len(applied_migrations)} migration files")
+        logger.info(f"Applied {len(applied_migrations)} migration files")
         return 0
 
     if args.command == "show-run":
@@ -155,6 +153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (ValueError, WorkflowPersistenceError, WorkflowRunNotFoundError) as exc:
             parser.error(str(exc))
 
+        logger.info(f"Inspecting workflow run {args.run_id}")
         print(
             format_run_inspection(
                 record=details.run_record,
@@ -171,7 +170,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (ValueError, WorkflowPersistenceError) as exc:
             parser.error(str(exc))
 
-        print(
+        logger.info(
             "Recorded fake model invocation "
             f"provider={response.provider.value} "
             f"model_name={response.model_name} "
@@ -189,7 +188,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (FileNotFoundError, ValueError, WorkflowPersistenceError) as exc:
             parser.error(str(exc))
 
-        print(
+        logger.info(
             "Recorded review theme summary artifact "
             f"run_id={artifact_record.run_id} "
             f"artifact_type={artifact_record.artifact_type.value} "
@@ -206,7 +205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (FileNotFoundError, ValueError, WorkflowPersistenceError) as exc:
             parser.error(str(exc))
 
-        print(
+        logger.info(
             "Recorded evaluation report artifact "
             f"run_id={artifact_record.run_id} "
             f"artifact_type={artifact_record.artifact_type.value} "
@@ -232,7 +231,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (FileNotFoundError, ValueError) as exc:
             parser.error(str(exc))
 
-        print(
+        logger.info(
             "Wrote fake review theme summary "
             f"run_id={theme_summary_result.run_id} "
             f"output={args.output} "
@@ -309,7 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if connection is not None:
                 connection.close()
 
-        print(
+        logger.info(
             "Wrote Ollama review theme summary "
             f"run_id={theme_summary_result.run_id} "
             f"output={args.output} "
@@ -333,7 +332,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (ValueError, OllamaModelClientError) as exc:
             parser.error(str(exc))
 
-        print(
+        logger.info(
             "Ollama smoke check succeeded "
             f"provider={response.provider.value} "
             f"model_name={response.model_name} "
@@ -370,7 +369,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
 
-        print(
+        logger.info(
             "Wrote review theme summary evaluation "
             f"target_name={report.target_name} "
             f"passed={report.passed} "
@@ -391,6 +390,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (ValueError, WorkflowPersistenceError) as exc:
             parser.error(str(exc))
 
+        logger.info(f"Listing recent workflow runs with limit={args.limit} domain={args.domain} status={args.status}")
         print(_format_workflow_run_list(runs))
         return 0
 
