@@ -1005,6 +1005,416 @@ def test_evaluate_review_theme_summary_command_does_not_print_artifact_contents(
     assert "readysetrentables/review_theme_summary" not in output
 
 
+def test_compare_review_theme_summaries_succeeds_for_valid_artifacts(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+    output_json_path = tmp_path / "comparison.json"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert "passed=" in output
+
+
+def test_compare_review_theme_summaries_default_json_output_path_is_created(
+    tmp_path: Path,
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+        ]
+    )
+
+    assert exit_code == 0
+    assert (tmp_path / "candidate" / "review_theme_summary.comparison.json").is_file()
+
+
+def test_compare_review_theme_summaries_output_json_writes_report(tmp_path: Path) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+    output_json_path = tmp_path / "out.json"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["target_type"] == "review_theme_summary"
+    assert data["comparator_name"] == "readysetrentables_review_theme_summary_basic_comparison"
+
+
+def test_compare_review_theme_summaries_output_md_writes_report(tmp_path: Path) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+    output_md_path = tmp_path / "out.md"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    markdown = output_md_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert "Evaluation Comparison Report" in markdown
+    assert "Target name: `review_theme_summary`" in markdown
+
+
+def test_compare_review_theme_summaries_writes_json_and_md_together(
+    tmp_path: Path,
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+    output_json_path = tmp_path / "out.json"
+    output_md_path = tmp_path / "out.md"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--output-json",
+            str(output_json_path),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert output_md_path.is_file()
+
+
+def test_compare_review_theme_summaries_baseline_report_id_is_preserved(
+    tmp_path: Path,
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+    baseline_report_id = uuid4()
+    output_json_path = tmp_path / "out.json"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--baseline-report-id",
+            str(baseline_report_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["baseline_report_id"] == str(baseline_report_id)
+
+
+def test_compare_review_theme_summaries_candidate_report_id_is_preserved(
+    tmp_path: Path,
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+    candidate_report_id = uuid4()
+    output_json_path = tmp_path / "out.json"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--candidate-report-id",
+            str(candidate_report_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["candidate_report_id"] == str(candidate_report_id)
+
+
+def test_compare_review_theme_summaries_output_includes_target_name(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "target_name=review_theme_summary" in output
+
+
+def test_compare_review_theme_summaries_output_includes_passed(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "passed=" in output
+
+
+def test_compare_review_theme_summaries_output_includes_counts(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "different_count=" in output
+    assert "improved_count=" in output
+    assert "regressed_count=" in output
+    assert "inconclusive_count=" in output
+
+
+def test_compare_review_theme_summaries_missing_baseline_still_writes_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline = tmp_path / "missing_baseline" / "review_theme_summary.md"
+    candidate_dir = tmp_path / "candidate"
+    candidate_dir.mkdir(parents=True, exist_ok=True)
+    candidate = _write_review_theme_summary_markdown_artifact(candidate_dir)
+    output_json_path = tmp_path / "out.json"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert any(
+        c["comparison_name"] == "baseline_artifact_exists" and c["status"] != "match"
+        for c in data["comparisons"]
+    )
+
+
+def test_compare_review_theme_summaries_missing_candidate_still_writes_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline_dir = tmp_path / "baseline"
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    baseline = _write_review_theme_summary_markdown_artifact(baseline_dir)
+    candidate = tmp_path / "missing_candidate" / "review_theme_summary.md"
+    output_json_path = tmp_path / "out.json"
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert any(
+        c["comparison_name"] == "candidate_artifact_exists" and c["status"] != "match"
+        for c in data["comparisons"]
+    )
+
+
+def test_compare_review_theme_summaries_invalid_baseline_report_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "compare-review-theme-summaries",
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(candidate),
+                "--baseline-report-id",
+                "not-a-uuid",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_compare_review_theme_summaries_invalid_candidate_report_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "compare-review-theme-summaries",
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(candidate),
+                "--candidate-report-id",
+                "not-a-uuid",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_compare_review_theme_summaries_does_not_print_baseline_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline, candidate = _write_two_summaries(tmp_path)
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Artifact body that must stay out of stdout." not in output
+    assert "ReadySetRentables Review Theme Summary" not in output
+
+
+def test_compare_review_theme_summaries_does_not_print_candidate_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    baseline_dir = tmp_path / "baseline"
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    baseline = _write_review_theme_summary_markdown_artifact(baseline_dir)
+    candidate_body = "Candidate body that must stay out of stdout."
+    candidate = tmp_path / "candidate" / "review_theme_summary.md"
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    candidate.write_text(
+        "\n".join(
+            [
+                "# ReadySetRentables Review Theme Summary",
+                "",
+                "- Run ID: `00000000-0000-0000-0000-000000000001`",
+                "- Prompt: `readysetrentables/review_theme_summary`",
+                "- Prompt version: `v0`",
+                "- Model provider: `ollama`",
+                "- Model name: `llama3.1`",
+                "",
+                "## Summary",
+                "",
+                candidate_body,
+                "",
+                "## Token And Cost Metadata",
+                "",
+                "- Input tokens: 100",
+                "- Output tokens: 200",
+                "- Total tokens: 300",
+                "- Estimated cost USD: 0",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "compare-review-theme-summaries",
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert candidate_body not in output
+
+
 def test_summarize_review_themes_ollama_command_succeeds_with_mocked_client(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1760,6 +2170,16 @@ def _write_normalized_reviews_json(tmp_path: Path) -> Path:
     batch = load_airbnb_reviews_csv(SAMPLE_CSV_PATH)
     output_path = tmp_path / "normalized_reviews.json"
     return write_review_batch_json(batch, output_path)
+
+
+def _write_two_summaries(tmp_path: Path) -> tuple[Path, Path]:
+    baseline_dir = tmp_path / "baseline"
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+    candidate_dir = tmp_path / "candidate"
+    candidate_dir.mkdir(parents=True, exist_ok=True)
+    baseline = _write_review_theme_summary_markdown_artifact(baseline_dir)
+    candidate = _write_review_theme_summary_markdown_artifact(candidate_dir)
+    return baseline, candidate
 
 
 def _write_review_theme_summary_markdown_artifact(

@@ -214,6 +214,24 @@ Future checks for a richer ReadySetRentables pipeline can include:
 Domain-specific thresholds should stay close to the domain module rather than
 inside the generic evaluation package.
 
+## Compare Review Theme Summaries CLI
+
+A deterministic file-only comparison CLI command now exists:
+
+```sh
+.venv/bin/daedalus compare-review-theme-summaries \
+  --baseline artifacts/fake/review_theme_summary.md \
+  --candidate artifacts/ollama/review_theme_summary.md \
+  --output-json artifacts/readysetrentables/review_theme_summary.comparison.json \
+  --output-md artifacts/readysetrentables/review_theme_summary.comparison.md
+```
+
+The comparison is deterministic and file-only. It is intended for
+fake-vs-Ollama, prompt-vs-prompt, or model-vs-model summary comparisons. No
+model calls are made. No comparison persistence exists yet. If no output path
+is provided, the comparison JSON is written next to the candidate file as
+`review_theme_summary.comparison.json`.
+
 ## ReadySetRentables Review Theme Summary Comparison
 
 A domain-specific comparison evaluator now exists in

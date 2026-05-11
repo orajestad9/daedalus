@@ -15,6 +15,9 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
 from daedalus.domains.readysetrentables_reviews.theme_summary_artifacts import (
     write_review_theme_summary_markdown,
 )
+from daedalus.domains.readysetrentables_reviews.theme_summary_comparison import (
+    compare_review_theme_summary_markdown,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_evaluator import (
     evaluate_review_theme_summary_markdown,
 )
@@ -25,6 +28,8 @@ from daedalus.domains.readysetrentables_reviews.workflow import (
     run_review_normalization_workflow,
 )
 from daedalus.evaluation import (
+    write_evaluation_comparison_report_json,
+    write_evaluation_comparison_report_markdown,
     write_evaluation_report_json,
     write_evaluation_report_markdown,
 )
@@ -381,6 +386,46 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "compare-review-theme-summaries":
+        output_json_path = args.output_json
+        output_md_path = args.output_md
+        if output_json_path is None and output_md_path is None:
+            output_json_path = _default_comparison_json_path(args.candidate)
+
+        comparison_report = compare_review_theme_summary_markdown(
+            baseline_path=args.baseline,
+            candidate_path=args.candidate,
+            baseline_report_id=args.baseline_report_id,
+            candidate_report_id=args.candidate_report_id,
+        )
+        comparison_written_paths: list[Path] = []
+        if output_json_path is not None:
+            comparison_written_paths.append(
+                write_evaluation_comparison_report_json(
+                    report=comparison_report,
+                    output_path=output_json_path,
+                )
+            )
+        if output_md_path is not None:
+            comparison_written_paths.append(
+                write_evaluation_comparison_report_markdown(
+                    report=comparison_report,
+                    output_path=output_md_path,
+                )
+            )
+
+        print(
+            "Wrote review theme summary comparison "
+            f"target_name={comparison_report.target_name} "
+            f"passed={comparison_report.passed} "
+            f"different_count={comparison_report.different_count} "
+            f"improved_count={comparison_report.improved_count} "
+            f"regressed_count={comparison_report.regressed_count} "
+            f"inconclusive_count={comparison_report.inconclusive_count} "
+            f"outputs={','.join(str(path) for path in comparison_written_paths)}"
+        )
+        return 0
+
     if args.command == "list-runs":
         try:
             runs = load_recent_workflow_runs(
@@ -674,6 +719,47 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional path for the Markdown evaluation report artifact.",
     )
 
+    compare_review_theme_summaries = subparsers.add_parser(
+        "compare-review-theme-summaries",
+        help="Compare two review_theme_summary.md artifacts with deterministic local checks.",
+    )
+    compare_review_theme_summaries.add_argument(
+        "--baseline",
+        required=True,
+        type=Path,
+        help="Path to the baseline review_theme_summary.md artifact.",
+    )
+    compare_review_theme_summaries.add_argument(
+        "--candidate",
+        required=True,
+        type=Path,
+        help="Path to the candidate review_theme_summary.md artifact.",
+    )
+    compare_review_theme_summaries.add_argument(
+        "--baseline-report-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional UUID of the baseline evaluation report.",
+    )
+    compare_review_theme_summaries.add_argument(
+        "--candidate-report-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional UUID of the candidate evaluation report.",
+    )
+    compare_review_theme_summaries.add_argument(
+        "--output-json",
+        default=None,
+        type=Path,
+        help="Optional path for the JSON comparison report artifact.",
+    )
+    compare_review_theme_summaries.add_argument(
+        "--output-md",
+        default=None,
+        type=Path,
+        help="Optional path for the Markdown comparison report artifact.",
+    )
+
     list_runs = subparsers.add_parser(
         "list-runs",
         help="List recent persisted workflow runs from Postgres.",
@@ -828,6 +914,10 @@ def _run_ollama_smoke_check(
 
 def _default_evaluation_json_path(summary_path: Path) -> Path:
     return summary_path.with_name(f"{summary_path.stem}.evaluation.json")
+
+
+def _default_comparison_json_path(candidate_path: Path) -> Path:
+    return candidate_path.with_name(f"{candidate_path.stem}.comparison.json")
 
 
 def _uuid_arg(value: str) -> UUID:
