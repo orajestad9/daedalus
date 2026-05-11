@@ -214,6 +214,23 @@ Future checks for a richer ReadySetRentables pipeline can include:
 Domain-specific thresholds should stay close to the domain module rather than
 inside the generic evaluation package.
 
+## ReadySetRentables Review Theme Summary Comparison
+
+A domain-specific comparison evaluator now exists in
+`src/daedalus/domains/readysetrentables_reviews/theme_summary_comparison.py`:
+
+- `compare_review_theme_summary_markdown` — compares two
+  `review_theme_summary.md` artifacts deterministically and returns a generic
+  `EvaluationComparisonReport`
+
+Checks include: artifact existence, non-empty content, title presence, summary
+section presence, prompt and model metadata presence, usage section presence,
+summary length delta, and placeholder regression detection.
+
+This evaluator is intended for future fake-vs-Ollama, prompt-vs-prompt, or
+model-vs-model comparisons. No comparison CLI exists yet. No model, Ollama, or
+cloud provider calls are made.
+
 ## Generic Comparison Models
 
 Generic comparison report artifact writers now exist in
