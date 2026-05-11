@@ -163,12 +163,15 @@ make ollama-summary-local-check
 
 ## Project Status
 
-Phase 6 (evaluation and comparison harness) is complete. Phase 7 is actively
-modeling the real ReadySetRentables production pipeline — defining domain
-contracts before implementing Claude or wiring the full multi-agent graph.
+Phase 6 (evaluation and comparison harness) is complete. Phase 7 (real RSR
+pipeline modeling: domain contracts, artifact types and writers, prompt
+placeholders, deterministic evaluator shells) is complete. Phase 8 is active
+and designs the safe read-only boundary for later extracting RSR source data
+from the real ReadySetRentables database into Daedalus.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
+- Phase 8 design: [`docs/phase-8-rsr-source-extraction.md`](docs/phase-8-rsr-source-extraction.md)
 - Observability and `show-run`: [`docs/observability.md`](docs/observability.md)
 - Token and cost governance: [`docs/token-cost-governance.md`](docs/token-cost-governance.md)
 - Model-client architecture: [`docs/model-client-architecture.md`](docs/model-client-architecture.md)

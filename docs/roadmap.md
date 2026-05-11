@@ -193,14 +193,13 @@ capabilities and future work.
 
 ### Phase 7: ReadySetRentables Real Pipeline Modeling
 
-Phase 7 is active and progressing. It models the real ReadySetRentables
-production pipeline on top of the existing Daedalus generic infrastructure.
-Phase 6 left Daedalus with working fake/local paths, a manual Ollama CLI path,
-generic evaluation and comparison models, and artifact and model invocation
-persistence. Phase 7 uses those foundations to define real RSR domain contracts
-before implementing Claude or wiring the full LangGraph graph.
+Phase 7 is complete. It modeled the real ReadySetRentables production pipeline
+on top of the existing Daedalus generic infrastructure: domain contracts,
+artifact types and writers, prompt template placeholders, and deterministic
+evaluator shells for the real pipeline steps. Phase 7 deliberately did not
+implement Claude or wire the full multi-agent LangGraph workflow.
 
-Phase 7 progress so far:
+Phase 7 deliverables:
 
 - `ReviewInsightExtractionInput`, `ReviewInsightTheme`, and
   `ReviewInsightExtractionResult` domain contract models
@@ -219,20 +218,48 @@ Phase 7 progress so far:
   `evaluate_neighborhood_profile_markdown(...)`, and
   `evaluate_neighborhood_profile_json(...)`
 
-Still planned for Phase 7:
+All Phase 7 domain contracts, models, writers, and evaluators stay inside RSR
+domain modules. Generic platform infrastructure does not hardcode RSR logic.
+
+See `docs/phase-7-rsr-real-pipeline.md` for the Phase 7 design baseline.
+
+Deferred for later phases (not blocking Phase 8):
 
 - `ReviewInsightExtractionAgent` for local Ollama execution behind `ModelClient`
 - `NeighborhoodProfileAgent` shell for future Claude execution behind
   `ModelClient`
+- Claude/Anthropic provider adapter
 - LangGraph and `run-workflow` wiring for the full RSR pipeline
 - optional CLI commands for manual execution and artifact recording
 
-All Phase 7 domain contracts, models, writers, and evaluators stay inside RSR
-domain modules. Generic platform infrastructure does not hardcode RSR logic.
-Claude integration, cloud provider calls, and full LangGraph pipeline wiring
-remain deferred.
+### Phase 8: ReadySetRentables Read-Only Source Extraction Boundary
 
-See `docs/phase-7-rsr-real-pipeline.md` for the Phase 7 design baseline.
+Phase 8 is active. It designs the safe read-only boundary for later extracting
+RSR source data from the real ReadySetRentables application database into
+Daedalus domain inputs. Phase 8 starts as a documentation, model, and artifact
+design phase that does not require homelab access; the real Postgres
+connection code, SQL, and DB-backed checks are scoped for later steps when
+homelab access is available.
+
+Phase 8 scope:
+
+- design doc for the read-only source extraction boundary
+- proposed `RsrSourceExtractionRequest`, `RsrSourceReviewRecord`,
+  `RsrSourceListingContext`, `RsrSourceNeighborhoodContext`, and
+  `RsrSourceExtractionResult` source extraction models
+- proposed `rsr_source_extract.json` artifact
+- proposed `RsrSourceReadOnlyRepository` adapter responsibilities
+- testing strategy using fake fixtures and mocked repositories first
+
+Phase 8 explicitly does not:
+
+- add real Postgres connection code for the RSR source DB
+- add real SQL queries
+- mark real DB integration as implemented
+- write back to the RSR application database
+- require homelab access for `make check`
+
+See `docs/phase-8-rsr-source-extraction.md` for the Phase 8 design baseline.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade
