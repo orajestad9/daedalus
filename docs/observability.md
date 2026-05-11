@@ -106,7 +106,10 @@ Phase 6 also recognizes `evaluation_report` as a generic artifact type for
 evaluation JSON or Markdown files. The explicit
 `record-evaluation-report-artifact` command can attach an existing evaluation
 report file to a persisted workflow run. This remains manual; evaluation is not
-automatically wired into workflows or LangGraph yet.
+automatically wired into workflows or LangGraph yet. `evaluation_comparison_report`
+is now also a recognized generic artifact type, distinct from `evaluation_report`;
+`show-run` will be able to display `evaluation_comparison_report` artifacts once
+they are recorded.
 
 ## Human Inspection
 

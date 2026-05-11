@@ -75,6 +75,27 @@ def test_artifact_record_can_represent_evaluation_report_artifact() -> None:
     )
 
 
+def test_artifact_record_can_represent_evaluation_comparison_report_artifact() -> None:
+    run_id = uuid4()
+
+    record = ArtifactRecord.create(
+        run_id=run_id,
+        artifact_type=ArtifactType.EVALUATION_COMPARISON_REPORT,
+        artifact_path=Path("artifacts/evaluations/review_theme_summary.comparison.json"),
+    )
+
+    assert record.run_id == run_id
+    assert record.artifact_type == ArtifactType.EVALUATION_COMPARISON_REPORT
+    assert record.artifact_path == Path(
+        "artifacts/evaluations/review_theme_summary.comparison.json"
+    )
+
+
+def test_artifact_type_includes_evaluation_comparison_report() -> None:
+    assert ArtifactType("evaluation_comparison_report") == ArtifactType.EVALUATION_COMPARISON_REPORT
+    assert ArtifactType.EVALUATION_COMPARISON_REPORT.value == "evaluation_comparison_report"
+
+
 def test_artifact_record_json_serializes_artifact_type_value() -> None:
     record = ArtifactRecord(
         artifact_id=uuid4(),
@@ -118,3 +139,18 @@ def test_evaluation_report_artifact_json_serializes_artifact_type_value() -> Non
 
     assert data["artifact_type"] == "evaluation_report"
     assert data["artifact_path"] == ("artifacts/evaluations/review_theme_summary.evaluation.json")
+
+
+def test_evaluation_comparison_report_artifact_json_serializes_artifact_type_value() -> None:
+    record = ArtifactRecord(
+        artifact_id=uuid4(),
+        run_id=uuid4(),
+        artifact_type=ArtifactType.EVALUATION_COMPARISON_REPORT,
+        artifact_path=Path("artifacts/evaluations/review_theme_summary.comparison.json"),
+        created_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+    )
+
+    data = cast(dict[str, Any], json.loads(record.model_dump_json()))
+
+    assert data["artifact_type"] == "evaluation_comparison_report"
+    assert data["artifact_path"] == ("artifacts/evaluations/review_theme_summary.comparison.json")

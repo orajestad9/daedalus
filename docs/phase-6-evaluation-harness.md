@@ -129,7 +129,11 @@ JSON is useful for machine inspection and future dashboards. Markdown is useful
 for human review. `evaluation_report` is now a recognized generic
 `ArtifactType`, so future evaluation JSON or Markdown files can be represented
 as `ArtifactRecord` rows without introducing domain-specific artifact types.
-Automatic evaluation persistence remains intentionally deferred.
+`evaluation_comparison_report` is now also a recognized generic `ArtifactType`,
+distinct from `evaluation_report`, so future persisted comparison report JSON
+or Markdown files can be represented as `ArtifactRecord` rows. No comparison
+artifact recording CLI exists yet. Automatic evaluation persistence remains
+intentionally deferred.
 
 Evaluation artifacts should contain check names, statuses, severities, safe
 messages, and metadata. They should not contain artifact contents by default.
