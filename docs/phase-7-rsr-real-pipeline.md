@@ -92,6 +92,20 @@ These are domain contract models only. No Ollama agent, artifact writer, prompt
 template, or workflow wiring exists yet. They stay inside the RSR domain package
 and do not touch generic Daedalus platform infrastructure.
 
+### Review Insights Artifact Type And Writer
+
+`ArtifactType.REVIEW_INSIGHTS` (`"review_insights"`) is now a recognized generic
+artifact type in `src/daedalus/orchestrator/artifact_type.py`.
+
+`write_review_insights_json(...)` is implemented in
+`src/daedalus/domains/readysetrentables_reviews/review_insight_artifacts.py`.
+It writes a `ReviewInsightExtractionResult` to `review_insights.json` as
+indented UTF-8 JSON using Pydantic serialization. It creates parent directories
+and returns the output path.
+
+This is artifact support only. No Ollama agent, Claude agent, prompt template,
+CLI command, or workflow wiring exists yet.
+
 ## Planned Phase 7 Work
 
 Phase 7 should define RSR domain contracts without implementing Claude or wiring

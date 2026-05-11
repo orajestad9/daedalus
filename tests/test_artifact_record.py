@@ -154,3 +154,37 @@ def test_evaluation_comparison_report_artifact_json_serializes_artifact_type_val
 
     assert data["artifact_type"] == "evaluation_comparison_report"
     assert data["artifact_path"] == ("artifacts/evaluations/review_theme_summary.comparison.json")
+
+
+def test_artifact_record_can_represent_review_insights_artifact() -> None:
+    run_id = uuid4()
+
+    record = ArtifactRecord.create(
+        run_id=run_id,
+        artifact_type=ArtifactType.REVIEW_INSIGHTS,
+        artifact_path=Path("artifacts/readysetrentables/review_insights.json"),
+    )
+
+    assert record.run_id == run_id
+    assert record.artifact_type == ArtifactType.REVIEW_INSIGHTS
+    assert record.artifact_path == Path("artifacts/readysetrentables/review_insights.json")
+
+
+def test_artifact_type_includes_review_insights() -> None:
+    assert ArtifactType("review_insights") == ArtifactType.REVIEW_INSIGHTS
+    assert ArtifactType.REVIEW_INSIGHTS.value == "review_insights"
+
+
+def test_review_insights_artifact_json_serializes_artifact_type_value() -> None:
+    record = ArtifactRecord(
+        artifact_id=uuid4(),
+        run_id=uuid4(),
+        artifact_type=ArtifactType.REVIEW_INSIGHTS,
+        artifact_path=Path("artifacts/readysetrentables/review_insights.json"),
+        created_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+    )
+
+    data = cast(dict[str, Any], json.loads(record.model_dump_json()))
+
+    assert data["artifact_type"] == "review_insights"
+    assert data["artifact_path"] == "artifacts/readysetrentables/review_insights.json"

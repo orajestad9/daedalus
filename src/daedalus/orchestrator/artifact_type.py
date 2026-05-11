@@ -11,6 +11,7 @@ class ArtifactType(StrEnum):
     REVIEW_THEME_SUMMARY = "review_theme_summary"
     EVALUATION_REPORT = "evaluation_report"
     EVALUATION_COMPARISON_REPORT = "evaluation_comparison_report"
+    REVIEW_INSIGHTS = "review_insights"
     APPROVAL_RECORD = "approval_record"
     AGENT_OUTPUT = "agent_output"
     VALIDATION_REPORT = "validation_report"
