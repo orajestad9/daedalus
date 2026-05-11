@@ -80,6 +80,18 @@ The following Daedalus infrastructure exists and is available to Phase 7:
 The `review_theme_summary` path is the first real RSR domain agent path and
 serves as the reference implementation for Phase 7 domain contracts.
 
+## What Is Implemented In Phase 7
+
+### Review Insight Extraction Domain Models
+
+`ReviewInsightExtractionInput`, `ReviewInsightTheme`, and
+`ReviewInsightExtractionResult` are implemented in
+`src/daedalus/domains/readysetrentables_reviews/review_insight_models.py`.
+
+These are domain contract models only. No Ollama agent, artifact writer, prompt
+template, or workflow wiring exists yet. They stay inside the RSR domain package
+and do not touch generic Daedalus platform infrastructure.
+
 ## Planned Phase 7 Work
 
 Phase 7 should define RSR domain contracts without implementing Claude or wiring
@@ -87,10 +99,8 @@ the full pipeline yet.
 
 ### Domain Contracts
 
-- `ReviewInsightExtractionInput` — compact structured input for the local Ollama
-  insight extraction step, derived from normalized review data
-- `ReviewInsightExtractionResult` — typed result model containing structured
-  insight fields, token/cost metadata, and model identity
+- `ReviewInsightExtractionInput`, `ReviewInsightTheme`,
+  `ReviewInsightExtractionResult` — implemented; see above
 - `NeighborhoodProfileInput` — compact structured input for the future Claude
   neighborhood profile generation step
 - `NeighborhoodProfileResult` — typed result model containing the generated
