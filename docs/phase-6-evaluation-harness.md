@@ -216,6 +216,18 @@ inside the generic evaluation package.
 
 ## Generic Comparison Models
 
+Generic comparison report artifact writers now exist in
+`src/daedalus/evaluation/artifacts.py`:
+
+- `write_evaluation_comparison_report_json` — writes a machine-readable JSON
+  artifact for an `EvaluationComparisonReport`
+- `write_evaluation_comparison_report_markdown` — writes an inspectable Markdown
+  artifact for an `EvaluationComparisonReport`
+
+These writers support future fake-vs-Ollama, prompt-vs-prompt, model-vs-model, or
+run-vs-run comparison artifacts. No comparison CLI exists yet. No persistence
+wiring exists yet.
+
 Generic comparison models now exist in `src/daedalus/evaluation/models.py`:
 
 - `EvaluationComparisonStatus` — outcome for one comparison: `match`, `different`,

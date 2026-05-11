@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from daedalus.evaluation.models import EvaluationReport
+from daedalus.evaluation.models import EvaluationComparisonReport, EvaluationReport
 
 
 def write_evaluation_report_json(
@@ -72,6 +72,88 @@ def _evaluation_report_markdown(report: EvaluationReport) -> str:
             if check.details:
                 lines.extend(["", "Details:", ""])
                 for key, value in check.details.items():
+                    lines.append(f"- `{key}`: `{value}`")
+            lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_evaluation_comparison_report_json(
+    *,
+    report: EvaluationComparisonReport,
+    output_path: Path,
+) -> Path:
+    """Write a machine-readable JSON artifact for an evaluation comparison report."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    return output_path
+
+
+def write_evaluation_comparison_report_markdown(
+    *,
+    report: EvaluationComparisonReport,
+    output_path: Path,
+) -> Path:
+    """Write an inspectable markdown artifact for an evaluation comparison report."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(_evaluation_comparison_report_markdown(report), encoding="utf-8")
+    return output_path
+
+
+def _evaluation_comparison_report_markdown(report: EvaluationComparisonReport) -> str:
+    lines = [
+        "# Evaluation Comparison Report",
+        "",
+        f"- Comparison report ID: `{report.comparison_report_id}`",
+    ]
+
+    if report.baseline_report_id is not None:
+        lines.append(f"- Baseline report ID: `{report.baseline_report_id}`")
+    if report.candidate_report_id is not None:
+        lines.append(f"- Candidate report ID: `{report.candidate_report_id}`")
+    if report.baseline_artifact_path is not None:
+        lines.append(f"- Baseline artifact path: `{report.baseline_artifact_path}`")
+    if report.candidate_artifact_path is not None:
+        lines.append(f"- Candidate artifact path: `{report.candidate_artifact_path}`")
+
+    lines.extend(
+        [
+            f"- Target name: `{report.target_name}`",
+            f"- Target type: `{report.target_type}`",
+            f"- Comparator name: `{report.comparator_name}`",
+            f"- Comparator version: `{report.comparator_version}`",
+            f"- Created at UTC: `{report.created_at_utc.isoformat()}`",
+            f"- Passed: `{report.passed}`",
+            f"- Different count: `{report.different_count}`",
+            f"- Improved count: `{report.improved_count}`",
+            f"- Regressed count: `{report.regressed_count}`",
+            f"- Inconclusive count: `{report.inconclusive_count}`",
+            "",
+            "## Comparisons",
+            "",
+        ]
+    )
+
+    if not report.comparisons:
+        lines.append("No evaluation comparisons were recorded.")
+    else:
+        for item in report.comparisons:
+            lines.extend(
+                [
+                    f"### {item.comparison_name}",
+                    "",
+                    f"- Status: `{item.status.value}`",
+                    f"- Severity: `{item.severity.value}`",
+                    f"- Message: {item.message}",
+                ]
+            )
+            if item.baseline_value is not None:
+                lines.append(f"- Baseline value: `{item.baseline_value}`")
+            if item.candidate_value is not None:
+                lines.append(f"- Candidate value: `{item.candidate_value}`")
+            if item.details:
+                lines.extend(["", "Details:", ""])
+                for key, value in item.details.items():
                     lines.append(f"- `{key}`: `{value}`")
             lines.append("")
 

@@ -1,6 +1,8 @@
 """Generic evaluation models for Daedalus artifacts and model outputs."""
 
 from daedalus.evaluation.artifacts import (
+    write_evaluation_comparison_report_json,
+    write_evaluation_comparison_report_markdown,
     write_evaluation_report_json,
     write_evaluation_report_markdown,
 )
@@ -22,6 +24,8 @@ __all__ = [
     "EvaluationReport",
     "EvaluationSeverity",
     "EvaluationStatus",
+    "write_evaluation_comparison_report_json",
+    "write_evaluation_comparison_report_markdown",
     "write_evaluation_report_json",
     "write_evaluation_report_markdown",
 ]
