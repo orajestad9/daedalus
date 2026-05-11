@@ -165,6 +165,31 @@ The review insight extraction prompt is intended for local Ollama execution.
 The neighborhood profile prompt is intended for a future Claude execution path;
 the Claude/Anthropic provider adapter is not yet implemented.
 
+### Deterministic Evaluator Shells
+
+Deterministic evaluators for the new Phase 7 artifact types are implemented in
+the RSR domain package:
+
+- `evaluate_review_insights_json(...)` in
+  `src/daedalus/domains/readysetrentables_reviews/review_insight_evaluator.py`
+  — checks `review_insights.json` for existence, non-empty content, valid JSON,
+  schema validity against `ReviewInsightExtractionResult`, themes presence, raw
+  insight summary, prompt/model/provider metadata, and usage metadata
+- `evaluate_neighborhood_profile_markdown(...)` and
+  `evaluate_neighborhood_profile_json(...)` in
+  `src/daedalus/domains/readysetrentables_reviews/neighborhood_profile_evaluator.py`
+  — check `neighborhood_profile.md` for title, metadata header, summary/intro,
+  risks/caveats, and placeholder-only output; check `neighborhood_profile.json`
+  for valid JSON, schema validity against `NeighborhoodProfileResult`, sections,
+  summary, prompt/model/provider metadata, and usage metadata
+
+All three evaluators return generic `EvaluationReport` objects. They are local
+and deterministic. They do not call Ollama, Claude, or any evaluator model.
+Missing usage metadata produces a WARNING-severity check, not an ERROR.
+
+These evaluator functions are not wired into `run-workflow`, LangGraph, or any
+CLI command yet.
+
 ## Planned Phase 7 Work
 
 Phase 7 should define RSR domain contracts without implementing Claude or wiring
