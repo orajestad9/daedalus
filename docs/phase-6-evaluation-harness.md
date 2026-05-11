@@ -388,6 +388,15 @@ evaluates `review_theme_summary.md`, records the evaluation JSON as an
 `evaluation_report`. It is optional, may require Docker, Postgres, and `.env`,
 and does not require Ollama. It is not called by `make check`.
 
+The `comparison-db-check` Makefile target verifies manual persisted comparison
+artifact recording end-to-end: it runs the LangGraph workflow with `--persist`,
+copies `review_theme_summary.md` into baseline and candidate inputs, runs
+`compare-review-theme-summaries`, records the comparison JSON as an
+`ArtifactType.EVALUATION_COMPARISON_REPORT` using
+`record-evaluation-comparison-report-artifact`, and confirms `show-run` includes
+`evaluation_comparison_report`. It is optional, may require Docker, Postgres,
+and `.env`, and does not require Ollama. It is not called by `make check`.
+
 The broader generic command shape can come later. The important boundary is that
 evaluation is opt-in, deterministic by default, and artifact oriented.
 

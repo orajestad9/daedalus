@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check comparison-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check comparison-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check comparison-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -217,6 +217,56 @@ evaluation-db-check:
 		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'evaluation_report' || { echo "show-run output did not include evaluation_report."; status=1; }; fi; \
 	fi; \
 	if [ $$status -eq 0 ]; then echo "evaluation-db-check passed: evaluation_report artifact recorded and verified in show-run."; fi; \
+	$(MAKE) clean; \
+	$(MAKE) db-down; \
+	exit $$status
+
+comparison-db-check:
+	@test -f .env || (echo "Missing .env. Copy .env.example to .env and edit it locally before running comparison-db-check."; exit 1)
+	@$(MAKE) db-up; \
+	status=0; \
+	$(MAKE) migrate-db || status=$$?; \
+	if [ $$status -eq 0 ]; then \
+		$(MAKE) clean; \
+		RUN_OUTPUT=$$(set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --execution-engine langgraph --persist 2>&1); \
+		status=$$?; \
+		printf "%s\n" "$$RUN_OUTPUT"; \
+		RUN_ID=$$(printf "%s\n" "$$RUN_OUTPUT" | sed -n 's/.*run_id=\([^ ]*\).*/\1/p' | head -n 1); \
+		if [ $$status -eq 0 ] && [ -z "$$RUN_ID" ]; then echo "Could not capture run_id from persisted workflow output."; status=1; fi; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		test -f artifacts/readysetrentables/review_theme_summary.md || { echo "Missing artifacts/readysetrentables/review_theme_summary.md"; status=1; }; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		mkdir -p artifacts/readysetrentables/comparison; \
+		cp artifacts/readysetrentables/review_theme_summary.md artifacts/readysetrentables/comparison/baseline_review_theme_summary.md; \
+		cp artifacts/readysetrentables/review_theme_summary.md artifacts/readysetrentables/comparison/candidate_review_theme_summary.md; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		$(PYTHON) -m daedalus.cli compare-review-theme-summaries \
+			--baseline artifacts/readysetrentables/comparison/baseline_review_theme_summary.md \
+			--candidate artifacts/readysetrentables/comparison/candidate_review_theme_summary.md \
+			--output-json artifacts/readysetrentables/review_theme_summary.comparison.json \
+			--output-md artifacts/readysetrentables/review_theme_summary.comparison.md || status=$$?; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		test -f artifacts/readysetrentables/review_theme_summary.comparison.json || { echo "Missing artifacts/readysetrentables/review_theme_summary.comparison.json"; status=1; }; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		test -f artifacts/readysetrentables/review_theme_summary.comparison.md || { echo "Missing artifacts/readysetrentables/review_theme_summary.comparison.md"; status=1; }; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli record-evaluation-comparison-report-artifact \
+			--run-id "$$RUN_ID" \
+			--path artifacts/readysetrentables/review_theme_summary.comparison.json || status=$$?; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		SHOW_RUN_OUTPUT=$$(set -a; . ./.env; set +a; $(PYTHON) -m daedalus.cli show-run --run-id "$$RUN_ID" 2>&1); \
+		status=$$?; \
+		printf "%s\n" "$$SHOW_RUN_OUTPUT"; \
+		if [ $$status -eq 0 ]; then printf "%s\n" "$$SHOW_RUN_OUTPUT" | grep -q 'evaluation_comparison_report' || { echo "show-run output did not include evaluation_comparison_report."; status=1; }; fi; \
+	fi; \
+	if [ $$status -eq 0 ]; then echo "comparison-db-check passed: evaluation_comparison_report artifact recorded and verified in show-run."; fi; \
 	$(MAKE) clean; \
 	$(MAKE) db-down; \
 	exit $$status
