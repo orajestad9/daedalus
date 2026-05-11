@@ -204,7 +204,9 @@ def load_recent_workflow_runs(
     connection = connect_postgres(settings)
 
     try:
-        logger.info(f"Loading recent workflow runs with limit={limit} domain={domain} status={status}")
+        logger.info(
+            f"Loading recent workflow runs with limit={limit} domain={domain} status={status}"
+        )
         return WorkflowRunRepository(connection).list_recent(
             limit=limit,
             domain=domain,
