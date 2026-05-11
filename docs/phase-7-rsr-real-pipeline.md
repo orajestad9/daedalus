@@ -190,19 +190,9 @@ Missing usage metadata produces a WARNING-severity check, not an ERROR.
 These evaluator functions are not wired into `run-workflow`, LangGraph, or any
 CLI command yet.
 
-## Planned Phase 7 Work
+## Remaining Phase 7 Work
 
-Phase 7 should define RSR domain contracts without implementing Claude or wiring
-the full pipeline yet.
-
-### Domain Contracts
-
-- `ReviewInsightExtractionInput`, `ReviewInsightTheme`,
-  `ReviewInsightExtractionResult` — implemented; see above
-- `NeighborhoodProfileInput` — compact structured input for the future Claude
-  neighborhood profile generation step
-- `NeighborhoodProfileResult` — typed result model containing the generated
-  profile, token/cost metadata, and model identity
+The following Phase 7 items are not implemented yet:
 
 ### Domain Agents
 
@@ -211,58 +201,31 @@ the full pipeline yet.
 - `NeighborhoodProfileAgent` — wraps `ModelClient`, intended for future Claude
   execution; not implemented until the Claude provider adapter exists
 
-### Domain Artifact Types
+### Workflow Wiring
 
-New recognized `ArtifactType` values for RSR artifacts:
+- LangGraph nodes for review insight extraction and neighborhood profile
+  generation
+- `run-workflow` integration for the full RSR pipeline
+- Automatic artifact and model invocation persistence for the new steps
+- Optional CLI commands for manual execution and artifact recording, following
+  the precedent set by `summarize-review-themes-fake` and
+  `summarize-review-themes-ollama`
 
-- `review_insights` — for `review_insights.json` output from insight extraction
-- `neighborhood_profile` — for `neighborhood_profile.md` and
-  `neighborhood_profile.json` output from profile generation
+### Provider Adapter
 
-### Domain Artifact Writers
-
-- `write_review_insights_json(...)` — writes a structured JSON artifact for
-  insight extraction results
-- `write_neighborhood_profile_markdown(...)` — writes a human-readable markdown
-  artifact for the generated profile
-- `write_neighborhood_profile_json(...)` — writes a machine-readable JSON
-  artifact for the generated profile
-
-### Prompt Template Placeholders
-
-Phase 7 should establish versioned prompt template placeholder files before
-the real prompts are finalized:
-
-- `prompts/readysetrentables/review_insight_extraction/v0.md`
-- `prompts/readysetrentables/neighborhood_profile/v0.md`
-
-Placeholder files keep the prompt identity contract (name and version) stable
-and allow `ModelInvocationRecord` to reference a prompt before the body is
-finalized. Prompt bodies must not contain secrets, private datasets, or
-machine-specific values.
-
-### Deterministic Evaluator Shells
-
-Phase 7 should define evaluator shells for the new artifact types:
-
-- `evaluate_review_insights_json(...)` — structural checks on `review_insights.json`;
-  initially checks existence, non-empty content, and required schema fields
-- `evaluate_neighborhood_profile_markdown(...)` — structural checks on
-  `neighborhood_profile.md`; initially checks existence, required sections, and
-  placeholder detection
-
-Both evaluators should follow the Phase 6 pattern: deterministic, local,
-provider-free, returning generic `EvaluationReport` objects.
+- Claude/Anthropic provider adapter behind the `ModelClient` boundary, with
+  budget enforcement, prompt versioning, and invocation recording
 
 ## Proposed Domain Artifacts
 
-| Artifact | Format | Produced by |
-|---|---|---|
-| `review_insights.json` | JSON | `ReviewInsightExtractionAgent` via Ollama |
-| `neighborhood_profile.md` | Markdown | `NeighborhoodProfileAgent` via Claude (future) |
-| `neighborhood_profile.json` | JSON | `NeighborhoodProfileAgent` via Claude (future) |
-| `neighborhood_profile.evaluation.json` | JSON | `evaluate_neighborhood_profile_markdown(...)` |
-| `review_insights.evaluation.json` | JSON | `evaluate_review_insights_json(...)` |
+| Artifact | ArtifactType | Format | Produced by |
+|---|---|---|---|
+| `review_insights.json` | `review_insights` | JSON | future `ReviewInsightExtractionAgent` via Ollama |
+| `neighborhood_profile.md` | `neighborhood_profile_markdown` | Markdown | future `NeighborhoodProfileAgent` via Claude |
+| `neighborhood_profile.json` | `neighborhood_profile_json` | JSON | future `NeighborhoodProfileAgent` via Claude |
+
+Evaluation reports for these artifacts are written using the generic
+`evaluation_report` artifact type already defined in Phase 6.
 
 ## Provider Roles
 

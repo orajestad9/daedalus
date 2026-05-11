@@ -193,39 +193,44 @@ capabilities and future work.
 
 ### Phase 7: ReadySetRentables Real Pipeline Modeling
 
-Phase 7 is active. It models the real ReadySetRentables production pipeline on
-top of the existing Daedalus generic infrastructure. Phase 6 left Daedalus with
-working fake/local paths, a manual Ollama CLI path, generic evaluation and
-comparison models, and artifact and model invocation persistence. Phase 7 uses
-those foundations to define real RSR domain contracts before implementing Claude
-or wiring the full LangGraph graph.
+Phase 7 is active and progressing. It models the real ReadySetRentables
+production pipeline on top of the existing Daedalus generic infrastructure.
+Phase 6 left Daedalus with working fake/local paths, a manual Ollama CLI path,
+generic evaluation and comparison models, and artifact and model invocation
+persistence. Phase 7 uses those foundations to define real RSR domain contracts
+before implementing Claude or wiring the full LangGraph graph.
 
-Planned Phase 7 work:
+Phase 7 progress so far:
 
-- `ReviewInsightExtractionInput` and `ReviewInsightExtractionResult` domain
-  contract models for the local Ollama insight extraction step
-- `NeighborhoodProfileInput` and `NeighborhoodProfileResult` domain contract
-  models for the future Claude neighborhood profile generation step
-- `ReviewInsightExtractionAgent` — wraps `ModelClient`, intended for local
-  Ollama execution; follows the same pattern as `ReviewThemeSummaryAgent`
-- `NeighborhoodProfileAgent` shell — wraps `ModelClient`, not implemented until
-  the Claude provider adapter exists
-- `ArtifactType.REVIEW_INSIGHTS` and `ArtifactType.NEIGHBORHOOD_PROFILE`
-  recognized artifact type values
+- `ReviewInsightExtractionInput`, `ReviewInsightTheme`, and
+  `ReviewInsightExtractionResult` domain contract models
+- `NeighborhoodProfileInput`, `NeighborhoodProfileSection`, and
+  `NeighborhoodProfileResult` domain contract models
+- `ArtifactType.REVIEW_INSIGHTS`,
+  `ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN`, and
+  `ArtifactType.NEIGHBORHOOD_PROFILE_JSON` recognized artifact type values
 - `write_review_insights_json(...)`, `write_neighborhood_profile_markdown(...)`,
   and `write_neighborhood_profile_json(...)` artifact writers
 - versioned prompt template placeholder files at
   `prompts/readysetrentables/review_insight_extraction/v0.md` and
   `prompts/readysetrentables/neighborhood_profile/v0.md`
-- `evaluate_review_insights_json(...)` — structural evaluator shell for
-  `review_insights.json`
-- `evaluate_neighborhood_profile_markdown(...)` — structural evaluator shell for
-  `neighborhood_profile.md`
+- deterministic evaluator shells:
+  `evaluate_review_insights_json(...)`,
+  `evaluate_neighborhood_profile_markdown(...)`, and
+  `evaluate_neighborhood_profile_json(...)`
 
-All Phase 7 domain contracts, agents, and evaluators stay inside RSR domain
-modules. Generic platform infrastructure must not hardcode RSR logic. Claude
-integration, cloud provider calls, and full LangGraph pipeline wiring remain
-deferred until Phase 8.
+Still planned for Phase 7:
+
+- `ReviewInsightExtractionAgent` for local Ollama execution behind `ModelClient`
+- `NeighborhoodProfileAgent` shell for future Claude execution behind
+  `ModelClient`
+- LangGraph and `run-workflow` wiring for the full RSR pipeline
+- optional CLI commands for manual execution and artifact recording
+
+All Phase 7 domain contracts, models, writers, and evaluators stay inside RSR
+domain modules. Generic platform infrastructure does not hardcode RSR logic.
+Claude integration, cloud provider calls, and full LangGraph pipeline wiring
+remain deferred.
 
 See `docs/phase-7-rsr-real-pipeline.md` for the Phase 7 design baseline.
 
