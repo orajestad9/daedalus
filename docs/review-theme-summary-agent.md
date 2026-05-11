@@ -148,12 +148,15 @@ The Ollama CLI path remains manual and local-only. It is not wired into
 LangGraph, `run-workflow`, or the deterministic workflow, and Ollama is not a
 default provider.
 
-Phase 6 includes the first deterministic evaluation helper for
-`review_theme_summary.md`: `evaluate_review_theme_summary_markdown(...)`. It
-checks artifact existence, expected sections, run/prompt/model metadata,
-token/cost metadata when available, and obvious placeholder-only output without
-calling model providers. The explicit `evaluate-review-theme-summary` CLI can
-write JSON and Markdown evaluation report artifacts for a summary file. See
+Phase 6 adds deterministic evaluation and comparison for `review_theme_summary.md`.
+The `evaluate-review-theme-summary` CLI runs structural checks and writes JSON
+and Markdown evaluation report artifacts. The `compare-review-theme-summaries`
+CLI compares a baseline and candidate `review_theme_summary.md` artifact and
+writes JSON and Markdown comparison report artifacts. Both commands are
+file-only, make no model provider calls, and are not automatically triggered by
+`run-workflow` or LangGraph. The `record-evaluation-report-artifact` and
+`record-evaluation-comparison-report-artifact` commands can attach the resulting
+report files to a persisted workflow run so `show-run` can display them. See
 [`docs/phase-6-evaluation-harness.md`](phase-6-evaluation-harness.md).
 
 ## Expected Inputs

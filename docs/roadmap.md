@@ -154,22 +154,42 @@ Upcoming Phase 5B work should stay incremental:
 
 ### Phase 6: Evaluation Harness
 
-Phase 6 is active/next. It designs a generic evaluation harness for checking
-model outputs and workflow artifacts across domains. The first concrete example
-is ReadySetRentables `review_theme_summary.md`, but generic Daedalus evaluation
-should not hardcode ReadySetRentables into the platform layer.
+Phase 6 is complete or near-complete. It introduces a generic evaluation harness
+for checking model outputs and workflow artifacts across domains. The first
+concrete example is ReadySetRentables `review_theme_summary.md`. Generic
+Daedalus evaluation does not hardcode ReadySetRentables into the platform layer.
 
-The Phase 6 design separates generic evaluation concepts such as
-`EvaluationStatus`, `EvaluationSeverity`, `EvaluationCheckResult`, and
-`EvaluationReport` from domain-specific checks such as ReadySetRentables review
-theme summary structure, future review insight schemas, neighborhood profile
-sections, and future Skimmr document summary checks.
+Current Phase 6 progress includes generic evaluation models
+(`EvaluationStatus`, `EvaluationSeverity`, `EvaluationCheckResult`,
+`EvaluationReport`), generic comparison models (`EvaluationComparisonStatus`,
+`EvaluationComparisonItem`, `EvaluationComparisonReport`), generic evaluation
+and comparison report artifact writers, `ArtifactType.EVALUATION_REPORT` and
+`ArtifactType.EVALUATION_COMPARISON_REPORT`, a deterministic ReadySetRentables
+review theme summary evaluator, a deterministic ReadySetRentables review theme
+summary comparison evaluator, the `evaluate-review-theme-summary` CLI, the
+`compare-review-theme-summaries` CLI, the `record-evaluation-report-artifact`
+CLI, the `record-evaluation-comparison-report-artifact` CLI, file-only local
+checks (`evaluation-check`, `comparison-check`), and optional DB-backed checks
+(`evaluation-db-check`, `comparison-db-check`).
 
-The first checks should be deterministic, local, and artifact-based. They should
-not require live Ollama in `make check`, should not call external providers by
-default, and should not use another model to judge subjective quality yet.
+All Phase 6 evaluation and comparison checks are deterministic, local, and
+artifact-based. They do not require live Ollama in `make check`, do not call
+external providers, and do not use another model to judge subjective quality.
+Evaluation and comparison are not automatically wired into `run-workflow` or
+LangGraph; both remain explicit and opt-in.
 
-See `docs/phase-6-evaluation-harness.md` for the evaluation harness design.
+Possible future Phase 6 or later work:
+
+- optional `run-workflow` flag to evaluate after workflow completion
+- optional automatic evaluation artifact persistence
+- fake-vs-Ollama comparison workflow examples
+- evaluator-model scoring behind `ModelClient` controls
+- future RSR `review_insights.json` and `neighborhood_profile.md` evaluators
+- future Skimmr document summary evaluators
+- `show-run` evaluation and comparison summary display
+
+See `docs/phase-6-evaluation-harness.md` for the current evaluation harness
+capabilities and future work.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade

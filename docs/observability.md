@@ -103,13 +103,14 @@ After persistence, `show-run` can display the normal workflow artifacts, the
 together.
 
 Phase 6 also recognizes `evaluation_report` as a generic artifact type for
-evaluation JSON or Markdown files. The explicit
-`record-evaluation-report-artifact` command can attach an existing evaluation
-report file to a persisted workflow run. This remains manual; evaluation is not
-automatically wired into workflows or LangGraph yet. `evaluation_comparison_report`
-is now also a recognized generic artifact type, distinct from `evaluation_report`;
-`show-run` will be able to display `evaluation_comparison_report` artifacts once
-they are recorded.
+evaluation JSON or Markdown files. The explicit `record-evaluation-report-artifact`
+command can attach an existing evaluation report file to a persisted workflow run.
+`evaluation_comparison_report` is a separate generic artifact type for comparison
+report JSON or Markdown files; the explicit
+`record-evaluation-comparison-report-artifact` command records those. Both
+commands are manual; `show-run` can display whichever artifact types have been
+recorded for a given run. Evaluation and comparison are not automatically wired
+into workflows or LangGraph.
 
 ## Human Inspection
 
@@ -318,8 +319,32 @@ LangGraph fake review theme summary path. It runs
 invocation with `provider=fake`. This target requires Docker and a local ignored
 `.env`.
 
+`make evaluation-check` is a Phase 6 file-only check. It runs the LangGraph
+fake summary path, evaluates `review_theme_summary.md` with deterministic
+structural checks, verifies the evaluation JSON and Markdown artifacts exist,
+and cleans generated artifacts. No Docker, `.env`, Ollama, or network access
+required.
+
+`make comparison-check` is a Phase 6 file-only check. It runs the LangGraph
+fake summary path, copies `review_theme_summary.md` into baseline and candidate
+inputs, runs `compare-review-theme-summaries` with deterministic structural
+checks, verifies the comparison JSON and Markdown artifacts exist, and cleans
+generated artifacts. No Docker, `.env`, Ollama, or network access required.
+
+`make evaluation-db-check` is an optional Phase 6 DB-backed check. It runs the
+LangGraph workflow with `--persist`, evaluates `review_theme_summary.md`,
+records the evaluation JSON as an `evaluation_report` artifact, and confirms
+`show-run` includes it. Requires Docker and a local `.env`. Does not require
+Ollama.
+
+`make comparison-db-check` is an optional Phase 6 DB-backed check. It runs the
+LangGraph workflow with `--persist`, compares summary artifacts, records the
+comparison JSON as an `evaluation_comparison_report` artifact, and confirms
+`show-run` includes it. Requires Docker and a local `.env`. Does not require
+Ollama.
+
 Keeping these commands separate lets normal development and CI stay fast while
-still providing an end-to-end local persistence inspection check.
+still providing end-to-end local persistence inspection checks.
 
 ## Future Preparation
 
