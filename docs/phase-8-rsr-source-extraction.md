@@ -65,34 +65,36 @@ Phase 8 only defines the first three steps: the adapter, the sanitized result,
 and the source artifact. Insight extraction, profile generation, and evaluation
 already exist in Daedalus as Phase 7 contracts.
 
-## Proposed Future Source Extraction Models
+## Source Extraction Models
 
-These RSR domain models will live under
-`src/daedalus/domains/readysetrentables_reviews/` when implemented. They are
-not implemented yet.
+These RSR domain models are implemented in
+`src/daedalus/domains/readysetrentables_reviews/source_extraction_models.py`.
 
 - `RsrSourceExtractionRequest` — compact input describing what to extract:
-  market, neighborhood, property identifier, optional date range, and an
-  optional review count cap. Includes `run_id` for lineage.
-- `RsrSourceReviewRecord` — sanitized review record: rating, rating categories,
-  short excerpt or truncated comment, language, sanitized timestamp. Excludes
-  guest names, contact details, payment data, and any field not needed for
-  insight extraction.
-- `RsrSourceListingContext` — sanitized listing context: market, neighborhood,
-  property type, capacity, and a small set of public listing attributes
-  relevant to neighborhood profile generation. Excludes pricing, owner contact
-  details, financial data, and operator-internal fields.
-- `RsrSourceNeighborhoodContext` — sanitized neighborhood context: name,
-  optional market, and a small set of public neighborhood attributes. Excludes
-  any private operator data.
-- `RsrSourceExtractionResult` — the aggregated typed result containing the
-  request, listing context, neighborhood context, and the bounded list of
-  review records. Includes `run_id`, source identity (`source_name`,
-  `source_version`), and a sanitized extraction timestamp.
+  market name (required), optional neighborhood and property type, optional
+  review count cap (`max_reviews > 0` when provided), and flags for whether
+  to include listing and neighborhood context.
+- `RsrSourceReviewRecord` — sanitized review record: `review_id` and
+  `review_text` (required, non-blank), optional `listing_id`, `rating`
+  (0–5 when provided), `created_at`, and a `metadata` dict. Excludes guest
+  names, contact details, payment data.
+- `RsrSourceListingContext` — sanitized listing context: `listing_id`
+  (required, non-blank), optional `listing_name`, `property_type`,
+  `bedrooms` (≥0), `bathrooms` (≥0), `accommodates` (≥0), `average_rating`
+  (0–5 when provided), and a `metadata` dict. Excludes pricing, owner contact
+  details, and operator-internal fields.
+- `RsrSourceNeighborhoodContext` — sanitized neighborhood context:
+  `market_name` and `neighborhood_name` (both required, non-blank), optional
+  `city`, `state`, `country` (non-blank when provided), and a `metadata` dict.
+- `RsrSourceExtractionResult` — the aggregated sanitized result: the original
+  `request`, a timezone-aware `extracted_at_utc`, lists of `reviews` and
+  `listings`, an optional `neighborhood`, `source_name` (default
+  `"readysetrentables"`), `source_version` (default `"v0"`), and a `metadata`
+  dict.
 
-These models should follow the validation patterns already established in
-`review_insight_models.py` and `neighborhood_profile_models.py`: no blank
-required strings, non-negative counts, no secrets in details.
+All models follow the validation patterns established in `review_insight_models.py`
+and `neighborhood_profile_models.py`: no blank required strings, non-negative
+counts, 0–5 float ranges for ratings, no secrets in field values.
 
 ## Proposed Future Source Artifact
 
