@@ -110,6 +110,19 @@ and returns the output path.
 This is artifact support only. No SQL, DB adapter, CLI command, or workflow
 wiring exists yet.
 
+## Synthetic Fixture
+
+`build_sample_rsr_source_extraction_result()` is implemented in
+`src/daedalus/domains/readysetrentables_reviews/source_extraction_fixtures.py`.
+It returns a deterministic `RsrSourceExtractionResult` with clearly synthetic
+data (3 reviews, 2 listings, 1 neighborhood context, market name "Sample Market")
+for use in offline tests and future pipeline checks.
+
+- Does not connect to the real RSR database.
+- Does not include real review data, real listing names, or private information.
+- Can be written with `write_rsr_source_extract_json(...)`.
+- Metadata includes `"fixture": "true"` and `"source": "synthetic"` on all records.
+
 ## Proposed Future Adapter
 
 A new read-only repository adapter will live under the RSR domain package:
