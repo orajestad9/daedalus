@@ -253,6 +253,9 @@ See [`docs/langgraph-orchestration.md`](langgraph-orchestration.md) before
 adding model-backed graph nodes.
 See [`docs/phase-5a-fake-agent-langgraph.md`](phase-5a-fake-agent-langgraph.md)
 for the fake review theme summary graph integration plan.
+Phase 7 prompt placeholders define future RSR domain prompts for review insight
+extraction and neighborhood profile generation, but all provider calls still go
+behind `ModelClient` — see [`docs/phase-7-rsr-real-pipeline.md`](phase-7-rsr-real-pipeline.md).
 
 ## Intentionally Deferred
 

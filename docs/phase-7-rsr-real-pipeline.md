@@ -88,9 +88,9 @@ serves as the reference implementation for Phase 7 domain contracts.
 `ReviewInsightExtractionResult` are implemented in
 `src/daedalus/domains/readysetrentables_reviews/review_insight_models.py`.
 
-These are domain contract models only. No Ollama agent, artifact writer, prompt
-template, or workflow wiring exists yet. They stay inside the RSR domain package
-and do not touch generic Daedalus platform infrastructure.
+These are domain contract models only. No Ollama agent or workflow wiring exists
+yet. They stay inside the RSR domain package and do not touch generic Daedalus
+platform infrastructure.
 
 ### Review Insights Artifact Type And Writer
 
@@ -116,9 +116,9 @@ CLI command, or workflow wiring exists yet.
 as its `review_insights` field, establishing the contract between the insight
 extraction step and the future profile generation step.
 
-These are domain contract models only. No Claude agent, artifact writer, prompt
-template, CLI command, or workflow wiring exists yet. They stay inside the RSR
-domain package and do not touch generic Daedalus platform infrastructure.
+These are domain contract models only. No Claude agent or workflow wiring exists
+yet. They stay inside the RSR domain package and do not touch generic Daedalus
+platform infrastructure.
 
 ### Neighborhood Profile Artifact Types And Writers
 
@@ -139,6 +139,31 @@ as HTML comments. Both writers create parent directories and return the output p
 
 This is artifact support only. No Claude agent, prompt template, CLI command,
 or workflow wiring exists yet.
+
+### Prompt Template Placeholders
+
+Versioned prompt template placeholder files now exist for both pipeline steps:
+
+- `prompts/readysetrentables/review_insight_extraction/v0.md` — for the future
+  local Ollama review insight extraction step; prompt identity is
+  `readysetrentables_review_insight_extraction` / `v0`
+- `prompts/readysetrentables/neighborhood_profile/v0.md` — for the future Claude
+  neighborhood profile generation step; prompt identity is
+  `readysetrentables_neighborhood_profile` / `v0`
+
+Both files are placeholders. The prompt bodies describe the intended model task,
+input structure, and output contract in plain language. They do not contain
+secrets, private datasets, real review text, raw model outputs, or credentials.
+
+Neither template is wired into an agent, `ModelClient`, or workflow yet. Prompt
+names and versions are already defined as constants in the domain model files
+(`DEFAULT_REVIEW_INSIGHT_PROMPT_NAME`, `DEFAULT_NEIGHBORHOOD_PROFILE_PROMPT_NAME`,
+etc.) so `ModelInvocationRecord` can reference stable prompt identity before the
+final prompt body is written.
+
+The review insight extraction prompt is intended for local Ollama execution.
+The neighborhood profile prompt is intended for a future Claude execution path;
+the Claude/Anthropic provider adapter is not yet implemented.
 
 ## Planned Phase 7 Work
 
