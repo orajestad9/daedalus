@@ -258,3 +258,37 @@ def test_neighborhood_profile_json_artifact_json_serializes_artifact_type_value(
 
     assert data["artifact_type"] == "neighborhood_profile_json"
     assert data["artifact_path"] == "artifacts/readysetrentables/neighborhood_profile.json"
+
+
+def test_artifact_type_includes_rsr_source_extract() -> None:
+    assert ArtifactType("rsr_source_extract") == ArtifactType.RSR_SOURCE_EXTRACT
+    assert ArtifactType.RSR_SOURCE_EXTRACT.value == "rsr_source_extract"
+
+
+def test_artifact_record_can_represent_rsr_source_extract_artifact() -> None:
+    run_id = uuid4()
+
+    record = ArtifactRecord.create(
+        run_id=run_id,
+        artifact_type=ArtifactType.RSR_SOURCE_EXTRACT,
+        artifact_path=Path("artifacts/readysetrentables/rsr_source_extract.json"),
+    )
+
+    assert record.run_id == run_id
+    assert record.artifact_type == ArtifactType.RSR_SOURCE_EXTRACT
+    assert record.artifact_path == Path("artifacts/readysetrentables/rsr_source_extract.json")
+
+
+def test_rsr_source_extract_artifact_json_serializes_artifact_type_value() -> None:
+    record = ArtifactRecord(
+        artifact_id=uuid4(),
+        run_id=uuid4(),
+        artifact_type=ArtifactType.RSR_SOURCE_EXTRACT,
+        artifact_path=Path("artifacts/readysetrentables/rsr_source_extract.json"),
+        created_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+    )
+
+    data = cast(dict[str, Any], json.loads(record.model_dump_json()))
+
+    assert data["artifact_type"] == "rsr_source_extract"
+    assert data["artifact_path"] == "artifacts/readysetrentables/rsr_source_extract.json"

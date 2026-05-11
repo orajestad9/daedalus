@@ -14,6 +14,7 @@ class ArtifactType(StrEnum):
     REVIEW_INSIGHTS = "review_insights"
     NEIGHBORHOOD_PROFILE_MARKDOWN = "neighborhood_profile_markdown"
     NEIGHBORHOOD_PROFILE_JSON = "neighborhood_profile_json"
+    RSR_SOURCE_EXTRACT = "rsr_source_extract"
     APPROVAL_RECORD = "approval_record"
     AGENT_OUTPUT = "agent_output"
     VALIDATION_REPORT = "validation_report"

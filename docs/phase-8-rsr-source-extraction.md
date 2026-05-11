@@ -96,20 +96,19 @@ All models follow the validation patterns established in `review_insight_models.
 and `neighborhood_profile_models.py`: no blank required strings, non-negative
 counts, 0–5 float ranges for ratings, no secrets in field values.
 
-## Proposed Future Source Artifact
+## Source Artifact
 
-A new generic artifact type will be added when the source models are
-implemented:
+`ArtifactType.RSR_SOURCE_EXTRACT` (`"rsr_source_extract"`) is now a recognized
+generic artifact type in `src/daedalus/orchestrator/artifact_type.py`.
 
-- `ArtifactType.RSR_SOURCE_EXTRACT` — for `rsr_source_extract.json`
+`write_rsr_source_extract_json(...)` is implemented in
+`src/daedalus/domains/readysetrentables_reviews/source_extraction_artifacts.py`.
+It writes an `RsrSourceExtractionResult` to `rsr_source_extract.json` as
+indented UTF-8 JSON using Pydantic serialization. It creates parent directories
+and returns the output path.
 
-The artifact will be written by a new RSR domain writer (for example,
-`write_rsr_source_extract_json(...)`). The artifact format will use Pydantic
-JSON serialization, indented for readability, matching the patterns in
-`review_insight_artifacts.py` and `neighborhood_profile_artifacts.py`.
-
-Phase 8 does not add the `ArtifactType` value or the writer yet. They are
-mentioned here so the boundary is clear when the implementation step begins.
+This is artifact support only. No SQL, DB adapter, CLI command, or workflow
+wiring exists yet.
 
 ## Proposed Future Adapter
 
@@ -169,8 +168,6 @@ Phase 8 work will be testable without homelab access:
 - real SQL queries
 - real RSR DB schema mapping
 - production `.env` configuration for the RSR source DB
-- the `ArtifactType.RSR_SOURCE_EXTRACT` enum value
-- the source artifact writer
 - the read-only repository adapter implementation
 - the source extraction CLI command
 - LangGraph and `run-workflow` integration of the extraction step
