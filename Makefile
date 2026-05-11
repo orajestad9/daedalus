@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check comparison-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -48,6 +48,19 @@ evaluation-check:
 	@test -f artifacts/readysetrentables/review_theme_summary.evaluation.json || (echo "Missing artifacts/readysetrentables/review_theme_summary.evaluation.json"; exit 1)
 	@test -f artifacts/readysetrentables/review_theme_summary.evaluation.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.evaluation.md"; exit 1)
 	@echo "evaluation-check passed: review theme summary evaluation JSON and Markdown artifacts were created."
+	@$(MAKE) clean
+
+comparison-check:
+	@$(MAKE) clean
+	.venv/bin/daedalus run-workflow --manifest workflows/readysetrentables_review_normalization.yaml --execution-engine langgraph
+	@test -f artifacts/readysetrentables/review_theme_summary.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.md"; exit 1)
+	@mkdir -p artifacts/readysetrentables/comparison
+	@cp artifacts/readysetrentables/review_theme_summary.md artifacts/readysetrentables/comparison/baseline_review_theme_summary.md
+	@cp artifacts/readysetrentables/review_theme_summary.md artifacts/readysetrentables/comparison/candidate_review_theme_summary.md
+	.venv/bin/daedalus compare-review-theme-summaries --baseline artifacts/readysetrentables/comparison/baseline_review_theme_summary.md --candidate artifacts/readysetrentables/comparison/candidate_review_theme_summary.md --output-json artifacts/readysetrentables/review_theme_summary.comparison.json --output-md artifacts/readysetrentables/review_theme_summary.comparison.md
+	@test -f artifacts/readysetrentables/review_theme_summary.comparison.json || (echo "Missing artifacts/readysetrentables/review_theme_summary.comparison.json"; exit 1)
+	@test -f artifacts/readysetrentables/review_theme_summary.comparison.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.comparison.md"; exit 1)
+	@echo "comparison-check passed: review theme summary comparison JSON and Markdown artifacts were created."
 	@$(MAKE) clean
 
 ollama-local-check:

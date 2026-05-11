@@ -337,6 +337,19 @@ That target runs the LangGraph fake summary path, evaluates
 exist, and cleans generated artifacts. It does not require Docker, `.env`,
 Ollama, provider SDKs, or network access.
 
+The file-only comparison path can be verified with:
+
+```sh
+make comparison-check
+```
+
+That target runs the LangGraph fake summary path, copies
+`review_theme_summary.md` into baseline and candidate inputs, runs
+`compare-review-theme-summaries`, verifies the JSON and Markdown comparison
+artifacts exist, and cleans generated artifacts. It does not require Docker,
+`.env`, Ollama, provider SDKs, or network access. It is not called by
+`make check`.
+
 An existing persisted workflow run can manually attach an evaluation report
 artifact with:
 
