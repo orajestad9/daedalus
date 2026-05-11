@@ -19,7 +19,7 @@ The following Phase 6 capabilities are implemented and verified by `make check`:
 **Generic evaluation models** (`src/daedalus/evaluation/models.py`):
 
 - `EvaluationStatus` — `passed`, `warning`, `failed`, `skipped`
-- `EvaluationSeverity` — `info`, `warning`, `error`, `critical`
+- `EvaluationSeverity` — `info`, `warning`, `error`
 - `EvaluationCheckResult` — one deterministic check result
 - `EvaluationReport` — aggregated report with counts, metadata, and timestamps
 - `EvaluationComparisonStatus` — `match`, `different`, `improved`, `regressed`,
@@ -156,7 +156,6 @@ to define its own required sections, schemas, thresholds, and quality signals.
 - `info`
 - `warning`
 - `error`
-- `critical`
 
 `EvaluationCheckResult` describes one deterministic check:
 
