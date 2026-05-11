@@ -234,20 +234,24 @@ Deferred for later phases (not blocking Phase 8):
 
 ### Phase 8: ReadySetRentables Read-Only Source Extraction Boundary
 
-Phase 8 is active. It designs the safe read-only boundary for later extracting
-RSR source data from the real ReadySetRentables application database into
-Daedalus domain inputs. Phase 8 starts as a documentation, model, and artifact
-design phase that does not require homelab access; the real Postgres
-connection code, SQL, and DB-backed checks are scoped for later steps when
-homelab access is available.
+The offline scope of Phase 8 is complete. It designs the safe read-only boundary
+for later extracting RSR source data from the real ReadySetRentables application
+database into Daedalus domain inputs and ships the offline parts that do not
+require homelab access. The real Postgres connection code, SQL, and DB-backed
+checks are scoped for later steps when homelab access is available.
 
-Phase 8 scope:
+Phase 8 offline deliverables:
 
 - design doc for the read-only source extraction boundary
-- proposed `RsrSourceExtractionRequest`, `RsrSourceReviewRecord`,
+- `RsrSourceExtractionRequest`, `RsrSourceReviewRecord`,
   `RsrSourceListingContext`, `RsrSourceNeighborhoodContext`, and
   `RsrSourceExtractionResult` source extraction models
-- proposed `rsr_source_extract.json` artifact
+- `ArtifactType.RSR_SOURCE_EXTRACT` generic artifact type
+- `write_rsr_source_extract_json(...)` artifact writer
+- `build_sample_rsr_source_extraction_result()` synthetic fixture
+- `evaluate_rsr_source_extract_json(...)` deterministic evaluator
+- `evaluate-rsr-source-extract` CLI command
+- `make source-extract-check` local file-only Makefile target
 - proposed `RsrSourceReadOnlyRepository` adapter responsibilities
 - testing strategy using fake fixtures and mocked repositories first
 

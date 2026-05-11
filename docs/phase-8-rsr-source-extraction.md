@@ -5,10 +5,13 @@ the real RSR application database without writing to it. The goal is to design
 the boundary, source models, artifact shape, and adapter responsibilities before
 any real database connection code is written.
 
-This phase is documentation-first. Real Postgres connection code, SQL queries,
-adapters, and DB-backed checks are intentionally deferred. The work that needs
-real homelab access is scoped separately from the work that can happen safely
-offline.
+The offline scope of Phase 8 is complete: source extraction models, a generic
+`rsr_source_extract` artifact type, an artifact writer, a synthetic fixture,
+a deterministic evaluator, an `evaluate-rsr-source-extract` CLI command, and
+a local `source-extract-check` make target now exist. Real Postgres connection
+code, SQL queries, adapters, and DB-backed checks are intentionally deferred.
+The work that needs real homelab access is scoped separately from the work that
+can happen safely offline.
 
 ## Why A Read-Only Boundary
 
@@ -61,9 +64,11 @@ ReadySetRentables source DB
   -> run deterministic evaluations
 ```
 
-Phase 8 only defines the first three steps: the adapter, the sanitized result,
-and the source artifact. Insight extraction, profile generation, and evaluation
-already exist in Daedalus as Phase 7 contracts.
+Phase 8 implements the sanitized result, the source artifact, a synthetic
+fixture, and a deterministic evaluator for the source extract. The read-only
+adapter is only proposed at the contract level; real DB extraction is deferred.
+Insight extraction, profile generation, and evaluation already exist in Daedalus
+as Phase 7 contracts.
 
 ## Source Extraction Models
 
@@ -225,7 +230,7 @@ Phase 8 work will be testable without homelab access:
 - real RSR DB schema mapping
 - production `.env` configuration for the RSR source DB
 - the read-only repository adapter implementation
-- the source extraction CLI command
+- a real source extraction CLI command that connects to the RSR DB
 - LangGraph and `run-workflow` integration of the extraction step
 - DB-backed make checks for source extraction
 - any write-back path from Daedalus into the RSR app DB

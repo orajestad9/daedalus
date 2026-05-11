@@ -41,6 +41,9 @@ observable, human-approved AI pipelines.
 - Evaluation/comparison artifact recording for persisted runs
 - Phase 7 RSR pipeline domain contracts: review insight extraction and
   neighborhood profile models, artifact types, and writers
+- Phase 8 read-only RSR source extraction boundary: source extraction models,
+  `rsr_source_extract.json` artifact writer, synthetic offline fixture,
+  deterministic evaluator, and `evaluate-rsr-source-extract` CLI command
 
 ## ReadySetRentables: First Domain
 
@@ -109,6 +112,13 @@ Run the comparison check (no Docker or `.env` required):
 make comparison-check
 ```
 
+Run the RSR source extraction fixture/evaluation check (no Docker or `.env`
+required):
+
+```sh
+make source-extract-check
+```
+
 ## Optional DB-Backed Checks
 
 These targets require Docker and a local `.env`. They are not called by
@@ -165,9 +175,11 @@ make ollama-summary-local-check
 
 Phase 6 (evaluation and comparison harness) is complete. Phase 7 (real RSR
 pipeline modeling: domain contracts, artifact types and writers, prompt
-placeholders, deterministic evaluator shells) is complete. Phase 8 is active
-and designs the safe read-only boundary for later extracting RSR source data
-from the real ReadySetRentables database into Daedalus.
+placeholders, deterministic evaluator shells) is complete. Phase 8 (read-only
+source extraction boundary: source models, `rsr_source_extract` artifact type
+and writer, synthetic fixture, deterministic evaluator, CLI command, and local
+make check) is complete for its offline scope; real RSR database extraction,
+SQL, and DB-backed checks remain deferred until homelab access.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
