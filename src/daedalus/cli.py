@@ -219,6 +219,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "record-evaluation-comparison-report-artifact":
+        try:
+            artifact_record = _record_evaluation_comparison_report_artifact(
+                run_id=args.run_id,
+                artifact_path=args.path,
+            )
+        except (FileNotFoundError, ValueError, WorkflowPersistenceError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Recorded evaluation comparison report artifact "
+            f"run_id={artifact_record.run_id} "
+            f"artifact_type={artifact_record.artifact_type.value} "
+            f"artifact_path={artifact_record.artifact_path}"
+        )
+        return 0
+
     if args.command == "summarize-review-themes-fake":
         try:
             run_id = args.run_id or uuid4()
@@ -580,6 +597,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to an existing evaluation report artifact.",
     )
 
+    record_evaluation_comparison_report_artifact = subparsers.add_parser(
+        "record-evaluation-comparison-report-artifact",
+        help="Record an evaluation comparison report artifact for a persisted workflow run.",
+    )
+    record_evaluation_comparison_report_artifact.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Workflow run UUID to attach the evaluation comparison report artifact to.",
+    )
+    record_evaluation_comparison_report_artifact.add_argument(
+        "--path",
+        required=True,
+        type=Path,
+        help="Path to an existing evaluation comparison report artifact.",
+    )
+
     summarize_review_themes_fake = subparsers.add_parser(
         "summarize-review-themes-fake",
         help="Run the review theme summary agent locally with FakeModelClient.",
@@ -878,6 +912,35 @@ def _record_evaluation_report_artifact(
     except Exception as exc:
         connection.rollback()
         msg = "Failed to record evaluation report artifact"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
+
+    return artifact_record
+
+
+def _record_evaluation_comparison_report_artifact(
+    *,
+    run_id: UUID,
+    artifact_path: Path,
+) -> ArtifactRecord:
+    if not artifact_path.is_file():
+        msg = f"Evaluation comparison report artifact path does not exist: {artifact_path}"
+        raise FileNotFoundError(msg)
+
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+    try:
+        artifact_record = ArtifactRecord.create(
+            run_id=run_id,
+            artifact_type=ArtifactType.EVALUATION_COMPARISON_REPORT,
+            artifact_path=artifact_path,
+        )
+        ArtifactRepository(connection).save(artifact_record)
+        connection.commit()
+    except Exception as exc:
+        connection.rollback()
+        msg = "Failed to record evaluation comparison report artifact"
         raise WorkflowPersistenceError(msg) from exc
     finally:
         connection.close()

@@ -682,6 +682,342 @@ def test_record_evaluation_report_artifact_rolls_back_on_failure(
     assert artifact_body not in combined_output
 
 
+# ---------------------------------------------------------------------------
+# record-evaluation-comparison-report-artifact
+# ---------------------------------------------------------------------------
+
+
+def test_record_evaluation_comparison_report_artifact_command_succeeds_with_mocked_postgres(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_body = "Do not print this comparison report body."
+    artifact_path.write_text(artifact_body, encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(run_id),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Recorded evaluation comparison report artifact" in output
+    assert str(run_id) in output
+    assert "artifact_type=evaluation_comparison_report" in output
+    assert f"artifact_path={artifact_path}" in output
+    assert artifact_body not in output
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+    assert any("insert into workflow_artifacts" in sql.lower() for sql in connection.executed_sql)
+    assert connection.executed_params[0][1] == run_id
+    assert connection.executed_params[0][2] == ArtifactType.EVALUATION_COMPARISON_REPORT.value
+    assert connection.executed_params[0][3] == str(artifact_path)
+
+
+def test_record_evaluation_comparison_report_artifact_output_includes_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(run_id),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert str(run_id) in output
+
+
+def test_record_evaluation_comparison_report_artifact_output_includes_artifact_type(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(uuid4()),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert "artifact_type=evaluation_comparison_report" in output
+
+
+def test_record_evaluation_comparison_report_artifact_output_includes_artifact_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(uuid4()),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert str(artifact_path) in output
+
+
+def test_record_evaluation_comparison_report_artifact_repository_receives_correct_type(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(run_id),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    assert connection.executed_params[0][2] == ArtifactType.EVALUATION_COMPARISON_REPORT.value
+
+
+def test_record_evaluation_comparison_report_artifact_does_not_print_file_contents(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_body = "Sensitive comparison report body that must not appear in stdout."
+    artifact_path.write_text(artifact_body, encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(uuid4()),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert artifact_body not in output
+
+
+def test_record_evaluation_comparison_report_artifact_commits_on_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    main(
+        [
+            "record-evaluation-comparison-report-artifact",
+            "--run-id",
+            str(uuid4()),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+
+
+def test_record_evaluation_comparison_report_artifact_missing_path_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_connect(_: object) -> object:
+        raise AssertionError("Postgres should not be opened for a missing artifact path")
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_connect)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "record-evaluation-comparison-report-artifact",
+                "--run-id",
+                str(uuid4()),
+                "--path",
+                str(tmp_path / "missing_comparison_report.json"),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_record_evaluation_comparison_report_artifact_invalid_run_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "record-evaluation-comparison-report-artifact",
+                "--run-id",
+                "not-a-uuid",
+                "--path",
+                str(artifact_path),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_record_evaluation_comparison_report_artifact_rolls_back_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FailingArtifactConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    artifact_path = tmp_path / "review_theme_summary.comparison.json"
+    artifact_body = "Do not print this failed comparison report body."
+    artifact_path.write_text(artifact_body, encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "record-evaluation-comparison-report-artifact",
+                "--run-id",
+                str(uuid4()),
+                "--path",
+                str(artifact_path),
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert connection.committed is False
+    assert connection.rolled_back is True
+    assert connection.closed is True
+    assert artifact_body not in combined_output
+
+
 def test_summarize_review_themes_fake_command_succeeds(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

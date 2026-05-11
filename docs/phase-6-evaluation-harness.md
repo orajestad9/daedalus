@@ -367,6 +367,20 @@ The command records the file as `ArtifactType.EVALUATION_REPORT` so `show-run`
 can display the artifact path. It is explicit/manual and does not wire
 evaluation into workflows, LangGraph, or automatic persistence.
 
+An existing persisted workflow run can manually attach an evaluation comparison
+report artifact with:
+
+```sh
+.venv/bin/daedalus record-evaluation-comparison-report-artifact \
+  --run-id <run-id> \
+  --path artifacts/readysetrentables/review_theme_summary.comparison.json
+```
+
+The command records the file as `ArtifactType.EVALUATION_COMPARISON_REPORT` so
+`show-run` can display the artifact path once it is recorded. It is
+explicit/manual and does not wire comparison execution into workflows, LangGraph,
+or automatic persistence.
+
 The `evaluation-db-check` Makefile target verifies the full manual persisted
 evaluation path end-to-end: it runs the LangGraph workflow with `--persist`,
 evaluates `review_theme_summary.md`, records the evaluation JSON as an
