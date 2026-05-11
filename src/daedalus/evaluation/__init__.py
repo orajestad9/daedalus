@@ -6,6 +6,9 @@ from daedalus.evaluation.artifacts import (
 )
 from daedalus.evaluation.models import (
     EvaluationCheckResult,
+    EvaluationComparisonItem,
+    EvaluationComparisonReport,
+    EvaluationComparisonStatus,
     EvaluationReport,
     EvaluationSeverity,
     EvaluationStatus,
@@ -13,6 +16,9 @@ from daedalus.evaluation.models import (
 
 __all__ = [
     "EvaluationCheckResult",
+    "EvaluationComparisonItem",
+    "EvaluationComparisonReport",
+    "EvaluationComparisonStatus",
     "EvaluationReport",
     "EvaluationSeverity",
     "EvaluationStatus",

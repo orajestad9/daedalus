@@ -214,6 +214,23 @@ Future checks for a richer ReadySetRentables pipeline can include:
 Domain-specific thresholds should stay close to the domain module rather than
 inside the generic evaluation package.
 
+## Generic Comparison Models
+
+Generic comparison models now exist in `src/daedalus/evaluation/models.py`:
+
+- `EvaluationComparisonStatus` — outcome for one comparison: `match`, `different`,
+  `improved`, `regressed`, `inconclusive`
+- `EvaluationComparisonItem` — one generic comparison result between a baseline and
+  candidate value, with status, severity, message, and optional value fields
+- `EvaluationComparisonReport` — aggregated comparison report that can link two
+  evaluation report IDs, two artifact paths, a comparator name and version, and a
+  list of comparison items
+
+These models are intended for future fake-vs-Ollama, prompt-vs-prompt,
+model-vs-model, or run-vs-run comparisons. No comparison CLI exists yet. No
+provider or model calls are made by these models. They contain no
+ReadySetRentables-specific fields.
+
 ## Comparison Strategy
 
 The first comparison mode should be file and metadata based:

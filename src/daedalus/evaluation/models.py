@@ -101,3 +101,102 @@ class EvaluationReport(BaseModel):
     def error_count(self) -> int:
         """Count error-severity checks."""
         return sum(1 for check in self.checks if check.severity == EvaluationSeverity.ERROR)
+
+
+class EvaluationComparisonStatus(StrEnum):
+    """Outcome status for a single comparison between two evaluation targets."""
+
+    MATCH = "match"
+    DIFFERENT = "different"
+    IMPROVED = "improved"
+    REGRESSED = "regressed"
+    INCONCLUSIVE = "inconclusive"
+
+
+class EvaluationComparisonItem(BaseModel):
+    """Result for one generic comparison between a baseline and candidate."""
+
+    comparison_name: str
+    status: EvaluationComparisonStatus
+    severity: EvaluationSeverity
+    message: str
+    baseline_value: str | None = None
+    candidate_value: str | None = None
+    details: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("comparison_name", "message")
+    @classmethod
+    def _validate_non_empty_text(cls, value: str) -> str:
+        stripped_value = value.strip()
+        if not stripped_value:
+            msg = "Comparison text fields must not be empty"
+            raise ValueError(msg)
+        return stripped_value
+
+
+class EvaluationComparisonReport(BaseModel):
+    """Aggregated generic comparison report across two evaluation targets or runs."""
+
+    comparison_report_id: UUID = Field(default_factory=uuid4)
+    baseline_report_id: UUID | None = None
+    candidate_report_id: UUID | None = None
+    baseline_artifact_path: Path | None = None
+    candidate_artifact_path: Path | None = None
+    target_name: str
+    target_type: str
+    comparator_name: str
+    comparator_version: str
+    created_at_utc: datetime = Field(default_factory=utc_now)
+    comparisons: list[EvaluationComparisonItem] = Field(default_factory=list)
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("target_name", "target_type", "comparator_name", "comparator_version")
+    @classmethod
+    def _validate_non_empty_text(cls, value: str) -> str:
+        stripped_value = value.strip()
+        if not stripped_value:
+            msg = "Comparison report identity fields must not be empty"
+            raise ValueError(msg)
+        return stripped_value
+
+    @property
+    def passed(self) -> bool:
+        """Return True when no regressions or error-severity non-match comparisons exist."""
+        return all(
+            not (
+                item.status == EvaluationComparisonStatus.REGRESSED
+                or (
+                    item.severity == EvaluationSeverity.ERROR
+                    and item.status != EvaluationComparisonStatus.MATCH
+                )
+            )
+            for item in self.comparisons
+        )
+
+    @property
+    def different_count(self) -> int:
+        """Count comparisons with DIFFERENT status."""
+        return sum(
+            1 for item in self.comparisons if item.status == EvaluationComparisonStatus.DIFFERENT
+        )
+
+    @property
+    def improved_count(self) -> int:
+        """Count comparisons with IMPROVED status."""
+        return sum(
+            1 for item in self.comparisons if item.status == EvaluationComparisonStatus.IMPROVED
+        )
+
+    @property
+    def regressed_count(self) -> int:
+        """Count comparisons with REGRESSED status."""
+        return sum(
+            1 for item in self.comparisons if item.status == EvaluationComparisonStatus.REGRESSED
+        )
+
+    @property
+    def inconclusive_count(self) -> int:
+        """Count comparisons with INCONCLUSIVE status."""
+        return sum(
+            1 for item in self.comparisons if item.status == EvaluationComparisonStatus.INCONCLUSIVE
+        )
