@@ -123,6 +123,20 @@ for use in offline tests and future pipeline checks.
 - Can be written with `write_rsr_source_extract_json(...)`.
 - Metadata includes `"fixture": "true"` and `"source": "synthetic"` on all records.
 
+## Source Extract Evaluator
+
+`evaluate_rsr_source_extract_json(...)` is implemented in
+`src/daedalus/domains/readysetrentables_reviews/source_extraction_evaluator.py`.
+It evaluates `rsr_source_extract.json` artifacts deterministically and returns a
+generic `EvaluationReport`. Checks cover existence, non-empty content, valid JSON,
+schema validity against `RsrSourceExtractionResult`, reviews presence and text,
+listing context, neighborhood context, source metadata, and a synthetic fixture
+marker check that distinguishes fixture artifacts from future real extractions.
+
+- Does not connect to the real RSR database.
+- Does not call any model provider.
+- Is not wired into CLI commands or workflows yet.
+
 ## Proposed Future Adapter
 
 A new read-only repository adapter will live under the RSR domain package:
