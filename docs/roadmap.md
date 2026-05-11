@@ -154,10 +154,10 @@ Upcoming Phase 5B work should stay incremental:
 
 ### Phase 6: Evaluation Harness
 
-Phase 6 is complete or near-complete. It introduces a generic evaluation harness
-for checking model outputs and workflow artifacts across domains. The first
-concrete example is ReadySetRentables `review_theme_summary.md`. Generic
-Daedalus evaluation does not hardcode ReadySetRentables into the platform layer.
+Phase 6 is complete. It introduces a generic evaluation harness for checking
+model outputs and workflow artifacts across domains. The first concrete example
+is ReadySetRentables `review_theme_summary.md`. Generic Daedalus evaluation does
+not hardcode ReadySetRentables into the platform layer.
 
 Current Phase 6 progress includes generic evaluation models
 (`EvaluationStatus`, `EvaluationSeverity`, `EvaluationCheckResult`,
@@ -190,6 +190,44 @@ Possible future Phase 6 or later work:
 
 See `docs/phase-6-evaluation-harness.md` for the current evaluation harness
 capabilities and future work.
+
+### Phase 7: ReadySetRentables Real Pipeline Modeling
+
+Phase 7 is active. It models the real ReadySetRentables production pipeline on
+top of the existing Daedalus generic infrastructure. Phase 6 left Daedalus with
+working fake/local paths, a manual Ollama CLI path, generic evaluation and
+comparison models, and artifact and model invocation persistence. Phase 7 uses
+those foundations to define real RSR domain contracts before implementing Claude
+or wiring the full LangGraph graph.
+
+Planned Phase 7 work:
+
+- `ReviewInsightExtractionInput` and `ReviewInsightExtractionResult` domain
+  contract models for the local Ollama insight extraction step
+- `NeighborhoodProfileInput` and `NeighborhoodProfileResult` domain contract
+  models for the future Claude neighborhood profile generation step
+- `ReviewInsightExtractionAgent` — wraps `ModelClient`, intended for local
+  Ollama execution; follows the same pattern as `ReviewThemeSummaryAgent`
+- `NeighborhoodProfileAgent` shell — wraps `ModelClient`, not implemented until
+  the Claude provider adapter exists
+- `ArtifactType.REVIEW_INSIGHTS` and `ArtifactType.NEIGHBORHOOD_PROFILE`
+  recognized artifact type values
+- `write_review_insights_json(...)`, `write_neighborhood_profile_markdown(...)`,
+  and `write_neighborhood_profile_json(...)` artifact writers
+- versioned prompt template placeholder files at
+  `prompts/readysetrentables/review_insight_extraction/v0.md` and
+  `prompts/readysetrentables/neighborhood_profile/v0.md`
+- `evaluate_review_insights_json(...)` — structural evaluator shell for
+  `review_insights.json`
+- `evaluate_neighborhood_profile_markdown(...)` — structural evaluator shell for
+  `neighborhood_profile.md`
+
+All Phase 7 domain contracts, agents, and evaluators stay inside RSR domain
+modules. Generic platform infrastructure must not hardcode RSR logic. Claude
+integration, cloud provider calls, and full LangGraph pipeline wiring remain
+deferred until Phase 8.
+
+See `docs/phase-7-rsr-real-pipeline.md` for the Phase 7 design baseline.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade
