@@ -12,6 +12,8 @@ class ArtifactType(StrEnum):
     EVALUATION_REPORT = "evaluation_report"
     EVALUATION_COMPARISON_REPORT = "evaluation_comparison_report"
     REVIEW_INSIGHTS = "review_insights"
+    NEIGHBORHOOD_PROFILE_MARKDOWN = "neighborhood_profile_markdown"
+    NEIGHBORHOOD_PROFILE_JSON = "neighborhood_profile_json"
     APPROVAL_RECORD = "approval_record"
     AGENT_OUTPUT = "agent_output"
     VALIDATION_REPORT = "validation_report"

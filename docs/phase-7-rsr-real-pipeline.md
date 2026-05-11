@@ -120,6 +120,26 @@ These are domain contract models only. No Claude agent, artifact writer, prompt
 template, CLI command, or workflow wiring exists yet. They stay inside the RSR
 domain package and do not touch generic Daedalus platform infrastructure.
 
+### Neighborhood Profile Artifact Types And Writers
+
+`ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN` (`"neighborhood_profile_markdown"`)
+and `ArtifactType.NEIGHBORHOOD_PROFILE_JSON` (`"neighborhood_profile_json"`) are
+now recognized generic artifact types in
+`src/daedalus/orchestrator/artifact_type.py`.
+
+`write_neighborhood_profile_json(...)` and
+`write_neighborhood_profile_markdown(...)` are implemented in
+`src/daedalus/domains/readysetrentables_reviews/neighborhood_profile_artifacts.py`.
+
+`write_neighborhood_profile_json` serializes a `NeighborhoodProfileResult` to
+indented UTF-8 JSON using Pydantic serialization. `write_neighborhood_profile_markdown`
+writes the result's `markdown` field with a small metadata header (run_id,
+provider, model_name, prompt identity, market_name, neighborhood_name) prepended
+as HTML comments. Both writers create parent directories and return the output path.
+
+This is artifact support only. No Claude agent, prompt template, CLI command,
+or workflow wiring exists yet.
+
 ## Planned Phase 7 Work
 
 Phase 7 should define RSR domain contracts without implementing Claude or wiring

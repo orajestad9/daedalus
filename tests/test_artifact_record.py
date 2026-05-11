@@ -188,3 +188,73 @@ def test_review_insights_artifact_json_serializes_artifact_type_value() -> None:
 
     assert data["artifact_type"] == "review_insights"
     assert data["artifact_path"] == "artifacts/readysetrentables/review_insights.json"
+
+
+def test_artifact_record_can_represent_neighborhood_profile_markdown_artifact() -> None:
+    run_id = uuid4()
+
+    record = ArtifactRecord.create(
+        run_id=run_id,
+        artifact_type=ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN,
+        artifact_path=Path("artifacts/readysetrentables/neighborhood_profile.md"),
+    )
+
+    assert record.run_id == run_id
+    assert record.artifact_type == ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN
+    assert record.artifact_path == Path("artifacts/readysetrentables/neighborhood_profile.md")
+
+
+def test_artifact_type_includes_neighborhood_profile_markdown() -> None:
+    assert (
+        ArtifactType("neighborhood_profile_markdown") == ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN
+    )
+    assert ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN.value == "neighborhood_profile_markdown"
+
+
+def test_neighborhood_profile_markdown_artifact_json_serializes_artifact_type_value() -> None:
+    record = ArtifactRecord(
+        artifact_id=uuid4(),
+        run_id=uuid4(),
+        artifact_type=ArtifactType.NEIGHBORHOOD_PROFILE_MARKDOWN,
+        artifact_path=Path("artifacts/readysetrentables/neighborhood_profile.md"),
+        created_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+    )
+
+    data = cast(dict[str, Any], json.loads(record.model_dump_json()))
+
+    assert data["artifact_type"] == "neighborhood_profile_markdown"
+    assert data["artifact_path"] == "artifacts/readysetrentables/neighborhood_profile.md"
+
+
+def test_artifact_record_can_represent_neighborhood_profile_json_artifact() -> None:
+    run_id = uuid4()
+
+    record = ArtifactRecord.create(
+        run_id=run_id,
+        artifact_type=ArtifactType.NEIGHBORHOOD_PROFILE_JSON,
+        artifact_path=Path("artifacts/readysetrentables/neighborhood_profile.json"),
+    )
+
+    assert record.run_id == run_id
+    assert record.artifact_type == ArtifactType.NEIGHBORHOOD_PROFILE_JSON
+    assert record.artifact_path == Path("artifacts/readysetrentables/neighborhood_profile.json")
+
+
+def test_artifact_type_includes_neighborhood_profile_json() -> None:
+    assert ArtifactType("neighborhood_profile_json") == ArtifactType.NEIGHBORHOOD_PROFILE_JSON
+    assert ArtifactType.NEIGHBORHOOD_PROFILE_JSON.value == "neighborhood_profile_json"
+
+
+def test_neighborhood_profile_json_artifact_json_serializes_artifact_type_value() -> None:
+    record = ArtifactRecord(
+        artifact_id=uuid4(),
+        run_id=uuid4(),
+        artifact_type=ArtifactType.NEIGHBORHOOD_PROFILE_JSON,
+        artifact_path=Path("artifacts/readysetrentables/neighborhood_profile.json"),
+        created_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+    )
+
+    data = cast(dict[str, Any], json.loads(record.model_dump_json()))
+
+    assert data["artifact_type"] == "neighborhood_profile_json"
+    assert data["artifact_path"] == "artifacts/readysetrentables/neighborhood_profile.json"
