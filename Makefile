@@ -1,4 +1,4 @@
-.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check comparison-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check comparison-db-check clean
+.PHONY: install test lint format format-check type-check check normalize-sample fake-summary-check graph-fake-summary-check evaluation-check comparison-check source-extract-check ollama-local-check ollama-summary-local-check db-up db-down db-logs db-reset migrate-db db-check fake-model-db-check fake-summary-db-check evaluation-db-check comparison-db-check clean
 
 PYTHON ?= .venv/bin/python
 
@@ -61,6 +61,17 @@ comparison-check:
 	@test -f artifacts/readysetrentables/review_theme_summary.comparison.json || (echo "Missing artifacts/readysetrentables/review_theme_summary.comparison.json"; exit 1)
 	@test -f artifacts/readysetrentables/review_theme_summary.comparison.md || (echo "Missing artifacts/readysetrentables/review_theme_summary.comparison.md"; exit 1)
 	@echo "comparison-check passed: review theme summary comparison JSON and Markdown artifacts were created."
+	@$(MAKE) clean
+
+source-extract-check:
+	@$(MAKE) clean
+	@mkdir -p artifacts/readysetrentables
+	$(PYTHON) -c "from pathlib import Path; from daedalus.domains.readysetrentables_reviews.source_extraction_fixtures import build_sample_rsr_source_extraction_result; from daedalus.domains.readysetrentables_reviews.source_extraction_artifacts import write_rsr_source_extract_json; write_rsr_source_extract_json(result=build_sample_rsr_source_extraction_result(), output_path=Path('artifacts/readysetrentables/rsr_source_extract.json'))"
+	@test -f artifacts/readysetrentables/rsr_source_extract.json || (echo "Missing artifacts/readysetrentables/rsr_source_extract.json"; exit 1)
+	.venv/bin/daedalus evaluate-rsr-source-extract --source-extract artifacts/readysetrentables/rsr_source_extract.json --output-json artifacts/readysetrentables/rsr_source_extract.evaluation.json --output-md artifacts/readysetrentables/rsr_source_extract.evaluation.md
+	@test -f artifacts/readysetrentables/rsr_source_extract.evaluation.json || (echo "Missing artifacts/readysetrentables/rsr_source_extract.evaluation.json"; exit 1)
+	@test -f artifacts/readysetrentables/rsr_source_extract.evaluation.md || (echo "Missing artifacts/readysetrentables/rsr_source_extract.evaluation.md"; exit 1)
+	@echo "source-extract-check passed: rsr_source_extract.json and evaluation JSON/Markdown artifacts were created."
 	@$(MAKE) clean
 
 ollama-local-check:

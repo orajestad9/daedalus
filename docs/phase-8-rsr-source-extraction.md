@@ -155,6 +155,17 @@ default JSON report next to the source extract file as
 in the report. The command is deterministic and file-only; it does not connect
 to the RSR database, does not call models, and is not wired into workflows yet.
 
+### Local Makefile Check
+
+`make source-extract-check` builds the synthetic fixture, writes
+`rsr_source_extract.json`, evaluates it, and writes both JSON and Markdown
+evaluation report artifacts under `artifacts/readysetrentables/`. It is
+file-only and deterministic.
+
+- Does not require Docker, Postgres, `.env`, Ollama, or network access.
+- Does not use real RSR data.
+- Is not called by `make check`.
+
 ## Proposed Future Adapter
 
 A new read-only repository adapter will live under the RSR domain package:
