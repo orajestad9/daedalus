@@ -106,6 +106,20 @@ and returns the output path.
 This is artifact support only. No Ollama agent, Claude agent, prompt template,
 CLI command, or workflow wiring exists yet.
 
+### Neighborhood Profile Domain Models
+
+`NeighborhoodProfileInput`, `NeighborhoodProfileSection`, and
+`NeighborhoodProfileResult` are implemented in
+`src/daedalus/domains/readysetrentables_reviews/neighborhood_profile_models.py`.
+
+`NeighborhoodProfileInput` holds a fully typed `ReviewInsightExtractionResult`
+as its `review_insights` field, establishing the contract between the insight
+extraction step and the future profile generation step.
+
+These are domain contract models only. No Claude agent, artifact writer, prompt
+template, CLI command, or workflow wiring exists yet. They stay inside the RSR
+domain package and do not touch generic Daedalus platform infrastructure.
+
 ## Planned Phase 7 Work
 
 Phase 7 should define RSR domain contracts without implementing Claude or wiring
