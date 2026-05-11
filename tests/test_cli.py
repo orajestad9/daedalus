@@ -1341,6 +1341,228 @@ def test_evaluate_review_theme_summary_command_does_not_print_artifact_contents(
     assert "readysetrentables/review_theme_summary" not in output
 
 
+def test_evaluate_rsr_source_extract_succeeds_for_valid_artifact(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+            "--run-id",
+            str(run_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert "target_name=rsr_source_extract.json" in output
+
+
+def test_evaluate_rsr_source_extract_default_json_output_path_is_created(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert (tmp_path / "rsr_source_extract.evaluation.json").is_file()
+
+
+def test_evaluate_rsr_source_extract_output_json_writes_report(tmp_path: Path) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "custom_evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["target_type"] == "rsr_source_extract"
+    assert data["evaluator_name"] == "readysetrentables_source_extract_basic"
+
+
+def test_evaluate_rsr_source_extract_output_md_writes_report(tmp_path: Path) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_md_path = tmp_path / "custom_evaluation.md"
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    markdown = output_md_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert "Evaluation Report" in markdown
+    assert "Target name: `rsr_source_extract.json`" in markdown
+
+
+def test_evaluate_rsr_source_extract_writes_json_and_markdown_together(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "evaluation.json"
+    output_md_path = tmp_path / "evaluation.md"
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-json",
+            str(output_json_path),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert output_md_path.is_file()
+
+
+def test_evaluate_rsr_source_extract_run_id_is_preserved_in_report(
+    tmp_path: Path,
+) -> None:
+    run_id = uuid4()
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+            "--run-id",
+            str(run_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["run_id"] == str(run_id)
+
+
+def test_evaluate_rsr_source_extract_command_output_includes_counts(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "target_name=rsr_source_extract.json" in output
+    assert "passed=True" in output
+    assert "failed_count=" in output
+    assert "warning_count=" in output
+    assert "error_count=" in output
+
+
+def test_evaluate_rsr_source_extract_missing_artifact_still_writes_failed_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = tmp_path / "missing_rsr_source_extract.json"
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert "passed=False" in output
+    assert any(
+        check["check_name"] == "artifact_exists" and check["status"] == "failed"
+        for check in data["checks"]
+    )
+
+
+def test_evaluate_rsr_source_extract_invalid_run_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "evaluate-rsr-source-extract",
+                "--source-extract",
+                str(source_extract_path),
+                "--run-id",
+                "not-a-uuid",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_evaluate_rsr_source_extract_command_does_not_print_artifact_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-rsr-source-extract",
+            "--source-extract",
+            str(source_extract_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synthetic review:" not in output
+    assert "Synthetic Studio Listing" not in output
+    assert "Sample Neighborhood" not in output
+
+
 def test_compare_review_theme_summaries_succeeds_for_valid_artifacts(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -2556,6 +2778,22 @@ def _write_review_theme_summary_markdown_artifact(
 
 def _read_json(path: Path) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+
+
+def _write_rsr_source_extract_artifact(tmp_path: Path) -> Path:
+    from daedalus.domains.readysetrentables_reviews.source_extraction_artifacts import (
+        write_rsr_source_extract_json,
+    )
+    from daedalus.domains.readysetrentables_reviews.source_extraction_fixtures import (
+        build_sample_rsr_source_extraction_result,
+    )
+
+    output_path = tmp_path / "rsr_source_extract.json"
+    write_rsr_source_extract_json(
+        result=build_sample_rsr_source_extraction_result(),
+        output_path=output_path,
+    )
+    return output_path
 
 
 def _workflow_run_details(

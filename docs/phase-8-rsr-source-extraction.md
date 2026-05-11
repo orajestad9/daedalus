@@ -135,7 +135,25 @@ marker check that distinguishes fixture artifacts from future real extractions.
 
 - Does not connect to the real RSR database.
 - Does not call any model provider.
-- Is not wired into CLI commands or workflows yet.
+- Is not wired into workflows yet.
+
+### Manual CLI
+
+The `evaluate-rsr-source-extract` CLI command writes evaluation report artifacts
+for an `rsr_source_extract.json` file:
+
+```sh
+.venv/bin/daedalus evaluate-rsr-source-extract \
+  --source-extract artifacts/readysetrentables/rsr_source_extract.json \
+  --output-json artifacts/readysetrentables/rsr_source_extract.evaluation.json \
+  --output-md artifacts/readysetrentables/rsr_source_extract.evaluation.md
+```
+
+If neither `--output-json` nor `--output-md` is provided, the command writes a
+default JSON report next to the source extract file as
+`rsr_source_extract.evaluation.json`. An optional `--run-id <uuid>` is preserved
+in the report. The command is deterministic and file-only; it does not connect
+to the RSR database, does not call models, and is not wired into workflows yet.
 
 ## Proposed Future Adapter
 

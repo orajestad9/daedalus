@@ -18,6 +18,9 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_artifacts import (
 from daedalus.domains.readysetrentables_reviews.theme_summary_comparison import (
     compare_review_theme_summary_markdown,
 )
+from daedalus.domains.readysetrentables_reviews.source_extraction_evaluator import (
+    evaluate_rsr_source_extract_json,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_evaluator import (
     evaluate_review_theme_summary_markdown,
 )
@@ -403,6 +406,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "evaluate-rsr-source-extract":
+        source_extract_output_json = args.output_json
+        source_extract_output_md = args.output_md
+        if source_extract_output_json is None and source_extract_output_md is None:
+            source_extract_output_json = _default_evaluation_json_path(args.source_extract)
+
+        source_extract_report = evaluate_rsr_source_extract_json(
+            source_extract_path=args.source_extract,
+            run_id=args.run_id,
+        )
+        source_extract_written_paths: list[Path] = []
+        if source_extract_output_json is not None:
+            source_extract_written_paths.append(
+                write_evaluation_report_json(
+                    report=source_extract_report,
+                    output_path=source_extract_output_json,
+                )
+            )
+        if source_extract_output_md is not None:
+            source_extract_written_paths.append(
+                write_evaluation_report_markdown(
+                    report=source_extract_report,
+                    output_path=source_extract_output_md,
+                )
+            )
+
+        print(
+            "Wrote rsr source extract evaluation "
+            f"target_name={source_extract_report.target_name} "
+            f"passed={source_extract_report.passed} "
+            f"failed_count={source_extract_report.failed_count} "
+            f"warning_count={source_extract_report.warning_count} "
+            f"error_count={source_extract_report.error_count} "
+            f"outputs={','.join(str(path) for path in source_extract_written_paths)}"
+        )
+        return 0
+
     if args.command == "compare-review-theme-summaries":
         output_json_path = args.output_json
         output_md_path = args.output_md
@@ -747,6 +787,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional path for the JSON evaluation report artifact.",
     )
     evaluate_review_theme_summary.add_argument(
+        "--output-md",
+        default=None,
+        type=Path,
+        help="Optional path for the Markdown evaluation report artifact.",
+    )
+
+    evaluate_rsr_source_extract = subparsers.add_parser(
+        "evaluate-rsr-source-extract",
+        help="Evaluate an rsr_source_extract.json artifact with deterministic local checks.",
+    )
+    evaluate_rsr_source_extract.add_argument(
+        "--source-extract",
+        required=True,
+        type=Path,
+        help="Path to an rsr_source_extract.json artifact.",
+    )
+    evaluate_rsr_source_extract.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional workflow run UUID to associate with the evaluation report.",
+    )
+    evaluate_rsr_source_extract.add_argument(
+        "--output-json",
+        default=None,
+        type=Path,
+        help="Optional path for the JSON evaluation report artifact.",
+    )
+    evaluate_rsr_source_extract.add_argument(
         "--output-md",
         default=None,
         type=Path,
