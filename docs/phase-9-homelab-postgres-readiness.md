@@ -48,6 +48,80 @@ The verified `show-run` path displayed persisted artifacts and one fake model
 invocation for the LangGraph workflow without exposing raw artifact contents or
 raw prompt/model output text in committed documentation.
 
+## UM790 Metadata DB Runbook
+
+Use this checklist to repeat or troubleshoot the UM790 Daedalus metadata
+Postgres setup.
+
+Setup checklist:
+
+- clone the repo under `~/apps/daedalus`
+- create `.venv`
+- install dependencies
+- run `python -m pip install -e .` from the repo root
+- verify the editable install points to the repo root
+- create local `.env` from `.env.example` with a non-conflicting local
+  Postgres host port
+- confirm `.env` is untracked
+- run `make check`
+- run `make db-check`
+
+Useful commands:
+
+```sh
+cd ~/apps/daedalus
+source .venv/bin/activate
+python -m pip show daedalus
+.venv/bin/daedalus --help
+git status --short
+docker compose ps
+make check
+make db-check
+```
+
+### Port Collisions
+
+The UM790 may already run other Postgres containers. Check existing containers
+before choosing a Daedalus metadata DB host port:
+
+```sh
+docker ps
+```
+
+Avoid common occupied Postgres ports. Keep Docker Compose
+`DAEDALUS_POSTGRES_HOST_PORT` aligned with Python `POSTGRES_PORT` in the local
+untracked `.env`. Do not commit `.env`.
+
+### Stale Editable Install
+
+Symptom:
+
+- `make check` passes, but `.venv/bin/daedalus --help` shows old CLI commands
+
+Cause:
+
+- the editable install points to `.venv/src/daedalus` or another stale path
+
+Fix:
+
+```sh
+python -m pip uninstall -y daedalus
+python -m pip install -e .
+python -m pip show daedalus
+```
+
+The final `pip show` output should point to the repo root.
+
+### DB Check Troubleshooting
+
+- if `make db-check` fails before migrations, inspect Docker, Postgres, and
+  local `.env` configuration
+- if `make db-check` fails on CLI arguments, check the editable install
+- if `make db-check` fails on port binding, choose a different local untracked
+  port
+- if `make db-check` leaves containers running, use `docker compose down`
+- do not change tracked code directly on the UM790
+
 ## Port And Environment Guidance
 
 The default Daedalus example Postgres host port may conflict on this UM790
@@ -107,4 +181,3 @@ Phase 9 does not add:
 - Claude/Anthropic provider support
 - cloud provider support
 - writes back to ReadySetRentables
-
