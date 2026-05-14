@@ -300,19 +300,27 @@ cloud provider support, or write-back behavior.
 See `docs/phase-9-homelab-postgres-readiness.md` for the Phase 9 readiness
 baseline and homelab workflow rules.
 
-### Next Phase: RSR Read-Only Source DB Adapter
+### Phase 10: RSR Read-Only Source DB Adapter
 
-The next RSR phase should plan and implement the real read-only source database
-adapter behind the Phase 8 boundary. That work should stay scoped to source DB
-connectivity, read-only repository/adapter behavior, safe SQL extraction, and an
-explicit DB-backed RSR source extraction check.
+Phase 10 is active/next. It starts with design and schema discovery for a real
+read-only ReadySetRentables source DB adapter behind the Phase 8 boundary before
+implementation. That work should stay scoped to source DB connectivity,
+read-only repository/adapter behavior, safe SQL extraction, and an explicit
+DB-backed RSR source extraction check.
 
-Still deferred beyond that adapter work:
+The Phase 10 design baseline defines the future
+`RsrSourceReadOnlyRepository`, separates RSR source DB settings from Daedalus
+metadata DB settings, requires local untracked `.env` values, prefers a
+read-only database user, and keeps `make check` DB-free.
+
+Still deferred beyond Phase 10 adapter work:
 
 - Claude/Anthropic provider support
 - full multi-agent workflow wiring
 - writing results back to ReadySetRentables
 - cloud provider clients and provider SDK expansion
+
+See `docs/phase-10-rsr-source-db-adapter.md` for the Phase 10 adapter plan.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade

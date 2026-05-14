@@ -1,0 +1,145 @@
+# Phase 10: ReadySetRentables Source DB Adapter
+
+Phase 10 will implement a safe read-only adapter from the real
+ReadySetRentables source Postgres database into Daedalus source extraction
+models. This design step documents the intended boundary before any DB settings,
+connection helpers, SQL, repositories, CLI commands, Makefile targets, or
+workflow wiring are added.
+
+Phase 10 starts after Phase 9 verified that the UM790 can run Daedalus metadata
+Postgres successfully. That verification does not validate the real
+ReadySetRentables source database.
+
+## Stores And Boundaries
+
+Daedalus must keep three stores separate:
+
+| Store | Role | Access |
+|---|---|---|
+| ReadySetRentables source DB | real application/source data | read-only from Daedalus; no schema changes; no writes |
+| Daedalus metadata DB | workflow runs, workflow steps, artifact records, model invocation records, evaluation/comparison artifact records | Daedalus read/write metadata only |
+| Daedalus artifact directory | `rsr_source_extract.json`, `review_insights.json`, `neighborhood_profile.md`/`.json`, evaluation reports, comparison reports | local artifact files |
+
+The RSR source DB remains the application system of record. Daedalus should
+extract sanitized snapshots into artifacts first, then evaluate and inspect those
+artifacts before any downstream model or workflow expansion.
+
+## Target Future Flow
+
+```text
+ReadySetRentables source DB
+  -> RsrSourceReadOnlyRepository
+  -> RsrSourceExtractionResult
+  -> rsr_source_extract.json
+  -> evaluate-rsr-source-extract
+  -> future review insight extraction input
+  -> future review_insights.json
+```
+
+Phase 8 already provides the source extraction models, artifact writer,
+synthetic fixture, deterministic evaluator, `evaluate-rsr-source-extract` CLI,
+and file-only `source-extract-check`. Phase 10 should connect the real source DB
+to those existing domain models without changing generic Daedalus infrastructure
+or adding model-provider calls.
+
+## Proposed Adapter
+
+The future adapter should be named:
+
+- `RsrSourceReadOnlyRepository`
+
+Responsibilities:
+
+- accept an `RsrSourceExtractionRequest`
+- execute read-only queries
+- return an `RsrSourceExtractionResult`
+- map raw DB rows into sanitized domain models:
+  `RsrSourceReviewRecord`, `RsrSourceListingContext`, and
+  `RsrSourceNeighborhoodContext`
+- avoid writes, deletes, updates, schema changes, temp table mutations, and
+  migrations
+- avoid logging secrets, DSNs, raw private data, or full review dumps
+- expose clear safe errors without connection strings or passwords
+
+The adapter belongs under the ReadySetRentables domain package. Generic
+orchestrator, artifact, persistence, model-client, and evaluation
+infrastructure should remain generic.
+
+## Proposed Settings Boundary
+
+Future settings should be separate from the Daedalus metadata DB settings. The
+names below are conceptual placeholders for later implementation, not values and
+not settings added in this step:
+
+- `RSR_SOURCE_POSTGRES_HOST`
+- `RSR_SOURCE_POSTGRES_PORT`
+- `RSR_SOURCE_POSTGRES_DB`
+- `RSR_SOURCE_POSTGRES_USER`
+- `RSR_SOURCE_POSTGRES_PASSWORD`
+
+Rules:
+
+- do not add these settings in this documentation step
+- real values belong only in local untracked `.env`
+- prefer a dedicated read-only database user
+- do not commit RSR source DB credentials
+- do not reuse Daedalus metadata DB settings for the RSR source DB
+
+## Schema Discovery Plan
+
+Before writing adapter SQL, inspect the real RSR DB schema using read-only
+metadata queries. Capture only schema-level notes needed to design safe
+extraction. Do not commit private hostnames, DSNs, credentials, private data, or
+raw review contents.
+
+Discovery categories:
+
+- candidate review tables
+- candidate listing tables
+- candidate neighborhood/location tables
+- useful columns for review text, rating, listing ID, market, neighborhood,
+  bedrooms, bathrooms, accommodates, and average rating
+- row counts and sample-safe metadata only
+
+Do not commit real table names unless they are safe to document and already
+approved for committed docs. Do not add real extraction SQL until the schema
+discovery results are reviewed.
+
+## Test Strategy
+
+- unit tests use fake rows and fake repository fixtures
+- `make check` remains DB-free, Docker-free, Ollama-free, and network-free
+- `source-extract-check` remains file-only
+- any future DB-backed source extraction check is optional and guarded by local
+  untracked `.env`
+- any future DB-backed source extraction check is not called by `make check`
+
+The first implementation should prove mapping and sanitization with fake data
+before connecting to the real RSR source DB.
+
+## Safety Rules
+
+- prefer a dedicated read-only DB user
+- perform no writes to the RSR source DB
+- commit no real data
+- include no raw review dumps in tests
+- include no private IPs, hostnames, passwords, DSNs, or `.env` values in docs
+- sanitize and minimize extracted fields
+- produce artifacts first
+- do not write generated results back to RSR in Phase 10
+
+## Intentionally Deferred
+
+This design step does not add:
+
+- actual RSR source DB settings implementation
+- connection helper
+- repository implementation
+- SQL queries
+- real extraction CLI
+- `rsr-source-extract-db-check`
+- workflow or LangGraph wiring
+- review insight agent
+- Claude/Anthropic provider
+- writing generated profiles back to RSR
+

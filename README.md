@@ -179,13 +179,15 @@ placeholders, deterministic evaluator shells) is complete. Phase 8 (read-only
 source extraction boundary: source models, `rsr_source_extract` artifact type
 and writer, synthetic fixture, deterministic evaluator, CLI command, and local
 make check) is complete for its offline scope. Phase 9 metadata Postgres
-readiness is verified on the UM790. Next work is the real RSR read-only source
-DB adapter; full RSR workflow wiring and provider expansion remain deferred.
+readiness is verified on the UM790. Phase 10 starts the real RSR read-only
+source DB adapter plan; full RSR workflow wiring and provider expansion remain
+deferred.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
 - Phase 8 design: [`docs/phase-8-rsr-source-extraction.md`](docs/phase-8-rsr-source-extraction.md)
 - Phase 9 readiness: [`docs/phase-9-homelab-postgres-readiness.md`](docs/phase-9-homelab-postgres-readiness.md)
+- Phase 10 adapter plan: [`docs/phase-10-rsr-source-db-adapter.md`](docs/phase-10-rsr-source-db-adapter.md)
 - Observability and `show-run`: [`docs/observability.md`](docs/observability.md)
 - Token and cost governance: [`docs/token-cost-governance.md`](docs/token-cost-governance.md)
 - Model-client architecture: [`docs/model-client-architecture.md`](docs/model-client-architecture.md)
