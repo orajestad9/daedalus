@@ -107,6 +107,18 @@ The mappers do not contain SQL, connect to the real RSR database, print row
 contents, or implement repository/query behavior. Repository and query
 implementation is still deferred.
 
+## Repository Boundary
+
+`RsrSourceReadOnlyRepository` now exists as a skeleton for future source
+extraction. It accepts an injected connection, does not open connections itself,
+does not own credentials or settings, and does not implement real RSR SQL yet.
+
+`extract_source_data(...)` intentionally raises `NotImplementedError` until real
+query implementation is added. The `ensure_read_only_query(...)` guardrail also
+exists for future repository SQL; it allows apparent `SELECT`/`WITH` queries and
+rejects obvious write or schema mutation keywords. This guardrail is not a full
+SQL parser or a security boundary.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only
@@ -154,7 +166,6 @@ before connecting to the real RSR source DB.
 
 This design step does not add:
 
-- repository implementation
 - SQL queries
 - real extraction CLI
 - `rsr-source-extract-db-check`
