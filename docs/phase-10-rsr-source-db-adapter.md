@@ -65,11 +65,12 @@ The adapter belongs under the ReadySetRentables domain package. Generic
 orchestrator, artifact, persistence, model-client, and evaluation
 infrastructure should remain generic.
 
-## Proposed Settings Boundary
+## Settings Boundary
 
-Future settings should be separate from the Daedalus metadata DB settings. The
-names below are conceptual placeholders for later implementation, not values and
-not settings added in this step:
+`RsrSourcePostgresSettings` now defines the future RSR source DB settings shape,
+and `load_rsr_source_postgres_settings(...)` reads required
+`RSR_SOURCE_POSTGRES_*` variables without connecting to a database. These
+settings are separate from the Daedalus metadata DB `POSTGRES_*` settings.
 
 - `RSR_SOURCE_POSTGRES_HOST`
 - `RSR_SOURCE_POSTGRES_PORT`
@@ -79,11 +80,11 @@ not settings added in this step:
 
 Rules:
 
-- do not add these settings in this documentation step
 - real values belong only in local untracked `.env`
 - prefer a dedicated read-only database user
 - do not commit RSR source DB credentials
 - do not reuse Daedalus metadata DB settings for the RSR source DB
+- no connection helper, SQL, repository, CLI, or DB-backed check exists yet
 
 ## Schema Discovery Plan
 
@@ -132,7 +133,6 @@ before connecting to the real RSR source DB.
 
 This design step does not add:
 
-- actual RSR source DB settings implementation
 - connection helper
 - repository implementation
 - SQL queries
@@ -142,4 +142,3 @@ This design step does not add:
 - review insight agent
 - Claude/Anthropic provider
 - writing generated profiles back to RSR
-
