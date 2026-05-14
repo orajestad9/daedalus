@@ -1,8 +1,8 @@
 # Phase 9: Homelab Postgres Readiness
 
-Phase 9 validates the UM790 / homelab environment for Daedalus metadata
+Phase 9 validated the UM790 / homelab environment for Daedalus metadata
 Postgres before Daedalus touches the real ReadySetRentables source database.
-This phase is about proving that the local-first Daedalus runtime can persist
+This phase proved that the local-first Daedalus runtime can persist
 workflow metadata safely on the homelab host. It is not real RSR extraction.
 
 ## Database Boundary
@@ -69,8 +69,8 @@ A LangGraph/LangChain pending deprecation warning may appear during checks. It
 is dependency-level and is not currently blocking.
 
 This verifies Daedalus metadata DB readiness only. It does not verify the real
-ReadySetRentables source database, add RSR source extraction SQL, or wire the
-multi-agent workflow.
+ReadySetRentables source database, add RSR source extraction SQL, add a source
+repository/adapter, or wire the multi-agent workflow.
 
 ## UM790 Metadata DB Runbook
 
@@ -80,6 +80,7 @@ Postgres setup.
 Setup checklist:
 
 - clone the repo under `~/apps/daedalus`
+- pull committed changes from GitHub when updating an existing UM790 checkout
 - create `.venv`
 - install dependencies
 - run `python -m pip install -e .` from the repo root
@@ -94,6 +95,7 @@ Useful commands:
 
 ```sh
 cd ~/apps/daedalus
+git pull
 source .venv/bin/activate
 python -m pip show daedalus
 .venv/bin/daedalus --help

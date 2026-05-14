@@ -267,13 +267,13 @@ See `docs/phase-8-rsr-source-extraction.md` for the Phase 8 design baseline.
 
 ### Phase 9: Homelab / Daedalus Metadata Postgres Readiness
 
-The Daedalus metadata DB readiness portion of Phase 9 is verified. Phase 9
-validates the UM790 / homelab environment for Daedalus metadata Postgres before
-touching the real ReadySetRentables source database. The completed metadata DB
-readiness work proves local metadata persistence, migrations, workflow run
-inspection, artifact records, model invocation records, evaluation report
-artifact records, and comparison report artifact records on the homelab host
-while keeping RSR source extraction deferred.
+Phase 9 is complete for Daedalus metadata DB readiness. It validated the UM790 /
+homelab environment for Daedalus metadata Postgres before touching the real
+ReadySetRentables source database. The completed metadata DB readiness work
+proves local metadata persistence, migrations, workflow run inspection, artifact
+records, model invocation records, evaluation report artifact records, and
+comparison report artifact records on the homelab host while keeping RSR source
+extraction deferred.
 
 Verified Phase 9 metadata DB readiness:
 
@@ -299,6 +299,20 @@ cloud provider support, or write-back behavior.
 
 See `docs/phase-9-homelab-postgres-readiness.md` for the Phase 9 readiness
 baseline and homelab workflow rules.
+
+### Next Phase: RSR Read-Only Source DB Adapter
+
+The next RSR phase should plan and implement the real read-only source database
+adapter behind the Phase 8 boundary. That work should stay scoped to source DB
+connectivity, read-only repository/adapter behavior, safe SQL extraction, and an
+explicit DB-backed RSR source extraction check.
+
+Still deferred beyond that adapter work:
+
+- Claude/Anthropic provider support
+- full multi-agent workflow wiring
+- writing results back to ReadySetRentables
+- cloud provider clients and provider SDK expansion
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade
