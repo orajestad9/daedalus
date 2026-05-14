@@ -96,6 +96,17 @@ The helper does not run SQL, verify schema, mutate the RSR database, print
 connection details, or expose the raw password in failure messages. Repository
 and query implementation is still deferred.
 
+## Mapper Boundary
+
+Source DB mapper helpers now exist for converting already-fetched row
+dictionaries into RSR source extraction domain models. They map review rows,
+listing rows, neighborhood rows, and complete row groups into
+`RsrSourceExtractionResult`.
+
+The mappers do not contain SQL, connect to the real RSR database, print row
+contents, or implement repository/query behavior. Repository and query
+implementation is still deferred.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only
