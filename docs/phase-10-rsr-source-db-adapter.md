@@ -84,7 +84,17 @@ Rules:
 - prefer a dedicated read-only database user
 - do not commit RSR source DB credentials
 - do not reuse Daedalus metadata DB settings for the RSR source DB
-- no connection helper, SQL, repository, CLI, or DB-backed check exists yet
+
+## Connection Boundary
+
+`connect_rsr_source_postgres(...)` now exists as the RSR source DB connection
+helper. It is separate from the Daedalus metadata DB connection helper, accepts
+`RsrSourcePostgresSettings`, passes keyword arguments instead of a
+password-bearing DSN, and supports injected connection callables in tests.
+
+The helper does not run SQL, verify schema, mutate the RSR database, print
+connection details, or expose the raw password in failure messages. Repository
+and query implementation is still deferred.
 
 ## Schema Discovery Plan
 
@@ -133,7 +143,6 @@ before connecting to the real RSR source DB.
 
 This design step does not add:
 
-- connection helper
 - repository implementation
 - SQL queries
 - real extraction CLI
