@@ -48,6 +48,30 @@ The verified `show-run` path displayed persisted artifacts and one fake model
 invocation for the LangGraph workflow without exposing raw artifact contents or
 raw prompt/model output text in committed documentation.
 
+## Verified UM790 DB-Backed Checks
+
+The Daedalus metadata DB readiness portion of Phase 9 is verified on the UM790:
+
+- `make db-check`: passed
+- `make fake-summary-db-check`: passed
+- `make evaluation-db-check`: passed
+- `make comparison-db-check`: passed
+- `docker compose ps` after checks: clean, with no Daedalus services running
+
+Together these checks prove that Daedalus metadata Postgres is usable on the
+UM790. They verify migrations, workflow run and step persistence, artifact
+persistence, fake model invocation persistence, evaluation report artifact
+recording, evaluation comparison report artifact recording, `list-runs`,
+`show-run` inspection of persisted runs and metadata, and db-down/cleanup
+behavior.
+
+A LangGraph/LangChain pending deprecation warning may appear during checks. It
+is dependency-level and is not currently blocking.
+
+This verifies Daedalus metadata DB readiness only. It does not verify the real
+ReadySetRentables source database, add RSR source extraction SQL, or wire the
+multi-agent workflow.
+
 ## UM790 Metadata DB Runbook
 
 Use this checklist to repeat or troubleshoot the UM790 Daedalus metadata

@@ -267,24 +267,30 @@ See `docs/phase-8-rsr-source-extraction.md` for the Phase 8 design baseline.
 
 ### Phase 9: Homelab / Daedalus Metadata Postgres Readiness
 
-Phase 9 is active. It validates the UM790 / homelab environment for Daedalus
-metadata Postgres before touching the real ReadySetRentables source database.
-The goal is to prove local metadata persistence, migrations, workflow run
-inspection, artifact records, and model invocation records on the homelab host
+The Daedalus metadata DB readiness portion of Phase 9 is verified. Phase 9
+validates the UM790 / homelab environment for Daedalus metadata Postgres before
+touching the real ReadySetRentables source database. The completed metadata DB
+readiness work proves local metadata persistence, migrations, workflow run
+inspection, artifact records, model invocation records, evaluation report
+artifact records, and comparison report artifact records on the homelab host
 while keeping RSR source extraction deferred.
 
-Current Phase 9 progress:
+Verified Phase 9 metadata DB readiness:
 
 - Daedalus is cloned under `~/apps/daedalus` on the UM790
 - the UM790 repo is clean and current on `main`
 - Python virtual environment setup and editable install have been verified
 - Docker and Docker Compose are available
 - Daedalus metadata Postgres starts successfully from a local untracked `.env`
-- migrations apply successfully
 - `make check` passes
-- `make db-check` passes, including deterministic and LangGraph persisted
-  workflow runs, artifact persistence, model invocation persistence,
-  `list-runs`, and `show-run`
+- `make db-check` passes
+- `make fake-summary-db-check` passes
+- `make evaluation-db-check` passes
+- `make comparison-db-check` passes
+- migrations, deterministic and LangGraph persisted workflow runs, artifact
+  persistence, fake model invocation persistence, evaluation/comparison
+  artifact recording, `list-runs`, `show-run`, and cleanup behavior are
+  verified
 
 Real RSR source database extraction remains a future phase. Phase 9 does not add
 source DB connection code, SQL, read-only repository/adapter code, DB-backed RSR

@@ -179,8 +179,8 @@ placeholders, deterministic evaluator shells) is complete. Phase 8 (read-only
 source extraction boundary: source models, `rsr_source_extract` artifact type
 and writer, synthetic fixture, deterministic evaluator, CLI command, and local
 make check) is complete for its offline scope. Phase 9 is validating homelab
-Daedalus metadata Postgres readiness; real RSR database extraction remains
-deferred.
+Daedalus metadata Postgres readiness, with the metadata DB path now verified on
+the UM790; real RSR database extraction remains deferred.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
