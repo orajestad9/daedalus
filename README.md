@@ -178,12 +178,14 @@ pipeline modeling: domain contracts, artifact types and writers, prompt
 placeholders, deterministic evaluator shells) is complete. Phase 8 (read-only
 source extraction boundary: source models, `rsr_source_extract` artifact type
 and writer, synthetic fixture, deterministic evaluator, CLI command, and local
-make check) is complete for its offline scope; real RSR database extraction,
-SQL, and DB-backed checks remain deferred until homelab access.
+make check) is complete for its offline scope. Phase 9 is validating homelab
+Daedalus metadata Postgres readiness; real RSR database extraction remains
+deferred.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
 - Phase 8 design: [`docs/phase-8-rsr-source-extraction.md`](docs/phase-8-rsr-source-extraction.md)
+- Phase 9 readiness: [`docs/phase-9-homelab-postgres-readiness.md`](docs/phase-9-homelab-postgres-readiness.md)
 - Observability and `show-run`: [`docs/observability.md`](docs/observability.md)
 - Token and cost governance: [`docs/token-cost-governance.md`](docs/token-cost-governance.md)
 - Model-client architecture: [`docs/model-client-architecture.md`](docs/model-client-architecture.md)
