@@ -146,6 +146,19 @@ summary. It does not persist anything to the Daedalus metadata DB yet.
 This command is not called by `make check`. No Makefile DB-backed source
 extraction target exists yet.
 
+## First Read-Only Smoke Test
+
+A manual UM790 smoke test successfully extracted a small source snapshot with
+`market_name` set to `"san-diego"` and `--max-reviews 10`. The command wrote
+`rsr_source_extract.json` and reported `review_count=10`, `listing_count=1`,
+and `neighborhood_present=true`.
+
+This confirms the read-only RSR source DB path works at a small scale. Do not
+commit or document real review text or private source data. The
+`synthetic_fixture_marker` evaluator check is now a fixture-vs-real
+classification warning for source extracts without synthetic markers, not a
+failed quality check for valid real extracts.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only

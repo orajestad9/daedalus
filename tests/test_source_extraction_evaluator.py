@@ -85,6 +85,17 @@ def test_valid_fixture_passes_required_checks(tmp_path: Path) -> None:
     assert statuses["synthetic_fixture_marker"] == EvaluationStatus.PASSED
 
 
+def test_valid_synthetic_fixture_marker_check_has_info_severity(tmp_path: Path) -> None:
+    path, _ = _write_valid_fixture(tmp_path)
+
+    report = evaluate_rsr_source_extract_json(source_extract_path=path)
+
+    check = _find_check(report.checks, "synthetic_fixture_marker")
+    assert check.status == EvaluationStatus.PASSED
+    assert check.severity == EvaluationSeverity.INFO
+    assert "Synthetic fixture markers are present." in check.message
+
+
 def test_missing_artifact_produces_failed_artifact_exists_check(tmp_path: Path) -> None:
     path = tmp_path / "missing.json"
 
@@ -184,18 +195,57 @@ def test_missing_neighborhood_produces_warning_contains_neighborhood_context_che
     assert check.severity == EvaluationSeverity.WARNING
 
 
-def test_missing_synthetic_fixture_marker_produces_warning(tmp_path: Path) -> None:
-    path = tmp_path / "rsr_source_extract.json"
-    write_rsr_source_extract_json(
-        result=_result(metadata={"source": "other"}),
-        output_path=path,
-    )
+def test_real_style_artifact_without_synthetic_marker_produces_warning_status(
+    tmp_path: Path,
+) -> None:
+    path = _write_real_style_source_extract(tmp_path)
 
     report = evaluate_rsr_source_extract_json(source_extract_path=path)
 
     check = _find_check(report.checks, "synthetic_fixture_marker")
-    assert check.status == EvaluationStatus.FAILED
+    assert check.status == EvaluationStatus.WARNING
     assert check.severity == EvaluationSeverity.WARNING
+    assert "may represent real source data" in check.message
+
+
+def test_real_style_artifact_without_synthetic_marker_has_no_failed_marker_check(
+    tmp_path: Path,
+) -> None:
+    path = _write_real_style_source_extract(tmp_path)
+
+    report = evaluate_rsr_source_extract_json(source_extract_path=path)
+
+    check = _find_check(report.checks, "synthetic_fixture_marker")
+    assert check.status != EvaluationStatus.FAILED
+
+
+def test_valid_real_style_artifact_has_zero_failed_count(tmp_path: Path) -> None:
+    path = _write_real_style_source_extract(tmp_path)
+
+    report = evaluate_rsr_source_extract_json(source_extract_path=path)
+
+    assert report.failed_count == 0
+
+
+def test_valid_real_style_artifact_report_passed_remains_true(tmp_path: Path) -> None:
+    path = _write_real_style_source_extract(tmp_path)
+
+    report = evaluate_rsr_source_extract_json(source_extract_path=path)
+
+    assert report.passed is True
+
+
+def test_synthetic_fixture_marker_messages_do_not_include_artifact_contents(
+    tmp_path: Path,
+) -> None:
+    path = _write_real_style_source_extract(tmp_path)
+
+    report = evaluate_rsr_source_extract_json(source_extract_path=path)
+
+    messages = "\n".join(check.message for check in report.checks)
+    assert "Synthetic review: nice location." not in messages
+    assert "synthetic-review-001" not in messages
+    assert "synthetic-listing-001" not in messages
 
 
 def test_empty_metadata_produces_warning_contains_source_metadata_check(
@@ -252,6 +302,20 @@ def _write_valid_fixture(tmp_path: Path) -> tuple[Path, UUID]:
         output_path=path,
     )
     return path, run_id
+
+
+def _write_real_style_source_extract(tmp_path: Path) -> Path:
+    path = tmp_path / "rsr_source_extract.json"
+    write_rsr_source_extract_json(
+        result=_result(
+            metadata={
+                "extraction_mode": "read_only",
+                "repository": "RsrSourceReadOnlyRepository",
+            }
+        ),
+        output_path=path,
+    )
+    return path
 
 
 def _result(

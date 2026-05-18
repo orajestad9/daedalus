@@ -210,11 +210,11 @@ def _synthetic_fixture_marker_check(
     if result.metadata.get("fixture") == "true" and result.metadata.get("source") == "synthetic":
         return _passed(
             "synthetic_fixture_marker",
-            "Artifact is marked as synthetic fixture data.",
+            "Synthetic fixture markers are present.",
         )
-    return _failed_warning(
+    return _warning(
         "synthetic_fixture_marker",
-        "Artifact does not carry synthetic fixture markers.",
+        "Artifact does not carry synthetic fixture markers and may represent real source data.",
     )
 
 
@@ -233,6 +233,21 @@ def _skipped(check_name: str, message: str) -> EvaluationCheckResult:
         status=EvaluationStatus.SKIPPED,
         severity=EvaluationSeverity.INFO,
         message=message,
+    )
+
+
+def _warning(
+    check_name: str,
+    message: str,
+    *,
+    details: dict[str, str] | None = None,
+) -> EvaluationCheckResult:
+    return EvaluationCheckResult(
+        check_name=check_name,
+        status=EvaluationStatus.WARNING,
+        severity=EvaluationSeverity.WARNING,
+        message=message,
+        details=details or {},
     )
 
 
