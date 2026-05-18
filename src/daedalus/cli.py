@@ -1,13 +1,22 @@
 import argparse
+import json
 from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from daedalus.config import load_postgres_settings
 from daedalus.domains.readysetrentables_reviews.artifacts import load_review_batch_json
 from daedalus.domains.readysetrentables_reviews.graph_workflow import (
     run_readysetrentables_review_graph,
+)
+from daedalus.domains.readysetrentables_reviews.review_insight_input_builder import (
+    build_review_insight_extraction_input_from_source_extract,
+)
+from daedalus.domains.readysetrentables_reviews.review_insight_models import (
+    ReviewInsightExtractionInput,
 )
 from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
     ReviewThemeSummaryAgent,
@@ -32,6 +41,7 @@ from daedalus.domains.readysetrentables_reviews.source_extraction_artifacts impo
 )
 from daedalus.domains.readysetrentables_reviews.source_extraction_models import (
     RsrSourceExtractionRequest,
+    RsrSourceExtractionResult,
 )
 from daedalus.domains.readysetrentables_reviews.source_readonly_repository import (
     RsrSourceReadOnlyRepository,
@@ -90,6 +100,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 DEFAULT_RSR_SOURCE_EXTRACT_PATH = Path("artifacts/readysetrentables/rsr_source_extract.json")
+DEFAULT_REVIEW_INSIGHT_INPUT_PATH = Path(
+    "artifacts/readysetrentables/review_insight_extraction_input.json"
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -449,6 +462,44 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{str(source_extract_result.neighborhood is not None).lower()}",
             ]
         )
+        print(" ".join(summary_parts))
+        return 0
+
+    if args.command == "build-review-insight-input":
+        try:
+            source_extract_result = _load_rsr_source_extract_json(args.source_extract)
+            review_insight_input = build_review_insight_extraction_input_from_source_extract(
+                source_extract=source_extract_result,
+                run_id=args.run_id,
+                source_artifact_path=args.source_artifact_path,
+                max_representative_reviews=args.max_representative_reviews,
+            )
+            review_insight_input_path = _write_review_insight_input_json(
+                review_insight_input=review_insight_input,
+                output_path=args.output_json,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            parser.error(str(exc))
+
+        summary_parts = [
+            "Wrote review insight extraction input",
+            f"output={review_insight_input_path}",
+        ]
+        if review_insight_input.market_name is not None:
+            summary_parts.append(f"market_name={review_insight_input.market_name}")
+        if review_insight_input.neighborhood_name is not None:
+            summary_parts.append(f"neighborhood_name={review_insight_input.neighborhood_name}")
+        if review_insight_input.property_type is not None:
+            summary_parts.append(f"property_type={review_insight_input.property_type}")
+        summary_parts.extend(
+            [
+                f"review_count={review_insight_input.review_count}",
+                f"representative_review_count={len(review_insight_input.representative_reviews)}",
+            ]
+        )
+        if review_insight_input.average_rating is not None:
+            summary_parts.append(f"average_rating={review_insight_input.average_rating}")
+        summary_parts.append(f"rating_category_count={len(review_insight_input.rating_categories)}")
         print(" ".join(summary_parts))
         return 0
 
@@ -896,6 +947,41 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path where rsr_source_extract.json should be written.",
     )
 
+    build_review_insight_input = subparsers.add_parser(
+        "build-review-insight-input",
+        help="Build ReviewInsightExtractionInput JSON from an rsr_source_extract.json artifact.",
+    )
+    build_review_insight_input.add_argument(
+        "--source-extract",
+        required=True,
+        type=Path,
+        help="Path to an existing rsr_source_extract.json artifact.",
+    )
+    build_review_insight_input.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional workflow run UUID for the review insight input.",
+    )
+    build_review_insight_input.add_argument(
+        "--source-artifact-path",
+        default=None,
+        type=Path,
+        help="Optional artifact path to preserve in the review insight input.",
+    )
+    build_review_insight_input.add_argument(
+        "--max-representative-reviews",
+        default=25,
+        type=_non_negative_int_arg,
+        help="Maximum number of representative review texts to include.",
+    )
+    build_review_insight_input.add_argument(
+        "--output-json",
+        default=DEFAULT_REVIEW_INSIGHT_INPUT_PATH,
+        type=Path,
+        help="Path where review_insight_extraction_input.json should be written.",
+    )
+
     evaluate_review_theme_summary = subparsers.add_parser(
         "evaluate-review-theme-summary",
         help="Evaluate a review_theme_summary.md artifact with deterministic local checks.",
@@ -1203,6 +1289,35 @@ def _run_ollama_smoke_check(
         input_artifact_path=Path("prompts/ollama_smoke_check/v0"),
     )
     return client.complete(request)
+
+
+def _load_rsr_source_extract_json(source_extract_path: Path) -> RsrSourceExtractionResult:
+    if not source_extract_path.is_file():
+        msg = f"RSR source extract artifact path does not exist: {source_extract_path}"
+        raise FileNotFoundError(msg)
+
+    try:
+        parsed = json.loads(source_extract_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = "RSR source extract artifact is not valid JSON."
+        raise ValueError(msg) from exc
+
+    try:
+        return RsrSourceExtractionResult.model_validate(parsed)
+    except ValidationError as exc:
+        msg = "RSR source extract artifact does not match the expected schema."
+        raise ValueError(msg) from exc
+
+
+def _write_review_insight_input_json(
+    *,
+    review_insight_input: ReviewInsightExtractionInput,
+    output_path: Path,
+) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.loads(review_insight_input.model_dump_json())
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return output_path
 
 
 def _default_evaluation_json_path(summary_path: Path) -> Path:

@@ -258,6 +258,22 @@ The builder is pure transformation logic. It does not call Ollama or any
 `ModelClient`, does not connect to a database, does not add CLI or LangGraph
 wiring, and does not print review text or artifact contents.
 
+The transformation can also be run manually from an existing source extract
+artifact:
+
+```bash
+.venv/bin/daedalus build-review-insight-input \
+  --source-extract artifacts/readysetrentables/rsr_source_extract.json \
+  --max-representative-reviews 25 \
+  --output-json artifacts/readysetrentables/review_insight_extraction_input.json
+```
+
+This command is deterministic and file-only. It does not connect to the RSR
+database, does not call Ollama or any model provider, and only prepares input
+for a future review insight extraction agent. The output artifact may contain
+representative review text, so do not print it or commit real generated
+artifacts casually.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only

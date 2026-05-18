@@ -11,6 +11,9 @@ from daedalus.cli import main
 from daedalus.config import PostgresSettings
 from daedalus.domains.readysetrentables_reviews.artifacts import write_review_batch_json
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.domains.readysetrentables_reviews.review_insight_models import (
+    ReviewInsightExtractionInput,
+)
 from daedalus.domains.readysetrentables_reviews.source_db_settings import (
     RsrSourcePostgresSettings,
 )
@@ -1984,6 +1987,333 @@ def test_evaluate_rsr_source_extract_command_does_not_print_artifact_contents(
     assert "Synthetic review:" not in output
     assert "Synthetic Studio Listing" not in output
     assert "Sample Neighborhood" not in output
+
+
+def test_build_review_insight_input_succeeds_for_valid_source_extract_artifact(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "review_insight_extraction_input.json"
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    data = _read_json(output_json_path)
+    model = ReviewInsightExtractionInput.model_validate(data)
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    assert model.review_count == 3
+    assert len(model.representative_reviews) == 3
+    assert f"output={output_json_path}" in output
+    assert "review_count=3" in output
+    assert "representative_review_count=3" in output
+    assert "rating_category_count=0" in output
+
+
+def test_build_review_insight_input_default_output_path_is_created(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+        ]
+    )
+
+    output_path = Path("artifacts/readysetrentables/review_insight_extraction_input.json")
+    assert exit_code == 0
+    assert output_path.is_file()
+
+
+def test_build_review_insight_input_output_json_writes_custom_path(tmp_path: Path) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "custom" / "input.json"
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert output_json_path.is_file()
+    ReviewInsightExtractionInput.model_validate(_read_json(output_json_path))
+
+
+def test_build_review_insight_input_run_id_is_preserved_in_output_json(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "input.json"
+    run_id = uuid4()
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--run-id",
+            str(run_id),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["run_id"] == str(run_id)
+
+
+def test_build_review_insight_input_source_artifact_path_is_preserved(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "input.json"
+    source_artifact_path = Path("artifacts/readysetrentables/rsr_source_extract.json")
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--source-artifact-path",
+            str(source_artifact_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert Path(data["source_artifact_path"]) == source_artifact_path
+
+
+def test_build_review_insight_input_max_representative_reviews_limits_reviews(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "input.json"
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--max-representative-reviews",
+            "2",
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert len(data["representative_reviews"]) == 2
+
+
+def test_build_review_insight_input_allows_zero_representative_reviews(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "input.json"
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--max-representative-reviews",
+            "0",
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert data["representative_reviews"] == []
+
+
+def test_build_review_insight_input_negative_max_representative_reviews_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "build-review-insight-input",
+                "--source-extract",
+                str(source_extract_path),
+                "--max-representative-reviews",
+                "-1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_build_review_insight_input_missing_source_extract_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "build-review-insight-input",
+                "--source-extract",
+                str(tmp_path / "missing_rsr_source_extract.json"),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_build_review_insight_input_invalid_json_fails_cleanly_without_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = tmp_path / "rsr_source_extract.json"
+    source_extract_path.write_text("{Synthetic review: not valid json", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["build-review-insight-input", "--source-extract", str(source_extract_path)])
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "not valid JSON" in combined_output
+    assert "Synthetic review:" not in combined_output
+
+
+def test_build_review_insight_input_schema_invalid_json_fails_cleanly_without_contents(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = tmp_path / "rsr_source_extract.json"
+    source_extract_path.write_text(
+        json.dumps({"review_text": "Synthetic review: hidden body"}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["build-review-insight-input", "--source-extract", str(source_extract_path)])
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "expected schema" in combined_output
+    assert "Synthetic review:" not in combined_output
+
+
+def test_build_review_insight_input_invalid_run_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "build-review-insight-input",
+                "--source-extract",
+                str(source_extract_path),
+                "--run-id",
+                "not-a-uuid",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_build_review_insight_input_command_output_includes_safe_summary_counts(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+    output_json_path = tmp_path / "input.json"
+
+    exit_code = main(
+        [
+            "build-review-insight-input",
+            "--source-extract",
+            str(source_extract_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert f"output={output_json_path}" in output
+    assert "review_count=3" in output
+    assert "representative_review_count=3" in output
+    assert "rating_category_count=0" in output
+
+
+def test_build_review_insight_input_command_does_not_print_review_text(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    exit_code = main(["build-review-insight-input", "--source-extract", str(source_extract_path)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synthetic review:" not in output
+    assert "Synthetic Studio Listing" not in output
+
+
+def test_build_review_insight_input_does_not_connect_to_db(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        msg = "Database connections should not be opened"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+
+    exit_code = main(["build-review-insight-input", "--source-extract", str(source_extract_path)])
+
+    assert exit_code == 0
+
+
+def test_build_review_insight_input_does_not_call_model_providers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_extract_path = _write_rsr_source_extract_artifact(tmp_path)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        msg = "Model providers should not be created"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    exit_code = main(["build-review-insight-input", "--source-extract", str(source_extract_path)])
+
+    assert exit_code == 0
 
 
 def test_compare_review_theme_summaries_succeeds_for_valid_artifacts(

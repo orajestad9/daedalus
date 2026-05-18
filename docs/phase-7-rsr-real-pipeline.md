@@ -98,6 +98,11 @@ the read-only RSR source extraction artifact shape to the future local Ollama
 review insight extraction agent without calling a model provider, connecting to
 a database, or wiring the step into LangGraph.
 
+The same transformation can now be run manually with the file-only
+`build-review-insight-input` CLI command. The command prepares
+`review_insight_extraction_input.json` from an existing `rsr_source_extract.json`
+artifact, but it still does not call Ollama or execute the future agent.
+
 ### Review Insights Artifact Type And Writer
 
 `ArtifactType.REVIEW_INSIGHTS` (`"review_insights"`) is now a recognized generic
