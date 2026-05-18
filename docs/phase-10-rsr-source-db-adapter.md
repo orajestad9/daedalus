@@ -159,6 +159,23 @@ commit or document real review text or private source data. The
 classification warning for source extracts without synthetic markers, not a
 failed quality check for valid real extracts.
 
+## Manual Artifact Recording CLI
+
+An existing source extract file can be recorded against an existing workflow run
+with:
+
+```bash
+.venv/bin/daedalus record-rsr-source-extract-artifact \
+  --run-id <run-id> \
+  --path artifacts/readysetrentables/rsr_source_extract.json
+```
+
+This command is manual. It records the existing file as
+`ArtifactType.RSR_SOURCE_EXTRACT` in the Daedalus metadata DB. It uses the
+Daedalus metadata DB connection, not the RSR source DB connection, and it does
+not extract data or print source extract contents. After recording, `show-run`
+can display the artifact with the rest of the workflow run metadata.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only

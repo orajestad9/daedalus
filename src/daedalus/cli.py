@@ -256,6 +256,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "record-rsr-source-extract-artifact":
+        try:
+            artifact_record = _record_rsr_source_extract_artifact(
+                run_id=args.run_id,
+                artifact_path=args.path,
+            )
+        except (FileNotFoundError, ValueError, WorkflowPersistenceError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Recorded RSR source extract artifact "
+            f"run_id={artifact_record.run_id} "
+            f"artifact_type={artifact_record.artifact_type.value} "
+            f"artifact_path={artifact_record.artifact_path}"
+        )
+        return 0
+
     if args.command == "summarize-review-themes-fake":
         try:
             run_id = args.run_id or uuid4()
@@ -720,6 +737,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to an existing evaluation comparison report artifact.",
     )
 
+    record_rsr_source_extract_artifact = subparsers.add_parser(
+        "record-rsr-source-extract-artifact",
+        help="Record an RSR source extract JSON artifact for a persisted workflow run.",
+    )
+    record_rsr_source_extract_artifact.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Workflow run UUID to attach the RSR source extract artifact to.",
+    )
+    record_rsr_source_extract_artifact.add_argument(
+        "--path",
+        required=True,
+        type=Path,
+        help="Path to an existing rsr_source_extract.json artifact.",
+    )
+
     summarize_review_themes_fake = subparsers.add_parser(
         "summarize-review-themes-fake",
         help="Run the review theme summary agent locally with FakeModelClient.",
@@ -1108,6 +1142,35 @@ def _record_evaluation_comparison_report_artifact(
     except Exception as exc:
         connection.rollback()
         msg = "Failed to record evaluation comparison report artifact"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
+
+    return artifact_record
+
+
+def _record_rsr_source_extract_artifact(
+    *,
+    run_id: UUID,
+    artifact_path: Path,
+) -> ArtifactRecord:
+    if not artifact_path.is_file():
+        msg = f"RSR source extract artifact path does not exist: {artifact_path}"
+        raise FileNotFoundError(msg)
+
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+    try:
+        artifact_record = ArtifactRecord.create(
+            run_id=run_id,
+            artifact_type=ArtifactType.RSR_SOURCE_EXTRACT,
+            artifact_path=artifact_path,
+        )
+        ArtifactRepository(connection).save(artifact_record)
+        connection.commit()
+    except Exception as exc:
+        connection.rollback()
+        msg = "Failed to record RSR source extract artifact"
         raise WorkflowPersistenceError(msg) from exc
     finally:
         connection.close()
