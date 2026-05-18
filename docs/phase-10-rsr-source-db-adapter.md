@@ -109,15 +109,21 @@ implementation is still deferred.
 
 ## Repository Boundary
 
-`RsrSourceReadOnlyRepository` now exists as a skeleton for future source
-extraction. It accepts an injected connection, does not open connections itself,
-does not own credentials or settings, and does not implement real RSR SQL yet.
+`RsrSourceReadOnlyRepository.extract_source_data(...)` now has a first
+read-only implementation. It accepts an injected connection, does not open
+connections itself, does not own credentials or settings, and maps
+`public.reviews`, `public.listings`, `public.neighborhoods`, and
+`public.markets` into `RsrSourceExtractionResult`.
 
-`extract_source_data(...)` intentionally raises `NotImplementedError` until real
-query implementation is added. The `ensure_read_only_query(...)` guardrail also
-exists for future repository SQL; it allows apparent `SELECT`/`WITH` queries and
-rejects obvious write or schema mutation keywords. This guardrail is not a full
-SQL parser or a security boundary.
+The repository uses parameterized `SELECT` queries and applies the
+`ensure_read_only_query(...)` guardrail before execution. The guardrail allows
+apparent `SELECT`/`WITH` queries and rejects obvious write or schema mutation
+keywords. This guardrail is not a full SQL parser or a security boundary.
+
+The first query implementation excludes `reviews.reviewer_name` and sensitive
+listing fields such as listing URLs, latitude/longitude, price, revenue, and
+occupancy from mapped metadata. Unit coverage uses fake connections and fake
+cursors only; it does not connect to the real RSR source database.
 
 ## Schema Discovery Plan
 
@@ -142,6 +148,8 @@ discovery results are reviewed.
 ## Test Strategy
 
 - unit tests use fake rows and fake repository fixtures
+- repository query tests use fake connections/cursors and capture SQL without
+  touching a real database
 - `make check` remains DB-free, Docker-free, Ollama-free, and network-free
 - `source-extract-check` remains file-only
 - any future DB-backed source extraction check is optional and guarded by local
@@ -150,6 +158,10 @@ discovery results are reviewed.
 
 The first implementation should prove mapping and sanitization with fake data
 before connecting to the real RSR source DB.
+
+No CLI command or DB-backed check exists yet. Real UM790 execution requires
+local `RSR_SOURCE_POSTGRES_*` settings and should be done in a later guarded
+step.
 
 ## Safety Rules
 
@@ -166,7 +178,6 @@ before connecting to the real RSR source DB.
 
 This design step does not add:
 
-- SQL queries
 - real extraction CLI
 - `rsr-source-extract-db-check`
 - workflow or LangGraph wiring
