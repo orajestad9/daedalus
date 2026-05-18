@@ -78,8 +78,7 @@ explanatory text.
 The parser does not call Ollama, does not call any `ModelClient`, does not
 persist raw model output, and does not print raw prompt or model text. It uses
 caller-supplied run, provider, model, prompt, token, and cost metadata rather
-than trusting model-provided metadata. Agent and CLI implementation remain
-deferred.
+than trusting model-provided metadata.
 
 ## Agent Boundary
 
@@ -89,14 +88,12 @@ deferred.
 with `parse_review_insight_extraction_result(...)`.
 
 The agent can be tested with fake model clients and does not instantiate
-`OllamaModelClient` directly. It does not add CLI commands, does not wire into
-LangGraph, and does not connect to any database. Manual Ollama CLI execution
-remains deferred.
+`OllamaModelClient` directly. It does not wire into LangGraph and does not
+connect to any database.
 
 ## Manual CLI Plan
 
-A future manual command could run the local Ollama review insight extraction
-step:
+The manual command for the local Ollama review insight extraction step is:
 
 ```bash
 .venv/bin/daedalus extract-review-insights-ollama \
@@ -105,13 +102,20 @@ step:
   --output-json artifacts/readysetrentables/review_insights.json
 ```
 
-This command is planned, not implemented yet. It should be explicit, local-only,
-and should require the operator to choose the Ollama model name.
+This command is implemented as a manual, explicit local-only step. It requires
+the operator to choose the Ollama model name and requires local Ollama to be
+running. It does not run under `make check`, does not wire Ollama into LangGraph
+or `run-workflow`, and does not call Claude/Anthropic.
 
-The command should print only safe metadata such as output path, provider,
+The command prints only safe metadata such as output path, provider,
 model name, prompt identity, theme count, token counts, and estimated cost when
-available. It should not print representative review text, raw prompt text, raw
+available. It does not print representative review text, raw prompt text, raw
 model output text, or artifact contents.
+
+Generated `review_insights.json` may contain AI-derived insights from real
+source data. When generated from real ReadySetRentables data, it should remain
+local and untracked unless a later guarded workflow explicitly scopes
+publication or persistence.
 
 ## Evaluation Path
 
@@ -143,7 +147,7 @@ model behind the `ModelClient` boundary.
 2. Add `ReviewInsightExtractionAgent` behind the `ModelClient` protocol. Done.
 3. Write fake-client tests first, including parser failure paths and metadata
    preservation.
-4. Add a manual local Ollama CLI command.
+4. Add a manual local Ollama CLI command. Done.
 5. Add a file-only local check that uses synthetic input and a fake model path.
 6. Add optional DB-backed artifact and invocation recording later.
 7. Wire source-derived review insight extraction into LangGraph later.

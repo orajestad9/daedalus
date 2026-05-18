@@ -13,6 +13,8 @@ from daedalus.domains.readysetrentables_reviews.artifacts import write_review_ba
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
     ReviewInsightExtractionInput,
+    ReviewInsightExtractionResult,
+    ReviewInsightTheme,
 )
 from daedalus.domains.readysetrentables_reviews.source_db_settings import (
     RsrSourcePostgresSettings,
@@ -2316,6 +2318,408 @@ def test_build_review_insight_input_does_not_call_model_providers(
     assert exit_code == 0
 
 
+def test_extract_review_insights_ollama_succeeds_with_mocked_agent_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    output_path = tmp_path / "review_insights.json"
+    state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert len(state.clients) == 1
+    assert len(state.agents) == 1
+    assert len(state.inputs) == 1
+    assert "Wrote Ollama review insights" in output
+
+
+def test_extract_review_insights_ollama_requires_input_json() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["extract-review-insights-ollama", "--model", "llama3.1"])
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_review_insights_ollama_requires_model(
+    tmp_path: Path,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["extract-review-insights-ollama", "--input-json", str(input_path)])
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_review_insights_ollama_default_output_path_is_created(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    output_path = Path("artifacts/readysetrentables/review_insights.json")
+    assert exit_code == 0
+    assert output_path.is_file()
+
+
+def test_extract_review_insights_ollama_output_json_writes_custom_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    output_path = tmp_path / "custom" / "review_insights.json"
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert output_path.is_file()
+
+
+def test_extract_review_insights_ollama_parses_review_insight_input(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+    assert state.inputs[0].review_count == 2
+    assert state.inputs[0].market_name == "Synthetic Market"
+
+
+def test_extract_review_insights_ollama_passes_model_name_to_agent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+    assert state.agents[0].model_name == "llama3.1"
+    assert state.clients[0].settings.model_name == "llama3.1"
+
+
+def test_extract_review_insights_ollama_writes_valid_result_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    output_path = tmp_path / "review_insights.json"
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    result = ReviewInsightExtractionResult.model_validate(_read_json(output_path))
+    assert exit_code == 0
+    assert result.provider == ModelProvider.OLLAMA
+    assert result.model_name == "llama3.1"
+    assert result.themes[0].name == "arrival clarity"
+
+
+def test_extract_review_insights_ollama_output_includes_safe_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    output_path = tmp_path / "review_insights.json"
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert f"output={output_path}" in output
+    assert "provider=ollama" in output
+    assert "model_name=llama3.1" in output
+    assert "prompt_name=readysetrentables_review_insight_extraction" in output
+    assert "prompt_version=v0" in output
+    assert "theme_count=1" in output
+    assert "strengths_count=1" in output
+    assert "risks_count=1" in output
+    assert "guest_expectations_count=1" in output
+    assert "input_tokens=11" in output
+    assert "output_tokens=7" in output
+    assert "total_tokens=18" in output
+    assert "estimated_cost_usd=0" in output
+
+
+def test_extract_review_insights_ollama_missing_input_file_fails_cleanly(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing_path = tmp_path / "missing.json"
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(missing_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "does not exist" in combined_output
+
+
+def test_extract_review_insights_ollama_invalid_json_fails_cleanly(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = tmp_path / "review_insight_extraction_input.json"
+    input_path.write_text("{Synthetic review: not valid json", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "not valid JSON" in combined_output
+    assert "Synthetic review:" not in combined_output
+
+
+def test_extract_review_insights_ollama_schema_invalid_input_fails_cleanly(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = tmp_path / "review_insight_extraction_input.json"
+    input_path.write_text(
+        json.dumps({"representative_reviews": ["Synthetic review: hidden body"]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "expected schema" in combined_output
+    assert "Synthetic review:" not in combined_output
+
+
+def test_extract_review_insights_ollama_agent_failure_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(
+        monkeypatch,
+        agent_error=ValueError("Raw model output should not leak."),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "Failed to extract review insights with local Ollama." in combined_output
+    assert "Raw model output should not leak." not in combined_output
+
+
+def test_extract_review_insights_ollama_command_does_not_print_sensitive_text(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synthetic review: hidden representative review." not in output
+    assert "Raw model output" not in output
+    assert "Compact review insight input" not in output
+
+
+def test_extract_review_insights_ollama_does_not_connect_to_db(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Database connections should not be opened")
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+
+
+def test_extract_review_insights_ollama_does_not_call_claude_or_anthropic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+
+
+def test_extract_review_insights_ollama_tests_do_not_call_real_ollama(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+    assert len(state.clients) == 1
+    assert state.clients[0].settings.enabled is True
+
+
 def test_compare_review_theme_summaries_succeeds_for_valid_artifacts(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -3549,6 +3953,102 @@ def _write_rsr_source_extract_artifact(tmp_path: Path) -> Path:
     return output_path
 
 
+def _write_review_insight_input_artifact(tmp_path: Path) -> Path:
+    output_path = tmp_path / "review_insight_extraction_input.json"
+    input_data = ReviewInsightExtractionInput(
+        run_id=uuid4(),
+        review_count=2,
+        market_name="Synthetic Market",
+        neighborhood_name="Synthetic Neighborhood",
+        property_type="Synthetic Apartment",
+        average_rating=4.7,
+        rating_categories={"synthetic_location": 4.9},
+        representative_reviews=["Synthetic review: hidden representative review."],
+    )
+    payload = json.loads(input_data.model_dump_json())
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return output_path
+
+
+def _install_review_insights_ollama_cli_fakes(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    agent_error: Exception | None = None,
+) -> "FakeReviewInsightsOllamaCliState":
+    state = FakeReviewInsightsOllamaCliState(agent_error=agent_error)
+
+    class FakeOllamaClient:
+        def __init__(self, *, settings: OllamaModelClientSettings) -> None:
+            self.settings = settings
+            state.clients.append(self)
+
+    class FakeReviewInsightAgent:
+        def __init__(
+            self,
+            *,
+            model_client: object,
+            model_name: str,
+            prompt_name: str = "readysetrentables_review_insight_extraction",
+            prompt_version: str = "v0",
+        ) -> None:
+            self.model_client = model_client
+            self.model_name = model_name
+            self.prompt_name = prompt_name
+            self.prompt_version = prompt_version
+            state.agents.append(self)
+
+        def run(
+            self,
+            *,
+            input_data: ReviewInsightExtractionInput,
+        ) -> ReviewInsightExtractionResult:
+            state.inputs.append(input_data)
+            if state.agent_error is not None:
+                raise state.agent_error
+            return _review_insight_extraction_result(
+                run_id=input_data.run_id,
+                model_name=self.model_name,
+                prompt_name=self.prompt_name,
+                prompt_version=self.prompt_version,
+            )
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", FakeOllamaClient)
+    monkeypatch.setattr("daedalus.cli.ReviewInsightExtractionAgent", FakeReviewInsightAgent)
+    return state
+
+
+def _review_insight_extraction_result(
+    *,
+    run_id: UUID,
+    model_name: str = "llama3.1",
+    prompt_name: str = "readysetrentables_review_insight_extraction",
+    prompt_version: str = "v0",
+) -> ReviewInsightExtractionResult:
+    return ReviewInsightExtractionResult(
+        run_id=run_id,
+        provider=ModelProvider.OLLAMA,
+        model_name=model_name,
+        prompt_name=prompt_name,
+        prompt_version=prompt_version,
+        themes=[
+            ReviewInsightTheme(
+                name="arrival clarity",
+                sentiment="positive",
+                evidence_count=2,
+                summary="Synthetic guests value clear arrival details.",
+            )
+        ],
+        strengths=["Clear synthetic arrival details"],
+        risks=["Occasional synthetic street noise"],
+        guest_expectations=["Send arrival details before check-in"],
+        raw_insight_summary="Raw model output should not be printed.",
+        input_tokens=11,
+        output_tokens=7,
+        total_tokens=18,
+        estimated_cost_usd=Decimal("0"),
+    )
+
+
 def _install_rsr_source_cli_fakes(
     monkeypatch: pytest.MonkeyPatch,
     *,
@@ -3755,6 +4255,14 @@ class FailingArtifactConnection(FakeModelInvocationConnection):
         if "insert into workflow_artifacts" in sql.lower():
             msg = "synthetic artifact insert failure"
             raise RuntimeError(msg)
+
+
+class FakeReviewInsightsOllamaCliState:
+    def __init__(self, *, agent_error: Exception | None) -> None:
+        self.agent_error = agent_error
+        self.clients: list[Any] = []
+        self.agents: list[Any] = []
+        self.inputs: list[ReviewInsightExtractionInput] = []
 
 
 class SuccessfulOllamaClient:

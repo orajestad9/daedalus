@@ -15,6 +15,12 @@ from daedalus.domains.readysetrentables_reviews.graph_workflow import (
 from daedalus.domains.readysetrentables_reviews.review_insight_input_builder import (
     build_review_insight_extraction_input_from_source_extract,
 )
+from daedalus.domains.readysetrentables_reviews.review_insight_agent import (
+    ReviewInsightExtractionAgent,
+)
+from daedalus.domains.readysetrentables_reviews.review_insight_artifacts import (
+    write_review_insights_json,
+)
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
     ReviewInsightExtractionInput,
 )
@@ -103,6 +109,7 @@ DEFAULT_RSR_SOURCE_EXTRACT_PATH = Path("artifacts/readysetrentables/rsr_source_e
 DEFAULT_REVIEW_INSIGHT_INPUT_PATH = Path(
     "artifacts/readysetrentables/review_insight_extraction_input.json"
 )
+DEFAULT_REVIEW_INSIGHTS_PATH = Path("artifacts/readysetrentables/review_insights.json")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -500,6 +507,58 @@ def main(argv: Sequence[str] | None = None) -> int:
         if review_insight_input.average_rating is not None:
             summary_parts.append(f"average_rating={review_insight_input.average_rating}")
         summary_parts.append(f"rating_category_count={len(review_insight_input.rating_categories)}")
+        print(" ".join(summary_parts))
+        return 0
+
+    if args.command == "extract-review-insights-ollama":
+        try:
+            review_insight_input = _load_review_insight_input_json(args.input_json)
+            ollama_settings = _ollama_settings_for_review_insights(
+                model_name=args.model,
+                base_url=args.ollama_base_url,
+                timeout_seconds=args.timeout_seconds,
+            )
+        except (FileNotFoundError, ValueError, ValidationError) as exc:
+            parser.error(str(exc))
+
+        try:
+            model_client = OllamaModelClient(settings=ollama_settings)
+            review_insight_agent = ReviewInsightExtractionAgent(
+                model_client=model_client,
+                model_name=args.model,
+                prompt_name="readysetrentables_review_insight_extraction",
+                prompt_version="v0",
+            )
+            review_insight_result = review_insight_agent.run(input_data=review_insight_input)
+            review_insights_path = write_review_insights_json(
+                result=review_insight_result,
+                output_path=args.output_json,
+            )
+        except (ValueError, OllamaModelClientError):
+            parser.error("Failed to extract review insights with local Ollama.")
+        except Exception:
+            parser.error("Failed to extract review insights with local Ollama.")
+
+        summary_parts = [
+            "Wrote Ollama review insights",
+            f"output={review_insights_path}",
+            f"provider={review_insight_result.provider.value}",
+            f"model_name={review_insight_result.model_name}",
+            f"prompt_name={review_insight_result.prompt_name}",
+            f"prompt_version={review_insight_result.prompt_version}",
+            f"theme_count={len(review_insight_result.themes)}",
+            f"strengths_count={len(review_insight_result.strengths)}",
+            f"risks_count={len(review_insight_result.risks)}",
+            f"guest_expectations_count={len(review_insight_result.guest_expectations)}",
+        ]
+        if review_insight_result.input_tokens is not None:
+            summary_parts.append(f"input_tokens={review_insight_result.input_tokens}")
+        if review_insight_result.output_tokens is not None:
+            summary_parts.append(f"output_tokens={review_insight_result.output_tokens}")
+        if review_insight_result.total_tokens is not None:
+            summary_parts.append(f"total_tokens={review_insight_result.total_tokens}")
+        if review_insight_result.estimated_cost_usd is not None:
+            summary_parts.append(f"estimated_cost_usd={review_insight_result.estimated_cost_usd}")
         print(" ".join(summary_parts))
         return 0
 
@@ -982,6 +1041,39 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path where review_insight_extraction_input.json should be written.",
     )
 
+    extract_review_insights_ollama = subparsers.add_parser(
+        "extract-review-insights-ollama",
+        help="Manually extract review insights with explicit local Ollama.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--input-json",
+        required=True,
+        type=Path,
+        help="Path to a review_insight_extraction_input.json artifact.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--model",
+        required=True,
+        help="Local Ollama model name to use for review insight extraction.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--output-json",
+        default=DEFAULT_REVIEW_INSIGHTS_PATH,
+        type=Path,
+        help="Path where review_insights.json should be written.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--ollama-base-url",
+        default=None,
+        help="Optional local Ollama base URL. Defaults to Ollama settings/env behavior.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--timeout-seconds",
+        default=None,
+        type=_positive_float_arg,
+        help="Optional timeout in seconds for the local Ollama request.",
+    )
+
     evaluate_review_theme_summary = subparsers.add_parser(
         "evaluate-review-theme-summary",
         help="Evaluate a review_theme_summary.md artifact with deterministic local checks.",
@@ -1318,6 +1410,47 @@ def _write_review_insight_input_json(
     payload = json.loads(review_insight_input.model_dump_json())
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return output_path
+
+
+def _load_review_insight_input_json(input_path: Path) -> ReviewInsightExtractionInput:
+    if not input_path.is_file():
+        msg = f"Review insight extraction input path does not exist: {input_path}"
+        raise FileNotFoundError(msg)
+
+    try:
+        parsed = json.loads(input_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = "Review insight extraction input is not valid JSON."
+        raise ValueError(msg) from exc
+
+    try:
+        return ReviewInsightExtractionInput.model_validate(parsed)
+    except ValidationError as exc:
+        msg = "Review insight extraction input does not match the expected schema."
+        raise ValueError(msg) from exc
+
+
+def _ollama_settings_for_review_insights(
+    *,
+    model_name: str,
+    base_url: str | None,
+    timeout_seconds: float | None,
+) -> OllamaModelClientSettings:
+    settings = OllamaModelClientSettings.from_env()
+    values = settings.model_dump()
+    values.update(
+        {
+            "enabled": True,
+            "model_name": model_name,
+        }
+    )
+    update: dict[str, object] = {}
+    if base_url is not None:
+        update["base_url"] = base_url
+    if timeout_seconds is not None:
+        update["request_timeout_seconds"] = timeout_seconds
+    values.update(update)
+    return OllamaModelClientSettings.model_validate(values)
 
 
 def _default_evaluation_json_path(summary_path: Path) -> Path:
