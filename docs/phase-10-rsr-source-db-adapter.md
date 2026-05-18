@@ -274,6 +274,53 @@ for a future review insight extraction agent. The output artifact may contain
 representative review text, so do not print it or commit real generated
 artifacts casually.
 
+## Verified Source Extract To Review Insight Input Smoke Test
+
+A manual UM790 smoke test verified that real source data can now feed the
+future review insight input contract. The source extract was created with:
+
+```bash
+.venv/bin/daedalus extract-rsr-source-data \
+  --market-name "san-diego" \
+  --max-reviews 10 \
+  --output-json artifacts/readysetrentables/rsr_source_extract.json
+```
+
+The review insight extraction input was then built with:
+
+```bash
+.venv/bin/daedalus build-review-insight-input \
+  --source-extract artifacts/readysetrentables/rsr_source_extract.json \
+  --source-artifact-path artifacts/readysetrentables/rsr_source_extract.json \
+  --max-representative-reviews 25 \
+  --output-json artifacts/readysetrentables/review_insight_extraction_input.json
+```
+
+Metadata-only inspection of the generated input confirmed:
+
+- `market_name=san-diego`
+- `neighborhood_name=Allied Gardens`
+- `property_type=Entire guesthouse`
+- `review_count=10`
+- `representative_review_count=10`
+- `average_rating=4.99`
+- `rating_category_count=6`
+- `source_artifact_path=artifacts/readysetrentables/rsr_source_extract.json`
+- `prompt_name=readysetrentables_review_insight_extraction`
+- `prompt_version=v0`
+
+This proves real RSR source DB rows can be extracted into
+`rsr_source_extract.json`, transformed into `ReviewInsightExtractionInput`, and
+prepared for a future local Ollama review insight extraction agent. Rating
+categories are derived from listing review score metadata. Representative
+reviews are carried forward into the input artifact without being printed.
+
+Current boundaries still apply: this flow is manual, makes no Ollama call, makes
+no `ModelClient` call, has no Claude/Anthropic provider, and is not wired into
+LangGraph for either source extraction or review insight extraction. Review text
+must not be printed or committed casually, and generated real artifacts should
+remain local and untracked.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only

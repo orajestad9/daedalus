@@ -308,7 +308,9 @@ UM790 at small scale. The current adapter path includes separate
 row mappers, `RsrSourceReadOnlyRepository.extract_source_data(...)`, the manual
 `extract-rsr-source-data` CLI, the deterministic `evaluate-rsr-source-extract`
 CLI, and the manual `record-rsr-source-extract-artifact` CLI for linking an
-existing `rsr_source_extract.json` to a persisted Daedalus workflow run.
+existing `rsr_source_extract.json` to a persisted Daedalus workflow run. Phase
+10 also includes the pure `ReviewInsightExtractionInput` builder and the
+file-only `build-review-insight-input` CLI.
 
 The verified UM790 smoke test used `market_name="san-diego"` and
 `--max-reviews 10`, wrote `rsr_source_extract.json`, evaluated the artifact,
@@ -317,6 +319,14 @@ recorded it as `ArtifactType.RSR_SOURCE_EXTRACT`, and confirmed through
 Only aggregate counts were documented; real review text and artifact contents
 remain private.
 
+The source extract to review insight input bridge has also been manually
+verified on UM790. Real source rows were transformed into
+`review_insight_extraction_input.json` with safe metadata showing
+`market_name=san-diego`, `representative_review_count=10`,
+`average_rating=4.99`, and all six supported rating categories. Representative
+review text is carried forward in the local artifact but is not printed or
+documented.
+
 The Phase 10 source DB bridge remains manual and guarded. It is not wired into
 LangGraph or `run-workflow`, does not run under `make check`, does not make
 model calls, and does not write back to the ReadySetRentables app DB. A future
@@ -324,16 +334,16 @@ optional DB-backed Makefile target may automate the smoke path, but it should
 remain outside `make check`, require local `RSR_SOURCE_POSTGRES_*` settings,
 use a small review limit, and avoid printing source data.
 
-Next likely RSR pipeline work is a
-`ReviewInsightExtractionInput` builder from `rsr_source_extract.json`, keeping
-Ollama, Claude/Anthropic, full workflow wiring, and automatic downstream review
+Next likely RSR pipeline work is the local Ollama review insight extraction
+agent that consumes `ReviewInsightExtractionInput`, keeping Claude/Anthropic,
+full multi-agent LangGraph workflow wiring, and automatic downstream review
 insight extraction deferred until explicitly scoped.
 
 Still deferred beyond Phase 10 adapter work:
 
 - optional guarded DB-backed source extraction check target
-- `ReviewInsightExtractionInput` builder from source extract
-- Ollama wiring for source-derived review insight extraction
+- local Ollama review insight extraction agent
+- Ollama workflow wiring for source-derived review insight extraction
 - Claude/Anthropic provider support
 - full multi-agent workflow wiring
 - writing results back to ReadySetRentables

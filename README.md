@@ -46,6 +46,8 @@ observable, human-approved AI pipelines.
   deterministic evaluator, and `evaluate-rsr-source-extract` CLI command
 - Phase 10 real RSR source extraction has been manually smoke-tested on UM790
   with metadata-linked `rsr_source_extract` artifact inspection
+- Real RSR source extracts can now be transformed into
+  `ReviewInsightExtractionInput` artifacts for the future review insight agent
 
 ## ReadySetRentables: First Domain
 
@@ -182,8 +184,9 @@ source extraction boundary: source models, `rsr_source_extract` artifact type
 and writer, synthetic fixture, deterministic evaluator, CLI command, and local
 make check) is complete for its offline scope. Phase 9 metadata Postgres
 readiness is verified on the UM790. Phase 10 has manually validated the real
-RSR read-only source DB adapter path on UM790; full RSR workflow wiring and
-provider expansion remain deferred.
+RSR read-only source DB adapter path and the source-extract-to-review-insight
+input bridge on UM790; full RSR workflow wiring and provider expansion remain
+deferred.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
