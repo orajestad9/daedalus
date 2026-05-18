@@ -11,6 +11,16 @@ from daedalus.cli import main
 from daedalus.config import PostgresSettings
 from daedalus.domains.readysetrentables_reviews.artifacts import write_review_batch_json
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
+from daedalus.domains.readysetrentables_reviews.source_db_settings import (
+    RsrSourcePostgresSettings,
+)
+from daedalus.domains.readysetrentables_reviews.source_extraction_models import (
+    RsrSourceExtractionRequest,
+    RsrSourceExtractionResult,
+    RsrSourceListingContext,
+    RsrSourceNeighborhoodContext,
+    RsrSourceReviewRecord,
+)
 from daedalus.domains.readysetrentables_reviews.workflow import (
     ReviewNormalizationWorkflowResult,
 )
@@ -1339,6 +1349,249 @@ def test_evaluate_review_theme_summary_command_does_not_print_artifact_contents(
     assert "Artifact body that must stay out of stdout." not in output
     assert "ReadySetRentables Review Theme Summary" not in output
     assert "readysetrentables/review_theme_summary" not in output
+
+
+def test_extract_rsr_source_data_succeeds_with_mocked_source_db(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_path = tmp_path / "rsr_source_extract.json"
+    state = _install_rsr_source_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-rsr-source-data",
+            "--market-name",
+            "Synthetic Market",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    data = _read_json(output_path)
+    assert exit_code == 0
+    assert output_path.is_file()
+    assert data["request"]["market_name"] == "Synthetic Market"
+    assert state.loaded_settings_count == 1
+    assert state.connected_settings == [state.settings]
+    assert state.requests[0].market_name == "Synthetic Market"
+    assert state.connection.closed is True
+    assert f"output={output_path}" in output
+    assert "review_count=2" in output
+    assert "listing_count=1" in output
+    assert "neighborhood_present=true" in output
+    assert "Raw private review text" not in output
+    assert "top-secret-password" not in output
+
+
+def test_extract_rsr_source_data_default_output_path_is_created(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    _install_rsr_source_cli_fakes(monkeypatch)
+
+    exit_code = main(["extract-rsr-source-data", "--market-name", "Synthetic Market"])
+
+    output_path = Path("artifacts/readysetrentables/rsr_source_extract.json")
+    assert exit_code == 0
+    assert output_path.is_file()
+
+
+def test_extract_rsr_source_data_output_json_writes_custom_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "custom" / "extract.json"
+    _install_rsr_source_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-rsr-source-data",
+            "--market-name",
+            "Synthetic Market",
+            "--output-json",
+            str(output_path),
+        ]
+    )
+
+    data = _read_json(output_path)
+    assert exit_code == 0
+    assert data["source_name"] == "readysetrentables"
+    assert data["reviews"][0]["review_id"] == "review-1"
+
+
+def test_extract_rsr_source_data_market_name_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called() -> object:
+        msg = "RSR source settings should not load without --market-name"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_rsr_source_postgres_settings", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["extract-rsr-source-data"])
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_rsr_source_data_passes_optional_request_fields(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = _install_rsr_source_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-rsr-source-data",
+            "--market-name",
+            "Synthetic Market",
+            "--neighborhood-name",
+            "Synthetic Neighborhood",
+            "--property-type",
+            "Entire home",
+            "--max-reviews",
+            "25",
+            "--output-json",
+            str(tmp_path / "rsr_source_extract.json"),
+        ]
+    )
+
+    request = state.requests[0]
+    assert exit_code == 0
+    assert request.neighborhood_name == "Synthetic Neighborhood"
+    assert request.property_type == "Entire home"
+    assert request.max_reviews == 25
+
+
+def test_extract_rsr_source_data_invalid_max_reviews_fails_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called() -> object:
+        msg = "RSR source settings should not load for invalid --max-reviews"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_rsr_source_postgres_settings", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-rsr-source-data",
+                "--market-name",
+                "Synthetic Market",
+                "--max-reviews",
+                "0",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_rsr_source_data_missing_settings_fails_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fail_load_settings() -> object:
+        msg = "Required environment variable RSR_SOURCE_POSTGRES_HOST is missing or empty"
+        raise ValueError(msg)
+
+    def fail_connect(_: object) -> object:
+        msg = "RSR source DB should not connect when settings are missing"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_rsr_source_postgres_settings", fail_load_settings)
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_connect)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["extract-rsr-source-data", "--market-name", "Synthetic Market"])
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "RSR_SOURCE_POSTGRES_HOST" in combined_output
+    assert "top-secret-password" not in combined_output
+
+
+def test_extract_rsr_source_data_repository_failure_fails_cleanly_and_closes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = _install_rsr_source_cli_fakes(
+        monkeypatch,
+        repository_error=RuntimeError("repo failed: top-secret-password Raw private review text"),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-rsr-source-data",
+                "--market-name",
+                "Synthetic Market",
+                "--output-json",
+                str(tmp_path / "rsr_source_extract.json"),
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert state.connection.closed is True
+    assert "Failed to extract RSR source data." in combined_output
+    assert "Raw private review text" not in combined_output
+    assert "top-secret-password" not in combined_output
+
+
+def test_extract_rsr_source_data_connection_failure_fails_cleanly_without_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    settings = _rsr_source_postgres_settings()
+
+    def fail_connect(_: object) -> object:
+        msg = "postgresql://source-user:top-secret-password@private-host/source-db"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_rsr_source_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_connect)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["extract-rsr-source-data", "--market-name", "Synthetic Market"])
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "Failed to extract RSR source data." in combined_output
+    assert "top-secret-password" not in combined_output
+    assert "postgresql://" not in combined_output
+
+
+def test_extract_rsr_source_data_does_not_use_metadata_postgres_settings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_rsr_source_cli_fakes(monkeypatch)
+
+    def fail_metadata_settings() -> object:
+        msg = "Daedalus metadata POSTGRES settings should not be loaded"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", fail_metadata_settings)
+
+    exit_code = main(
+        [
+            "extract-rsr-source-data",
+            "--market-name",
+            "Synthetic Market",
+            "--output-json",
+            str(tmp_path / "rsr_source_extract.json"),
+        ]
+    )
+
+    assert exit_code == 0
 
 
 def test_evaluate_rsr_source_extract_succeeds_for_valid_artifact(
@@ -2796,6 +3049,98 @@ def _write_rsr_source_extract_artifact(tmp_path: Path) -> Path:
     return output_path
 
 
+def _install_rsr_source_cli_fakes(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    result: RsrSourceExtractionResult | None = None,
+    repository_error: Exception | None = None,
+) -> "FakeRsrSourceCliState":
+    settings = _rsr_source_postgres_settings()
+    state = FakeRsrSourceCliState(
+        settings=settings,
+        connection=FakeRsrSourceConnection(),
+        result=result or _rsr_source_extraction_result(),
+        repository_error=repository_error,
+    )
+
+    def fake_load_settings() -> RsrSourcePostgresSettings:
+        state.loaded_settings_count += 1
+        return settings
+
+    def fake_connect(received_settings: RsrSourcePostgresSettings) -> FakeRsrSourceConnection:
+        state.connected_settings.append(received_settings)
+        return state.connection
+
+    class FakeRepository:
+        def __init__(self, connection: object) -> None:
+            state.repository_connections.append(connection)
+
+        def extract_source_data(
+            self,
+            *,
+            request: RsrSourceExtractionRequest,
+        ) -> RsrSourceExtractionResult:
+            state.requests.append(request)
+            if state.repository_error is not None:
+                raise state.repository_error
+            return state.result.model_copy(update={"request": request})
+
+    monkeypatch.setattr("daedalus.cli.load_rsr_source_postgres_settings", fake_load_settings)
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fake_connect)
+    monkeypatch.setattr("daedalus.cli.RsrSourceReadOnlyRepository", FakeRepository)
+    return state
+
+
+def _rsr_source_postgres_settings() -> RsrSourcePostgresSettings:
+    return RsrSourcePostgresSettings(
+        host="source-host",
+        port=5432,
+        database="source-db",
+        user="source-user",
+        password="top-secret-password",
+    )
+
+
+def _rsr_source_extraction_result(
+    *,
+    neighborhood_present: bool = True,
+) -> RsrSourceExtractionResult:
+    return RsrSourceExtractionResult(
+        request=RsrSourceExtractionRequest(market_name="Synthetic Market"),
+        extracted_at_utc=datetime(2026, 5, 18, 10, 0, tzinfo=UTC),
+        reviews=[
+            RsrSourceReviewRecord(
+                review_id="review-1",
+                listing_id="listing-1",
+                rating=5.0,
+                review_text="Raw private review text that must stay out of stdout.",
+            ),
+            RsrSourceReviewRecord(
+                review_id="review-2",
+                listing_id="listing-1",
+                rating=4.0,
+                review_text="Second raw private review text that must stay out of stdout.",
+            ),
+        ],
+        listings=[
+            RsrSourceListingContext(
+                listing_id="listing-1",
+                listing_name="Private listing name",
+                property_type="Entire home",
+            )
+        ],
+        neighborhood=(
+            RsrSourceNeighborhoodContext(
+                market_name="Synthetic Market",
+                neighborhood_name="Synthetic Neighborhood",
+            )
+            if neighborhood_present
+            else None
+        ),
+        metadata={"extraction_mode": "read_only"},
+    )
+
+
 def _workflow_run_details(
     run_id: UUID,
     step_records: list[WorkflowStepRecord] | None = None,
@@ -2875,6 +3220,33 @@ class FakeModelInvocationConnection:
 
     def close(self) -> None:
         self.closed = True
+
+
+class FakeRsrSourceConnection:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeRsrSourceCliState:
+    def __init__(
+        self,
+        *,
+        settings: RsrSourcePostgresSettings,
+        connection: FakeRsrSourceConnection,
+        result: RsrSourceExtractionResult,
+        repository_error: Exception | None,
+    ) -> None:
+        self.settings = settings
+        self.connection = connection
+        self.result = result
+        self.repository_error = repository_error
+        self.loaded_settings_count = 0
+        self.connected_settings: list[RsrSourcePostgresSettings] = []
+        self.repository_connections: list[object] = []
+        self.requests: list[RsrSourceExtractionRequest] = []
 
 
 class FailingArtifactConnection(FakeModelInvocationConnection):

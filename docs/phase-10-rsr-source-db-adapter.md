@@ -125,6 +125,27 @@ listing fields such as listing URLs, latitude/longitude, price, revenue, and
 occupancy from mapped metadata. Unit coverage uses fake connections and fake
 cursors only; it does not connect to the real RSR source database.
 
+## Manual Source Extraction CLI
+
+`extract-rsr-source-data` now exists as a manual, explicit command for writing a
+sanitized RSR source snapshot:
+
+```bash
+.venv/bin/daedalus extract-rsr-source-data \
+  --market-name "Example Market" \
+  --neighborhood-name "Example Neighborhood" \
+  --max-reviews 25 \
+  --output-json artifacts/readysetrentables/rsr_source_extract.json
+```
+
+The command uses `RSR_SOURCE_POSTGRES_*` settings, not the Daedalus metadata DB
+`POSTGRES_*` settings. It connects to the RSR source DB through the read-only
+repository, writes `rsr_source_extract.json`, and prints only a short count
+summary. It does not persist anything to the Daedalus metadata DB yet.
+
+This command is not called by `make check`. No Makefile DB-backed source
+extraction target exists yet.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only
@@ -159,10 +180,6 @@ discovery results are reviewed.
 The first implementation should prove mapping and sanitization with fake data
 before connecting to the real RSR source DB.
 
-No CLI command or DB-backed check exists yet. Real UM790 execution requires
-local `RSR_SOURCE_POSTGRES_*` settings and should be done in a later guarded
-step.
-
 ## Safety Rules
 
 - prefer a dedicated read-only DB user
@@ -178,7 +195,6 @@ step.
 
 This design step does not add:
 
-- real extraction CLI
 - `rsr-source-extract-db-check`
 - workflow or LangGraph wiring
 - review insight agent

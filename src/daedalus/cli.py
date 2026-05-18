@@ -21,6 +21,21 @@ from daedalus.domains.readysetrentables_reviews.theme_summary_comparison import 
 from daedalus.domains.readysetrentables_reviews.source_extraction_evaluator import (
     evaluate_rsr_source_extract_json,
 )
+from daedalus.domains.readysetrentables_reviews.source_db_connection import (
+    connect_rsr_source_postgres,
+)
+from daedalus.domains.readysetrentables_reviews.source_db_settings import (
+    load_rsr_source_postgres_settings,
+)
+from daedalus.domains.readysetrentables_reviews.source_extraction_artifacts import (
+    write_rsr_source_extract_json,
+)
+from daedalus.domains.readysetrentables_reviews.source_extraction_models import (
+    RsrSourceExtractionRequest,
+)
+from daedalus.domains.readysetrentables_reviews.source_readonly_repository import (
+    RsrSourceReadOnlyRepository,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_evaluator import (
     evaluate_review_theme_summary_markdown,
 )
@@ -73,6 +88,8 @@ from daedalus.telemetry.logging import configure_logging
 import logging
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_RSR_SOURCE_EXTRACT_PATH = Path("artifacts/readysetrentables/rsr_source_extract.json")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -367,6 +384,55 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"total_tokens={response.total_tokens} "
             f"estimated_cost_usd={response.estimated_cost_usd}"
         )
+        return 0
+
+    if args.command == "extract-rsr-source-data":
+        try:
+            request = RsrSourceExtractionRequest(
+                market_name=args.market_name,
+                neighborhood_name=args.neighborhood_name,
+                property_type=args.property_type,
+                max_reviews=args.max_reviews,
+            )
+            rsr_source_settings = load_rsr_source_postgres_settings()
+        except ValueError as exc:
+            parser.error(str(exc))
+
+        connection = None
+        try:
+            connection = connect_rsr_source_postgres(rsr_source_settings)
+            rsr_source_repository = RsrSourceReadOnlyRepository(connection)
+            source_extract_result = rsr_source_repository.extract_source_data(request=request)
+            source_extract_path = write_rsr_source_extract_json(
+                result=source_extract_result,
+                output_path=args.output_json,
+            )
+        except Exception:
+            parser.error("Failed to extract RSR source data.")
+        finally:
+            if connection is not None:
+                close = getattr(connection, "close", None)
+                if callable(close):
+                    close()
+
+        summary_parts = [
+            "Wrote RSR source extract",
+            f"output={source_extract_path}",
+            f"market_name={request.market_name}",
+        ]
+        if request.neighborhood_name is not None:
+            summary_parts.append(f"neighborhood_name={request.neighborhood_name}")
+        if request.property_type is not None:
+            summary_parts.append(f"property_type={request.property_type}")
+        summary_parts.extend(
+            [
+                f"review_count={len(source_extract_result.reviews)}",
+                f"listing_count={len(source_extract_result.listings)}",
+                "neighborhood_present="
+                f"{str(source_extract_result.neighborhood is not None).lower()}",
+            ]
+        )
+        print(" ".join(summary_parts))
         return 0
 
     if args.command == "evaluate-review-theme-summary":
@@ -764,6 +830,38 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Synthetic prompt for the optional local smoke check.",
     )
 
+    extract_rsr_source_data = subparsers.add_parser(
+        "extract-rsr-source-data",
+        help="Manually extract sanitized ReadySetRentables source data from the RSR source DB.",
+    )
+    extract_rsr_source_data.add_argument(
+        "--market-name",
+        required=True,
+        help="RSR market name to extract.",
+    )
+    extract_rsr_source_data.add_argument(
+        "--neighborhood-name",
+        default=None,
+        help="Optional RSR neighborhood name filter.",
+    )
+    extract_rsr_source_data.add_argument(
+        "--property-type",
+        default=None,
+        help="Optional RSR property type filter.",
+    )
+    extract_rsr_source_data.add_argument(
+        "--max-reviews",
+        default=None,
+        type=_positive_int_arg,
+        help="Optional maximum number of reviews to extract.",
+    )
+    extract_rsr_source_data.add_argument(
+        "--output-json",
+        default=DEFAULT_RSR_SOURCE_EXTRACT_PATH,
+        type=Path,
+        help="Path where rsr_source_extract.json should be written.",
+    )
+
     evaluate_review_theme_summary = subparsers.add_parser(
         "evaluate-review-theme-summary",
         help="Evaluate a review_theme_summary.md artifact with deterministic local checks.",
@@ -1092,6 +1190,20 @@ def _non_negative_int_arg(value: str) -> int:
 
     if parsed_value < 0:
         msg = f"Value must be non-negative: {value}"
+        raise argparse.ArgumentTypeError(msg)
+
+    return parsed_value
+
+
+def _positive_int_arg(value: str) -> int:
+    try:
+        parsed_value = int(value)
+    except ValueError as exc:
+        msg = f"Invalid integer: {value}"
+        raise argparse.ArgumentTypeError(msg) from exc
+
+    if parsed_value <= 0:
+        msg = f"Value must be positive: {value}"
         raise argparse.ArgumentTypeError(msg)
 
     return parsed_value
