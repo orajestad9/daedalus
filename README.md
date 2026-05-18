@@ -44,6 +44,8 @@ observable, human-approved AI pipelines.
 - Phase 8 read-only RSR source extraction boundary: source extraction models,
   `rsr_source_extract.json` artifact writer, synthetic offline fixture,
   deterministic evaluator, and `evaluate-rsr-source-extract` CLI command
+- Phase 10 real RSR source extraction has been manually smoke-tested on UM790
+  with metadata-linked `rsr_source_extract` artifact inspection
 
 ## ReadySetRentables: First Domain
 
@@ -179,9 +181,9 @@ placeholders, deterministic evaluator shells) is complete. Phase 8 (read-only
 source extraction boundary: source models, `rsr_source_extract` artifact type
 and writer, synthetic fixture, deterministic evaluator, CLI command, and local
 make check) is complete for its offline scope. Phase 9 metadata Postgres
-readiness is verified on the UM790. Phase 10 starts the real RSR read-only
-source DB adapter plan; full RSR workflow wiring and provider expansion remain
-deferred.
+readiness is verified on the UM790. Phase 10 has manually validated the real
+RSR read-only source DB adapter path on UM790; full RSR workflow wiring and
+provider expansion remain deferred.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)

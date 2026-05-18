@@ -146,18 +146,74 @@ summary. It does not persist anything to the Daedalus metadata DB yet.
 This command is not called by `make check`. No Makefile DB-backed source
 extraction target exists yet.
 
-## First Read-Only Smoke Test
+## Verified UM790 Smoke Test
 
-A manual UM790 smoke test successfully extracted a small source snapshot with
-`market_name` set to `"san-diego"` and `--max-reviews 10`. The command wrote
-`rsr_source_extract.json` and reported `review_count=10`, `listing_count=1`,
-and `neighborhood_present=true`.
+A manual UM790 smoke test successfully extracted a small real source snapshot:
+
+```bash
+.venv/bin/daedalus extract-rsr-source-data \
+  --market-name "san-diego" \
+  --max-reviews 10 \
+  --output-json artifacts/readysetrentables/rsr_source_extract.json
+```
+
+The safe CLI summary reported:
+
+- `review_count=10`
+- `listing_count=1`
+- `neighborhood_present=true`
+
+The source extract was evaluated with:
+
+```bash
+.venv/bin/daedalus evaluate-rsr-source-extract \
+  --source-extract artifacts/readysetrentables/rsr_source_extract.json \
+  --output-json artifacts/readysetrentables/rsr_source_extract.evaluation.json \
+  --output-md artifacts/readysetrentables/rsr_source_extract.evaluation.md
+```
+
+The existing `rsr_source_extract.json` file was then manually recorded against a
+persisted Daedalus workflow run with:
+
+```bash
+.venv/bin/daedalus record-rsr-source-extract-artifact \
+  --run-id <run-id> \
+  --path artifacts/readysetrentables/rsr_source_extract.json
+```
+
+`show-run` displayed the recorded artifact as:
+
+```text
+rsr_source_extract: artifacts/readysetrentables/rsr_source_extract.json
+```
 
 This confirms the read-only RSR source DB path works at a small scale. Do not
 commit or document real review text or private source data. The
 `synthetic_fixture_marker` evaluator check is now a fixture-vs-real
 classification warning for source extracts without synthetic markers, not a
 failed quality check for valid real extracts.
+
+The verified smoke path proves:
+
+- `RSR_SOURCE_POSTGRES_*` settings load correctly from local untracked env.
+- the RSR source DB connection works.
+- the read-only repository query works at small scale.
+- source DB rows map into `RsrSourceExtractionResult`.
+- `rsr_source_extract.json` writing works with real data.
+- the deterministic evaluator works with real-style extracts.
+- `ArtifactRecord` persistence works for `rsr_source_extract`.
+- `show-run` can inspect the recorded source extract artifact.
+
+Current boundaries remain:
+
+- extraction is still manual.
+- recording is still manual.
+- source extraction is not wired into LangGraph.
+- source extraction is not wired into `run-workflow`.
+- no model calls are made.
+- no writeback to the RSR app DB exists.
+- no Claude/Anthropic provider exists.
+- no automatic downstream review insight extraction exists yet.
 
 ## Manual Artifact Recording CLI
 
@@ -175,6 +231,21 @@ This command is manual. It records the existing file as
 Daedalus metadata DB connection, not the RSR source DB connection, and it does
 not extract data or print source extract contents. After recording, `show-run`
 can display the artifact with the rest of the workflow run metadata.
+
+## Future Guarded DB Check Plan
+
+A future optional Makefile target could verify the manual source bridge flow:
+
+- run a persisted workflow.
+- extract RSR source data.
+- evaluate the source extract.
+- record the `rsr_source_extract` artifact.
+- use `show-run` to verify the recorded `rsr_source_extract` artifact.
+
+That future target is intentionally not added yet. If added, it must be
+optional, excluded from `make check`, require local `RSR_SOURCE_POSTGRES_*`
+settings, avoid printing review text or artifact contents, use a small
+`max_reviews` value, and remain safe for UM790/homelab-only operation.
 
 ## Schema Discovery Plan
 

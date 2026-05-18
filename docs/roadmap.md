@@ -302,19 +302,38 @@ baseline and homelab workflow rules.
 
 ### Phase 10: RSR Read-Only Source DB Adapter
 
-Phase 10 is active/next. It starts with design and schema discovery for a real
-read-only ReadySetRentables source DB adapter behind the Phase 8 boundary before
-implementation. That work should stay scoped to source DB connectivity,
-read-only repository/adapter behavior, safe SQL extraction, and an explicit
-DB-backed RSR source extraction check.
+Phase 10 has validated the first real ReadySetRentables source DB bridge on the
+UM790 at small scale. The current adapter path includes separate
+`RSR_SOURCE_POSTGRES_*` settings, an RSR source DB connection helper, source DB
+row mappers, `RsrSourceReadOnlyRepository.extract_source_data(...)`, the manual
+`extract-rsr-source-data` CLI, the deterministic `evaluate-rsr-source-extract`
+CLI, and the manual `record-rsr-source-extract-artifact` CLI for linking an
+existing `rsr_source_extract.json` to a persisted Daedalus workflow run.
 
-The Phase 10 design baseline defines the future
-`RsrSourceReadOnlyRepository`, separates RSR source DB settings from Daedalus
-metadata DB settings, requires local untracked `.env` values, prefers a
-read-only database user, and keeps `make check` DB-free.
+The verified UM790 smoke test used `market_name="san-diego"` and
+`--max-reviews 10`, wrote `rsr_source_extract.json`, evaluated the artifact,
+recorded it as `ArtifactType.RSR_SOURCE_EXTRACT`, and confirmed through
+`show-run` that the `rsr_source_extract` artifact is visible in run inspection.
+Only aggregate counts were documented; real review text and artifact contents
+remain private.
+
+The Phase 10 source DB bridge remains manual and guarded. It is not wired into
+LangGraph or `run-workflow`, does not run under `make check`, does not make
+model calls, and does not write back to the ReadySetRentables app DB. A future
+optional DB-backed Makefile target may automate the smoke path, but it should
+remain outside `make check`, require local `RSR_SOURCE_POSTGRES_*` settings,
+use a small review limit, and avoid printing source data.
+
+Next likely RSR pipeline work is a
+`ReviewInsightExtractionInput` builder from `rsr_source_extract.json`, keeping
+Ollama, Claude/Anthropic, full workflow wiring, and automatic downstream review
+insight extraction deferred until explicitly scoped.
 
 Still deferred beyond Phase 10 adapter work:
 
+- optional guarded DB-backed source extraction check target
+- `ReviewInsightExtractionInput` builder from source extract
+- Ollama wiring for source-derived review insight extraction
 - Claude/Anthropic provider support
 - full multi-agent workflow wiring
 - writing results back to ReadySetRentables
