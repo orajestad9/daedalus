@@ -48,6 +48,8 @@ observable, human-approved AI pipelines.
   with metadata-linked `rsr_source_extract` artifact inspection
 - Real RSR source extracts can now be transformed into
   `ReviewInsightExtractionInput` artifacts for the future review insight agent
+- Phase 11 is planned as a manual local Ollama review insight extraction agent
+  that produces `review_insights.json`
 
 ## ReadySetRentables: First Domain
 
@@ -185,14 +187,16 @@ and writer, synthetic fixture, deterministic evaluator, CLI command, and local
 make check) is complete for its offline scope. Phase 9 metadata Postgres
 readiness is verified on the UM790. Phase 10 has manually validated the real
 RSR read-only source DB adapter path and the source-extract-to-review-insight
-input bridge on UM790; full RSR workflow wiring and provider expansion remain
-deferred.
+input bridge on UM790. Phase 11 is starting with the manual local Ollama review
+insight extraction agent plan; full RSR workflow wiring and cloud provider
+expansion remain deferred.
 
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
 - Phase 8 design: [`docs/phase-8-rsr-source-extraction.md`](docs/phase-8-rsr-source-extraction.md)
 - Phase 9 readiness: [`docs/phase-9-homelab-postgres-readiness.md`](docs/phase-9-homelab-postgres-readiness.md)
 - Phase 10 adapter status: [`docs/phase-10-rsr-source-db-adapter.md`](docs/phase-10-rsr-source-db-adapter.md)
+- Phase 11 Ollama review insight plan: [`docs/phase-11-ollama-review-insight-agent.md`](docs/phase-11-ollama-review-insight-agent.md)
 - Observability and `show-run`: [`docs/observability.md`](docs/observability.md)
 - Token and cost governance: [`docs/token-cost-governance.md`](docs/token-cost-governance.md)
 - Model-client architecture: [`docs/model-client-architecture.md`](docs/model-client-architecture.md)

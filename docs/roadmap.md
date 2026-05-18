@@ -302,8 +302,8 @@ baseline and homelab workflow rules.
 
 ### Phase 10: RSR Read-Only Source DB Adapter
 
-Phase 10 has validated the first real ReadySetRentables source DB bridge on the
-UM790 at small scale. The current adapter path includes separate
+Phase 10 is complete. It validated the first real ReadySetRentables source DB
+bridge on the UM790 at small scale. The current adapter path includes separate
 `RSR_SOURCE_POSTGRES_*` settings, an RSR source DB connection helper, source DB
 row mappers, `RsrSourceReadOnlyRepository.extract_source_data(...)`, the manual
 `extract-rsr-source-data` CLI, the deterministic `evaluate-rsr-source-extract`
@@ -334,15 +334,9 @@ optional DB-backed Makefile target may automate the smoke path, but it should
 remain outside `make check`, require local `RSR_SOURCE_POSTGRES_*` settings,
 use a small review limit, and avoid printing source data.
 
-Next likely RSR pipeline work is the local Ollama review insight extraction
-agent that consumes `ReviewInsightExtractionInput`, keeping Claude/Anthropic,
-full multi-agent LangGraph workflow wiring, and automatic downstream review
-insight extraction deferred until explicitly scoped.
-
 Still deferred beyond Phase 10 adapter work:
 
 - optional guarded DB-backed source extraction check target
-- local Ollama review insight extraction agent
 - Ollama workflow wiring for source-derived review insight extraction
 - Claude/Anthropic provider support
 - full multi-agent workflow wiring
@@ -350,6 +344,40 @@ Still deferred beyond Phase 10 adapter work:
 - cloud provider clients and provider SDK expansion
 
 See `docs/phase-10-rsr-source-db-adapter.md` for the Phase 10 adapter status.
+
+### Phase 11: Local Ollama Review Insight Extraction Agent
+
+Phase 11 is the active next RSR pipeline phase. It should add a manual local
+Ollama `ReviewInsightExtractionAgent` that consumes
+`ReviewInsightExtractionInput`, calls the shared `ModelClient` boundary
+explicitly, parses model output into `ReviewInsightExtractionResult`, and writes
+`review_insights.json`.
+
+The planned Phase 11 path starts from the Phase 10 bridge:
+
+```text
+rsr_source_extract.json
+  -> build-review-insight-input
+  -> review_insight_extraction_input.json
+  -> local Ollama review insight extraction agent
+  -> review_insights.json
+```
+
+Phase 11 should remain manual, local-first, and guarded. Ollama should not
+become a default provider, should not be wired into LangGraph or `run-workflow`
+yet, and should not run under `make check` through a live model dependency.
+Fake-client tests and deterministic parsing should come first.
+
+Still deferred beyond Phase 11 planning:
+
+- Claude/Anthropic provider support
+- full multi-agent LangGraph workflow wiring
+- automatic source extraction or review insight extraction in `run-workflow`
+- neighborhood profile generation
+- writing results back to ReadySetRentables
+- cloud provider clients and provider SDK expansion
+
+See `docs/phase-11-ollama-review-insight-agent.md` for the Phase 11 plan.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade

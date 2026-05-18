@@ -1,0 +1,134 @@
+# Phase 11: Ollama Review Insight Extraction Agent
+
+Phase 11 adds the first manual local Ollama-powered review insight extraction
+agent for the real ReadySetRentables pipeline. The agent will consume
+`ReviewInsightExtractionInput` and produce `ReviewInsightExtractionResult`,
+written as `review_insights.json`.
+
+This phase starts from the Phase 10 bridge:
+
+```text
+real RSR source DB
+  -> rsr_source_extract.json
+  -> review_insight_extraction_input.json
+```
+
+Phase 11 should extend that bridge with an explicit local model step, without
+making Ollama automatic and without adding cloud provider behavior.
+
+## Target Flow
+
+```text
+rsr_source_extract.json
+  -> build-review-insight-input
+  -> review_insight_extraction_input.json
+  -> local Ollama review insight extraction agent
+  -> ReviewInsightExtractionResult
+  -> review_insights.json
+  -> evaluate review_insights
+  -> optionally record artifacts later
+```
+
+`review_insight_extraction_input.json` may contain representative review text.
+It should remain local and untracked when built from real source data.
+
+## Provider Boundary
+
+Ollama remains local, manual, and explicit in Phase 11. It is not the default
+provider, is not wired into LangGraph, and is not wired into `run-workflow`.
+
+Claude/Anthropic is not part of Phase 11. No cloud provider is used, no cloud
+SDK is added, and no model call should bypass the existing `ModelClient`
+boundary.
+
+## Proposed Agent
+
+The planned agent is:
+
+- `ReviewInsightExtractionAgent`
+
+Responsibilities:
+
+- accept `ReviewInsightExtractionInput`
+- load and use prompt identity `readysetrentables_review_insight_extraction`
+  version `v0`
+- call a `ModelClient` explicitly
+- parse model output into `ReviewInsightExtractionResult`
+- preserve provider, model, prompt name, and prompt version metadata
+- preserve token and cost metadata when the model client provides it
+- avoid printing representative review text
+- avoid persisting raw prompt text or raw model output text by default
+
+Non-responsibilities:
+
+- source DB extraction
+- LangGraph orchestration
+- neighborhood profile generation
+- Claude calls
+- writing back to the ReadySetRentables DB
+
+## Manual CLI Plan
+
+A future manual command could run the local Ollama review insight extraction
+step:
+
+```bash
+.venv/bin/daedalus extract-review-insights-ollama \
+  --input-json artifacts/readysetrentables/review_insight_extraction_input.json \
+  --model <ollama-model-name> \
+  --output-json artifacts/readysetrentables/review_insights.json
+```
+
+This command is planned, not implemented yet. It should be explicit, local-only,
+and should require the operator to choose the Ollama model name.
+
+The command should print only safe metadata such as output path, provider,
+model name, prompt identity, theme count, token counts, and estimated cost when
+available. It should not print representative review text, raw prompt text, raw
+model output text, or artifact contents.
+
+## Evaluation Path
+
+Phase 7 already includes a deterministic `review_insights.json` evaluator shell.
+Phase 11 can use that evaluator once a CLI or file path is available for the
+generated `review_insights.json` artifact.
+
+No evaluator-model scoring is part of Phase 11. Quality checks should remain
+deterministic and structural unless a later phase explicitly scopes an evaluator
+model behind the `ModelClient` boundary.
+
+## Safety Rules
+
+- Do not print representative review text.
+- Do not print raw prompt text.
+- Do not print raw model output text by default.
+- Do not print artifact contents.
+- Do not commit real `review_insight_extraction_input.json` artifacts.
+- Do not commit real `review_insights.json` artifacts.
+- Keep local Ollama model selection explicit.
+- Keep token and cost metadata when available.
+- Do not persist raw sensitive payloads to Postgres.
+- Do not write results back to the ReadySetRentables app DB.
+
+## Implementation Sequence
+
+1. Add a deterministic model-output parser for the expected review insight
+   extraction response shape.
+2. Add `ReviewInsightExtractionAgent` behind the `ModelClient` protocol.
+3. Write fake-client tests first, including parser failure paths and metadata
+   preservation.
+4. Add a manual local Ollama CLI command.
+5. Add a file-only local check that uses synthetic input and a fake model path.
+6. Add optional DB-backed artifact and invocation recording later.
+7. Wire source-derived review insight extraction into LangGraph later.
+
+## Explicitly Deferred
+
+- automatic Ollama execution from `run-workflow`
+- LangGraph nodes for review insight extraction
+- neighborhood profile generation
+- Claude/Anthropic provider support
+- cloud provider clients
+- writeback to ReadySetRentables
+- DB schema changes
+- Makefile DB-backed targets for real source data
