@@ -1,4 +1,4 @@
-"""Read-only repository boundary for future RSR source extraction."""
+"""Read-only repository boundary for RSR source extraction."""
 
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time

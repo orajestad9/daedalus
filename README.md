@@ -192,7 +192,7 @@ deferred.
 - Phase 7 design: [`docs/phase-7-rsr-real-pipeline.md`](docs/phase-7-rsr-real-pipeline.md)
 - Phase 8 design: [`docs/phase-8-rsr-source-extraction.md`](docs/phase-8-rsr-source-extraction.md)
 - Phase 9 readiness: [`docs/phase-9-homelab-postgres-readiness.md`](docs/phase-9-homelab-postgres-readiness.md)
-- Phase 10 adapter plan: [`docs/phase-10-rsr-source-db-adapter.md`](docs/phase-10-rsr-source-db-adapter.md)
+- Phase 10 adapter status: [`docs/phase-10-rsr-source-db-adapter.md`](docs/phase-10-rsr-source-db-adapter.md)
 - Observability and `show-run`: [`docs/observability.md`](docs/observability.md)
 - Token and cost governance: [`docs/token-cost-governance.md`](docs/token-cost-governance.md)
 - Model-client architecture: [`docs/model-client-architecture.md`](docs/model-client-architecture.md)

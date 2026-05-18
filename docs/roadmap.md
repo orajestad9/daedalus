@@ -349,7 +349,7 @@ Still deferred beyond Phase 10 adapter work:
 - writing results back to ReadySetRentables
 - cloud provider clients and provider SDK expansion
 
-See `docs/phase-10-rsr-source-db-adapter.md` for the Phase 10 adapter plan.
+See `docs/phase-10-rsr-source-db-adapter.md` for the Phase 10 adapter status.
 
 OpenTelemetry, dashboards, Kubernetes execution, production deployment,
 autonomous planning, cloud provider clients, provider SDKs, and production-grade

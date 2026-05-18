@@ -1,10 +1,12 @@
 # Phase 10: ReadySetRentables Source DB Adapter
 
-Phase 10 will implement a safe read-only adapter from the real
-ReadySetRentables source Postgres database into Daedalus source extraction
-models. This design step documents the intended boundary before any DB settings,
-connection helpers, SQL, repositories, CLI commands, Makefile targets, or
-workflow wiring are added.
+Phase 10 implements a safe read-only adapter from the real ReadySetRentables
+source Postgres database into Daedalus source extraction models. The current
+phase includes the RSR source settings, connection helper, sanitized row
+mappers, read-only repository, manual source extraction CLI, artifact recording
+CLI, source extract evaluation path, and file-only review insight input builder.
+Workflow wiring, model calls, writeback behavior, and DB-backed Makefile checks
+remain deferred.
 
 Phase 10 starts after Phase 9 verified that the UM790 can run Daedalus metadata
 Postgres successfully. That verification does not validate the real
@@ -24,7 +26,7 @@ The RSR source DB remains the application system of record. Daedalus should
 extract sanitized snapshots into artifacts first, then evaluate and inspect those
 artifacts before any downstream model or workflow expansion.
 
-## Target Future Flow
+## Implemented Manual Flow
 
 ```text
 ReadySetRentables source DB
@@ -32,19 +34,19 @@ ReadySetRentables source DB
   -> RsrSourceExtractionResult
   -> rsr_source_extract.json
   -> evaluate-rsr-source-extract
-  -> future review insight extraction input
+  -> review_insight_extraction_input.json
   -> future review_insights.json
 ```
 
 Phase 8 already provides the source extraction models, artifact writer,
 synthetic fixture, deterministic evaluator, `evaluate-rsr-source-extract` CLI,
-and file-only `source-extract-check`. Phase 10 should connect the real source DB
-to those existing domain models without changing generic Daedalus infrastructure
-or adding model-provider calls.
+and file-only `source-extract-check`. Phase 10 connects the real source DB to
+those existing domain models and to `ReviewInsightExtractionInput` without
+changing generic Daedalus infrastructure or adding model-provider calls.
 
-## Proposed Adapter
+## Adapter Boundary
 
-The future adapter should be named:
+The adapter is named:
 
 - `RsrSourceReadOnlyRepository`
 
@@ -67,10 +69,10 @@ infrastructure should remain generic.
 
 ## Settings Boundary
 
-`RsrSourcePostgresSettings` now defines the future RSR source DB settings shape,
-and `load_rsr_source_postgres_settings(...)` reads required
-`RSR_SOURCE_POSTGRES_*` variables without connecting to a database. These
-settings are separate from the Daedalus metadata DB `POSTGRES_*` settings.
+`RsrSourcePostgresSettings` defines the RSR source DB settings shape, and
+`load_rsr_source_postgres_settings(...)` reads required `RSR_SOURCE_POSTGRES_*`
+variables without connecting to a database. These settings are separate from
+the Daedalus metadata DB `POSTGRES_*` settings.
 
 - `RSR_SOURCE_POSTGRES_HOST`
 - `RSR_SOURCE_POSTGRES_PORT`
@@ -94,7 +96,7 @@ password-bearing DSN, and supports injected connection callables in tests.
 
 The helper does not run SQL, verify schema, mutate the RSR database, print
 connection details, or expose the raw password in failure messages. Repository
-and query implementation is still deferred.
+query behavior lives behind `RsrSourceReadOnlyRepository`.
 
 ## Mapper Boundary
 
@@ -104,8 +106,8 @@ listing rows, neighborhood rows, and complete row groups into
 `RsrSourceExtractionResult`.
 
 The mappers do not contain SQL, connect to the real RSR database, print row
-contents, or implement repository/query behavior. Repository and query
-implementation is still deferred.
+contents, or implement repository/query behavior. Repository query behavior is
+implemented separately in the read-only repository.
 
 ## Repository Boundary
 
@@ -321,10 +323,10 @@ LangGraph for either source extraction or review insight extraction. Review text
 must not be printed or committed casually, and generated real artifacts should
 remain local and untracked.
 
-## Schema Discovery Plan
+## Schema Discovery Notes
 
-Before writing adapter SQL, inspect the real RSR DB schema using read-only
-metadata queries. Capture only schema-level notes needed to design safe
+Schema discovery for this phase was limited to the minimum needed to implement
+the read-only repository. Capture only schema-level notes needed to maintain safe
 extraction. Do not commit private hostnames, DSNs, credentials, private data, or
 raw review contents.
 
@@ -337,9 +339,9 @@ Discovery categories:
   bedrooms, bathrooms, accommodates, and average rating
 - row counts and sample-safe metadata only
 
-Do not commit real table names unless they are safe to document and already
-approved for committed docs. Do not add real extraction SQL until the schema
-discovery results are reviewed.
+Do not commit additional real table names unless they are safe to document and
+already approved for committed docs. Any future SQL changes must preserve the
+read-only repository boundary and fake-connection test coverage.
 
 ## Test Strategy
 
@@ -352,8 +354,9 @@ discovery results are reviewed.
   untracked `.env`
 - any future DB-backed source extraction check is not called by `make check`
 
-The first implementation should prove mapping and sanitization with fake data
-before connecting to the real RSR source DB.
+Unit coverage proves mapping and sanitization with fake data. The documented
+UM790 smoke tests verified the small real-data path without adding DB-backed
+work to `make check`.
 
 ## Safety Rules
 
@@ -368,10 +371,10 @@ before connecting to the real RSR source DB.
 
 ## Intentionally Deferred
 
-This design step does not add:
+Phase 10 does not add:
 
 - `rsr-source-extract-db-check`
 - workflow or LangGraph wiring
-- review insight agent
+- local Ollama review insight extraction agent
 - Claude/Anthropic provider
 - writing generated profiles back to RSR

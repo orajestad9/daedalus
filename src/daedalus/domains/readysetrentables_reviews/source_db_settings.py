@@ -16,7 +16,7 @@ RSR_SOURCE_POSTGRES_ENV_VARS = (
 
 
 class RsrSourcePostgresSettings(BaseModel):
-    """Typed settings for future read-only RSR source Postgres access."""
+    """Typed settings for read-only RSR source Postgres access."""
 
     host: str
     port: int = Field(ge=1, le=65535)
