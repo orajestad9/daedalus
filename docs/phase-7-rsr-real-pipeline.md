@@ -92,6 +92,12 @@ These are domain contract models only. No Ollama agent or workflow wiring exists
 yet. They stay inside the RSR domain package and do not touch generic Daedalus
 platform infrastructure.
 
+Phase 10 now adds a pure source-extract-to-input builder that transforms an
+`RsrSourceExtractionResult` into `ReviewInsightExtractionInput`. This connects
+the read-only RSR source extraction artifact shape to the future local Ollama
+review insight extraction agent without calling a model provider, connecting to
+a database, or wiring the step into LangGraph.
+
 ### Review Insights Artifact Type And Writer
 
 `ArtifactType.REVIEW_INSIGHTS` (`"review_insights"`) is now a recognized generic

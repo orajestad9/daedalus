@@ -247,6 +247,17 @@ optional, excluded from `make check`, require local `RSR_SOURCE_POSTGRES_*`
 settings, avoid printing review text or artifact contents, use a small
 `max_reviews` value, and remain safe for UM790/homelab-only operation.
 
+## Review Insight Input Builder
+
+`ReviewInsightExtractionInput` can now be built from an
+`RsrSourceExtractionResult`. This bridges `rsr_source_extract.json` data from
+the read-only source DB path into the compact input shape expected by a future
+local Ollama review insight extraction agent.
+
+The builder is pure transformation logic. It does not call Ollama or any
+`ModelClient`, does not connect to a database, does not add CLI or LangGraph
+wiring, and does not print review text or artifact contents.
+
 ## Schema Discovery Plan
 
 Before writing adapter SQL, inspect the real RSR DB schema using read-only
