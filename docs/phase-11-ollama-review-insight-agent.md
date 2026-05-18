@@ -81,6 +81,18 @@ caller-supplied run, provider, model, prompt, token, and cost metadata rather
 than trusting model-provided metadata. Agent and CLI implementation remain
 deferred.
 
+## Agent Boundary
+
+`ReviewInsightExtractionAgent` now exists. It accepts
+`ReviewInsightExtractionInput`, builds compact prompt text, calls an injected
+`ModelClient`, and parses the returned text into `ReviewInsightExtractionResult`
+with `parse_review_insight_extraction_result(...)`.
+
+The agent can be tested with fake model clients and does not instantiate
+`OllamaModelClient` directly. It does not add CLI commands, does not wire into
+LangGraph, and does not connect to any database. Manual Ollama CLI execution
+remains deferred.
+
 ## Manual CLI Plan
 
 A future manual command could run the local Ollama review insight extraction
@@ -128,7 +140,7 @@ model behind the `ModelClient` boundary.
 
 1. Add a deterministic model-output parser for the expected review insight
    extraction response shape. Done.
-2. Add `ReviewInsightExtractionAgent` behind the `ModelClient` protocol.
+2. Add `ReviewInsightExtractionAgent` behind the `ModelClient` protocol. Done.
 3. Write fake-client tests first, including parser failure paths and metadata
    preservation.
 4. Add a manual local Ollama CLI command.
