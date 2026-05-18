@@ -67,6 +67,20 @@ Non-responsibilities:
 - Claude calls
 - writing back to the ReadySetRentables DB
 
+## Parser Boundary
+
+`parse_review_insight_extraction_result(...)` now exists as a pure parser for
+model output text. It expects JSON model output with review insight themes,
+strengths, risks, guest expectations, and a raw insight summary. The parser
+supports raw JSON, JSON in a fenced code block, or JSON surrounded by short
+explanatory text.
+
+The parser does not call Ollama, does not call any `ModelClient`, does not
+persist raw model output, and does not print raw prompt or model text. It uses
+caller-supplied run, provider, model, prompt, token, and cost metadata rather
+than trusting model-provided metadata. Agent and CLI implementation remain
+deferred.
+
 ## Manual CLI Plan
 
 A future manual command could run the local Ollama review insight extraction
@@ -113,7 +127,7 @@ model behind the `ModelClient` boundary.
 ## Implementation Sequence
 
 1. Add a deterministic model-output parser for the expected review insight
-   extraction response shape.
+   extraction response shape. Done.
 2. Add `ReviewInsightExtractionAgent` behind the `ModelClient` protocol.
 3. Write fake-client tests first, including parser failure paths and metadata
    preservation.
