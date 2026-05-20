@@ -85,9 +85,44 @@ def test_review_insight_prompt_includes_representative_synthetic_reviews() -> No
 def test_review_insight_prompt_asks_for_json_output() -> None:
     prompt = _build_review_insight_prompt(_input_data())
 
-    assert "Return only a JSON object" in prompt
-    assert "themes" in prompt
-    assert "raw_insight_summary" in prompt
+    assert "Return only one JSON object" in prompt
+    assert "Do not include Markdown" in prompt
+    assert "Do not include code fences" in prompt
+    assert "Do not include commentary before or after the JSON object" in prompt
+    assert "Do not include trailing commas" in prompt
+
+
+def test_review_insight_prompt_includes_exact_required_keys() -> None:
+    prompt = _build_review_insight_prompt(_input_data())
+
+    assert '"themes"' in prompt
+    assert '"name"' in prompt
+    assert '"sentiment"' in prompt
+    assert '"evidence_count"' in prompt
+    assert '"summary"' in prompt
+    assert '"strengths"' in prompt
+    assert '"risks"' in prompt
+    assert '"guest_expectations"' in prompt
+    assert '"raw_insight_summary"' in prompt
+    assert "positive|negative|mixed|neutral" in prompt
+
+
+def test_review_insight_prompt_mentions_non_negative_evidence_count() -> None:
+    prompt = _build_review_insight_prompt(_input_data())
+
+    assert "evidence_count must be a non-negative integer" in prompt
+
+
+def test_review_insight_prompt_says_risks_can_be_empty_array() -> None:
+    prompt = _build_review_insight_prompt(_input_data())
+
+    assert "if there are no risks, use an empty array" in prompt
+
+
+def test_review_insight_prompt_says_not_to_invent_facts() -> None:
+    prompt = _build_review_insight_prompt(_input_data())
+
+    assert "do not invent facts beyond the provided reviews and ratings" in prompt
 
 
 def test_review_insight_extraction_agent_parses_valid_model_json() -> None:
@@ -199,6 +234,22 @@ def test_review_insight_extraction_agent_error_does_not_expose_raw_model_output(
     error_message = str(exc_info.value)
     assert raw_output not in error_message
     assert "Synthetic private model output" not in error_message
+
+
+def test_review_insight_extraction_agent_does_not_print_prompt_text(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    agent = ReviewInsightExtractionAgent(
+        model_client=CapturingReviewInsightModelClient(),
+        model_name="synthetic-model",
+    )
+
+    agent.run(input_data=_input_data())
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert "Compact review insight input" not in combined_output
+    assert "Return only one JSON object" not in combined_output
 
 
 def test_review_insight_extraction_agent_does_not_instantiate_ollama_client() -> None:

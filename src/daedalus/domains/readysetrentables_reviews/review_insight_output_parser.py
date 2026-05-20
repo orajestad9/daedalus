@@ -12,6 +12,13 @@ from daedalus.domains.readysetrentables_reviews.review_insight_models import (
 )
 from daedalus.model_clients.types import ModelProvider
 
+MODEL_OUTPUT_EMPTY_MESSAGE = "Model output was empty."
+MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE = "Model output did not contain a valid JSON object."
+MODEL_OUTPUT_INVALID_JSON_MESSAGE = "Model output JSON could not be parsed."
+MODEL_OUTPUT_SCHEMA_MESSAGE = (
+    "Model output JSON did not match ReviewInsightExtractionResult schema."
+)
+
 
 def parse_review_insight_extraction_result(
     *,
@@ -49,8 +56,7 @@ def parse_review_insight_extraction_result(
     try:
         return ReviewInsightExtractionResult.model_validate(result_payload)
     except ValidationError:
-        msg = "Review insight model output does not match the expected schema."
-        raise ValueError(msg) from None
+        raise ValueError(MODEL_OUTPUT_SCHEMA_MESSAGE) from None
 
 
 def _load_model_output_json(output_text: str) -> dict[str, Any]:
@@ -59,12 +65,10 @@ def _load_model_output_json(output_text: str) -> dict[str, Any]:
     try:
         parsed = json.loads(json_object_text)
     except json.JSONDecodeError:
-        msg = "Review insight model output did not contain valid JSON."
-        raise ValueError(msg) from None
+        raise ValueError(MODEL_OUTPUT_INVALID_JSON_MESSAGE) from None
 
     if not isinstance(parsed, dict):
-        msg = "Review insight model output JSON must be an object."
-        raise ValueError(msg)
+        raise ValueError(MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE)
 
     return cast(dict[str, Any], parsed)
 
@@ -72,14 +76,15 @@ def _load_model_output_json(output_text: str) -> dict[str, Any]:
 def _extract_json_object(output_text: str) -> str:
     stripped_output = output_text.strip()
     if not stripped_output:
-        msg = "Review insight model output cannot be blank."
-        raise ValueError(msg)
+        raise ValueError(MODEL_OUTPUT_EMPTY_MESSAGE)
 
     start_positions = [index for index, char in enumerate(stripped_output) if char == "{"]
+    saw_balanced_object = False
     for start_index in start_positions:
         maybe_object = _balanced_json_object_at(stripped_output, start_index)
         if maybe_object is None:
             continue
+        saw_balanced_object = True
         try:
             parsed = json.loads(maybe_object)
         except json.JSONDecodeError:
@@ -87,8 +92,10 @@ def _extract_json_object(output_text: str) -> str:
         if isinstance(parsed, dict):
             return maybe_object
 
-    msg = "Review insight model output did not contain a valid JSON object."
-    raise ValueError(msg)
+    if saw_balanced_object:
+        raise ValueError(MODEL_OUTPUT_INVALID_JSON_MESSAGE)
+
+    raise ValueError(MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE)
 
 
 def _balanced_json_object_at(text: str, start_index: int) -> str | None:

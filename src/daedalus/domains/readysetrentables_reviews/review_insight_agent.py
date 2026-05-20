@@ -82,8 +82,8 @@ def _build_review_insight_prompt(input_data: ReviewInsightExtractionInput) -> st
         "themes": [
             {
                 "name": "string",
-                "sentiment": "positive | neutral | negative | mixed",
-                "evidence_count": "integer",
+                "sentiment": "positive|negative|mixed|neutral",
+                "evidence_count": 0,
                 "summary": "string",
             }
         ],
@@ -96,9 +96,23 @@ def _build_review_insight_prompt(input_data: ReviewInsightExtractionInput) -> st
     return "\n\n".join(
         [
             "Extract structured ReadySetRentables review insights from the compact input.",
-            "Return only a JSON object. Do not include Markdown, commentary, or code fences.",
-            "The JSON object must match this shape:",
+            "Return only one JSON object.",
+            "Do not include Markdown.",
+            "Do not include code fences.",
+            "Do not include commentary before or after the JSON object.",
+            "Do not include trailing commas.",
+            "Use this exact schema:",
             json.dumps(output_schema, sort_keys=True, indent=2),
+            "Schema rules:",
+            "\n".join(
+                [
+                    "- themes must be an array.",
+                    "- evidence_count must be a non-negative integer.",
+                    "- all strings must be non-empty.",
+                    "- if there are no risks, use an empty array.",
+                    "- do not invent facts beyond the provided reviews and ratings.",
+                ]
+            ),
             "Compact review insight input:",
             json.dumps(payload, sort_keys=True, indent=2),
         ]

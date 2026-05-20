@@ -41,6 +41,11 @@ Claude/Anthropic is not part of Phase 11. No cloud provider is used, no cloud
 SDK is added, and no model call should bypass the existing `ModelClient`
 boundary.
 
+Manual UM790 testing confirmed that `ollama-smoke-check` can reach local Ollama
+with `qwen2.5-coder:7b`. Review insight extraction has a stricter requirement
+than the smoke check: the model must return a valid JSON object matching the
+review insight schema.
+
 ## Proposed Agent
 
 The planned agent is:
@@ -80,6 +85,10 @@ persist raw model output, and does not print raw prompt or model text. It uses
 caller-supplied run, provider, model, prompt, token, and cost metadata rather
 than trusting model-provided metadata.
 
+Parser failures are categorized with safe diagnostics, such as empty output,
+missing JSON object, invalid JSON, or schema mismatch. These diagnostics do not
+include raw model output, parsed payload contents, prompt text, or review text.
+
 ## Agent Boundary
 
 `ReviewInsightExtractionAgent` now exists. It accepts
@@ -112,6 +121,11 @@ model name, prompt identity, theme count, token counts, and estimated cost when
 available. It does not print representative review text, raw prompt text, raw
 model output text, or artifact contents.
 
+When the model output cannot be parsed, the command reports a safe failure
+category, for example that the model output did not match the expected review
+insight JSON schema. It still does not print raw model output, prompt text, or
+representative review text.
+
 Generated `review_insights.json` may contain AI-derived insights from real
 source data. When generated from real ReadySetRentables data, it should remain
 local and untracked unless a later guarded workflow explicitly scopes
@@ -132,6 +146,7 @@ model behind the `ModelClient` boundary.
 - Do not print representative review text.
 - Do not print raw prompt text.
 - Do not print raw model output text by default.
+- Require strict JSON-only model output for review insight extraction.
 - Do not print artifact contents.
 - Do not commit real `review_insight_extraction_input.json` artifacts.
 - Do not commit real `review_insights.json` artifacts.

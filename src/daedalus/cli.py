@@ -24,6 +24,12 @@ from daedalus.domains.readysetrentables_reviews.review_insight_artifacts import 
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
     ReviewInsightExtractionInput,
 )
+from daedalus.domains.readysetrentables_reviews.review_insight_output_parser import (
+    MODEL_OUTPUT_EMPTY_MESSAGE,
+    MODEL_OUTPUT_INVALID_JSON_MESSAGE,
+    MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE,
+    MODEL_OUTPUT_SCHEMA_MESSAGE,
+)
 from daedalus.domains.readysetrentables_reviews.theme_summary_agent import (
     ReviewThemeSummaryAgent,
 )
@@ -534,8 +540,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result=review_insight_result,
                 output_path=args.output_json,
             )
-        except (ValueError, OllamaModelClientError):
-            parser.error("Failed to extract review insights with local Ollama.")
+        except (ValueError, OllamaModelClientError) as exc:
+            parser.error(_safe_review_insights_ollama_failure_message(exc))
         except Exception:
             parser.error("Failed to extract review insights with local Ollama.")
 
@@ -1451,6 +1457,26 @@ def _ollama_settings_for_review_insights(
         update["request_timeout_seconds"] = timeout_seconds
     values.update(update)
     return OllamaModelClientSettings.model_validate(values)
+
+
+def _safe_review_insights_ollama_failure_message(exc: Exception) -> str:
+    reason = _safe_review_insights_ollama_failure_reason(exc)
+    return f"Failed to extract review insights with local Ollama: {reason}"
+
+
+def _safe_review_insights_ollama_failure_reason(exc: Exception) -> str:
+    message = str(exc)
+    if message == MODEL_OUTPUT_EMPTY_MESSAGE:
+        return "model output was empty."
+    if message == MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE:
+        return "model output did not contain a valid JSON object."
+    if message == MODEL_OUTPUT_INVALID_JSON_MESSAGE:
+        return "model output JSON could not be parsed."
+    if message == MODEL_OUTPUT_SCHEMA_MESSAGE:
+        return "model output did not match the expected review insight JSON schema."
+    if isinstance(exc, OllamaModelClientError):
+        return "local Ollama request failed."
+    return "model output could not be converted to review insights."
 
 
 def _default_evaluation_json_path(summary_path: Path) -> Path:

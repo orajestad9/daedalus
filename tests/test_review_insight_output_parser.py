@@ -7,6 +7,10 @@ import pytest
 
 import daedalus.domains.readysetrentables_reviews.review_insight_output_parser as parser_module
 from daedalus.domains.readysetrentables_reviews.review_insight_output_parser import (
+    MODEL_OUTPUT_EMPTY_MESSAGE,
+    MODEL_OUTPUT_INVALID_JSON_MESSAGE,
+    MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE,
+    MODEL_OUTPUT_SCHEMA_MESSAGE,
     parse_review_insight_extraction_result,
 )
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
@@ -73,7 +77,7 @@ def test_parse_review_insight_extraction_result_parses_json_surrounded_by_text()
 
 
 def test_parse_review_insight_extraction_result_rejects_blank_output() -> None:
-    with pytest.raises(ValueError, match="cannot be blank"):
+    with pytest.raises(ValueError, match=MODEL_OUTPUT_EMPTY_MESSAGE):
         parse_review_insight_extraction_result(
             output_text="   ",
             run_id=uuid4(),
@@ -85,9 +89,21 @@ def test_parse_review_insight_extraction_result_rejects_blank_output() -> None:
 
 
 def test_parse_review_insight_extraction_result_rejects_invalid_json() -> None:
-    with pytest.raises(ValueError, match="valid JSON object"):
+    with pytest.raises(ValueError, match=MODEL_OUTPUT_INVALID_JSON_MESSAGE):
         parse_review_insight_extraction_result(
             output_text='{"themes": [}',
+            run_id=uuid4(),
+            provider=ModelProvider.OLLAMA,
+            model_name="llama3.1",
+            prompt_name="review-insights",
+            prompt_version="v1",
+        )
+
+
+def test_parse_review_insight_extraction_result_rejects_non_json_output() -> None:
+    with pytest.raises(ValueError, match=MODEL_OUTPUT_NO_JSON_OBJECT_MESSAGE):
+        parse_review_insight_extraction_result(
+            output_text="I cannot provide structured JSON for this synthetic request.",
             run_id=uuid4(),
             provider=ModelProvider.OLLAMA,
             model_name="llama3.1",
@@ -100,7 +116,7 @@ def test_parse_review_insight_extraction_result_rejects_missing_raw_insight_summ
     payload = _model_output_payload()
     del payload["raw_insight_summary"]
 
-    with pytest.raises(ValueError, match="expected schema"):
+    with pytest.raises(ValueError, match=MODEL_OUTPUT_SCHEMA_MESSAGE):
         parse_review_insight_extraction_result(
             output_text=json.dumps(payload),
             run_id=uuid4(),
@@ -115,7 +131,7 @@ def test_parse_review_insight_extraction_result_rejects_invalid_theme_shape() ->
     payload = _model_output_payload()
     payload["themes"] = [{"name": "arrival clarity", "sentiment": "positive"}]
 
-    with pytest.raises(ValueError, match="expected schema"):
+    with pytest.raises(ValueError, match=MODEL_OUTPUT_SCHEMA_MESSAGE):
         parse_review_insight_extraction_result(
             output_text=json.dumps(payload),
             run_id=uuid4(),
@@ -235,6 +251,28 @@ def test_parser_error_messages_do_not_include_raw_model_output() -> None:
     error_message = str(exc_info.value)
     assert raw_output not in error_message
     assert "Synthetic private model output" not in error_message
+
+
+def test_parser_error_messages_do_not_include_synthetic_review_text() -> None:
+    raw_output = (
+        "Synthetic review: hidden representative review. "
+        '{"themes":[{"name":"arrival clarity","sentiment":"positive"}],'
+        '"raw_insight_summary":"Safe summary"}'
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        parse_review_insight_extraction_result(
+            output_text=raw_output,
+            run_id=uuid4(),
+            provider=ModelProvider.OLLAMA,
+            model_name="llama3.1",
+            prompt_name="review-insights",
+            prompt_version="v1",
+        )
+
+    error_message = str(exc_info.value)
+    assert "Synthetic review:" not in error_message
+    assert "hidden representative review" not in error_message
 
 
 def test_parser_does_not_call_model_providers() -> None:
