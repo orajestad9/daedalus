@@ -8,7 +8,10 @@ from uuid import UUID, uuid4
 from pydantic import ValidationError
 
 from daedalus.config import load_postgres_settings
-from daedalus.domains.readysetrentables_reviews.artifacts import load_review_batch_json
+from daedalus.domains.readysetrentables_reviews.artifacts import (
+    load_review_batch_json,
+    load_review_batch_metadata_json,
+)
 from daedalus.domains.readysetrentables_reviews.graph_workflow import (
     run_readysetrentables_review_graph,
 )
@@ -187,6 +190,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Persisted workflow run {result.run_id} "
                 f"with {persisted_artifact_count} artifact record(s)."
             )
+        return 0
+
+    if args.command == "explain-artifact":
+        try:
+            metadata = load_review_batch_metadata_json(args.input_json)
+        except (FileNotFoundError, ValueError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Artifact metadata "
+            f"artifact_type={metadata.artifact_type.value} "
+            f"workflow_name={metadata.workflow_name} "
+            f"run_id={metadata.run_id} "
+            f"review_count={metadata.review_count} "
+            f"created_at_utc={metadata.created_at_utc.isoformat()} "
+            f"source_csv_path={metadata.source_csv_path} "
+            f"output_json_path={metadata.output_json_path}"
+        )
         return 0
 
     if args.command == "migrate-db":
@@ -773,6 +794,17 @@ def _build_parser() -> argparse.ArgumentParser:
         type=_execution_engine_arg,
         metavar="{deterministic,langgraph}",
         help="Override the manifest execution engine for this run.",
+    )
+
+    explain_artifact = subparsers.add_parser(
+        "explain-artifact",
+        help="Explain a ReadySetRentables review artifact metadata JSON file.",
+    )
+    explain_artifact.add_argument(
+        "--input-json",
+        required=True,
+        type=Path,
+        help="Path to an existing ReviewBatchArtifactMetadata JSON file.",
     )
 
     subparsers.add_parser(

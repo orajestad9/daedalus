@@ -9,7 +9,11 @@ import pytest
 
 from daedalus.cli import main
 from daedalus.config import PostgresSettings
-from daedalus.domains.readysetrentables_reviews.artifacts import write_review_batch_json
+from daedalus.domains.readysetrentables_reviews.artifacts import (
+    ReviewBatchArtifactMetadata,
+    write_review_batch_json,
+    write_review_batch_metadata_json,
+)
 from daedalus.domains.readysetrentables_reviews.ingestion import load_airbnb_reviews_csv
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
     ReviewInsightExtractionInput,
@@ -149,6 +153,69 @@ def test_run_workflow_command_succeeds_with_sample_manifest(
     assert f"metadata={metadata_path}" in output
     assert f"summary={summary_path}" in output
     assert f"run_record={run_record_path}" in output
+
+
+def test_explain_artifact_command_succeeds_for_metadata_json(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    source_csv_path = tmp_path / "reviews.csv"
+    output_json_path = tmp_path / "normalized_reviews.json"
+    metadata_path = tmp_path / "normalized_reviews.metadata.json"
+    raw_artifact_body = "Do not print this raw normalized artifact body."
+    output_json_path.write_text(raw_artifact_body, encoding="utf-8")
+    metadata = ReviewBatchArtifactMetadata(
+        run_id=run_id,
+        workflow_name="readysetrentables_review_normalization",
+        artifact_type=ArtifactType.NORMALIZED_REVIEWS,
+        source_csv_path=source_csv_path,
+        output_json_path=output_json_path,
+        created_at_utc=datetime(2026, 5, 7, 12, 0, tzinfo=UTC),
+        review_count=8,
+    )
+    write_review_batch_metadata_json(metadata, metadata_path)
+
+    exit_code = main(["explain-artifact", "--input-json", str(metadata_path)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Artifact metadata" in output
+    assert "artifact_type=normalized_reviews" in output
+    assert "workflow_name=readysetrentables_review_normalization" in output
+    assert f"run_id={run_id}" in output
+    assert "review_count=8" in output
+    assert "created_at_utc=2026-05-07T12:00:00+00:00" in output
+    assert f"source_csv_path={source_csv_path}" in output
+    assert f"output_json_path={output_json_path}" in output
+    assert raw_artifact_body not in output
+
+
+def test_explain_artifact_command_missing_file_fails_cleanly(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["explain-artifact", "--input-json", str(tmp_path / "missing.metadata.json")])
+
+    assert exc_info.value.code == 2
+
+
+def test_explain_artifact_command_invalid_json_fails_cleanly(tmp_path: Path) -> None:
+    metadata_path = tmp_path / "invalid.metadata.json"
+    metadata_path.write_text("{invalid json", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["explain-artifact", "--input-json", str(metadata_path)])
+
+    assert exc_info.value.code == 2
+
+
+def test_explain_artifact_command_schema_mismatch_fails_cleanly(tmp_path: Path) -> None:
+    metadata_path = tmp_path / "invalid_schema.metadata.json"
+    metadata_path.write_text('{"artifact_type": "normalized_reviews"}', encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["explain-artifact", "--input-json", str(metadata_path)])
+
+    assert exc_info.value.code == 2
 
 
 def test_run_workflow_command_without_execution_engine_override_uses_manifest(
