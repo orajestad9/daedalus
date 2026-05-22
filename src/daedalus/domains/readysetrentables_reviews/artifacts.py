@@ -6,11 +6,12 @@ human-readable so a reviewer or future review agent can understand a run without
 opening the full JSON payload.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from daedalus.domains.readysetrentables_reviews.models import ReviewBatch
 from daedalus.orchestrator.artifact_type import ArtifactType
@@ -39,6 +40,25 @@ def write_review_batch_json(batch: ReviewBatch, output_path: Path) -> Path:
 def load_review_batch_json(input_path: Path) -> ReviewBatch:
     """Load a normalized review batch JSON artifact from disk."""
     return ReviewBatch.model_validate_json(input_path.read_text(encoding="utf-8"))
+
+
+def load_review_batch_metadata_json(input_path: Path) -> ReviewBatchArtifactMetadata:
+    """Load trace metadata for a normalized review JSON artifact from disk."""
+    if not input_path.is_file():
+        msg = f"Review batch metadata path does not exist: {input_path}"
+        raise FileNotFoundError(msg)
+
+    try:
+        parsed = json.loads(input_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = "Review batch metadata artifact is not valid JSON."
+        raise ValueError(msg) from exc
+
+    try:
+        return ReviewBatchArtifactMetadata.model_validate(parsed)
+    except ValidationError as exc:
+        msg = "Review batch metadata artifact does not match the expected schema."
+        raise ValueError(msg) from exc
 
 
 def write_review_batch_metadata_json(
