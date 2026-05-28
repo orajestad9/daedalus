@@ -121,6 +121,8 @@ def _representative_reviews(
     source_extract: RsrSourceExtractionResult,
     max_representative_reviews: int,
 ) -> list[str]:
+    # Real review text is carried only into the local model input artifact so the
+    # agent has evidence; CLI output should stick to counts and safe metadata.
     if max_representative_reviews == 0:
         return []
 

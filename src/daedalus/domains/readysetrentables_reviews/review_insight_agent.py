@@ -68,6 +68,8 @@ class ReviewInsightExtractionAgent:
 
 
 def _build_review_insight_prompt(input_data: ReviewInsightExtractionInput) -> str:
+    # Representative reviews may contain real guest text. Build the prompt for
+    # the injected model client only; do not log or print this payload.
     payload = {
         "market_name": input_data.market_name,
         "neighborhood_name": input_data.neighborhood_name,

@@ -38,7 +38,12 @@ _LISTING_FALLBACK_LIMIT = 25
 
 
 class RsrSourceReadOnlyRepository:
-    """Read-only repository for sanitized RSR source DB extraction."""
+    """Read-only repository for sanitized RSR source DB extraction.
+
+    The adapter accepts an already-open connection but never owns transactions or
+    write behavior; Daedalus only needs a local extract artifact from the source
+    application database.
+    """
 
     def __init__(self, connection: Any) -> None:
         self._connection = connection
@@ -228,6 +233,8 @@ def ensure_read_only_query(query: str) -> None:
 
 
 def _shape_review_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    # Review text is needed for downstream local artifacts, but reviewer identity
+    # is intentionally excluded at the source boundary.
     return [
         {
             "review_id": _string_or_none(row.get("review_id")),
@@ -248,6 +255,9 @@ def _shape_review_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, A
 
 
 def _shape_listing_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    # Keep URLs, coordinates, price, revenue, and occupancy metrics out of the
+    # sanitized listing context; rating and amenity fields are sufficient for the
+    # review-insight path.
     return [
         {
             "listing_id": _string_or_none(row.get("listing_id")),

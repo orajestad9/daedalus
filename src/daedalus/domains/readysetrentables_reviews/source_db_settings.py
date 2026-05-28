@@ -16,7 +16,12 @@ RSR_SOURCE_POSTGRES_ENV_VARS = (
 
 
 class RsrSourcePostgresSettings(BaseModel):
-    """Typed settings for read-only RSR source Postgres access."""
+    """Typed settings for read-only RSR source Postgres access.
+
+    These deliberately use `RSR_SOURCE_POSTGRES_*` instead of the Daedalus
+    metadata DB settings so source extraction cannot be confused with the
+    database where Daedalus stores workflow/run metadata.
+    """
 
     host: str
     port: int = Field(ge=1, le=65535)

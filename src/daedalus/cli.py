@@ -458,6 +458,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if callable(close):
                     close()
 
+        # Success output stays aggregate-only because real source artifacts can
+        # contain private review text and should remain local/untracked.
         summary_parts = [
             "Wrote RSR source extract",
             f"output={source_extract_path}",
@@ -494,6 +496,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         except (FileNotFoundError, ValueError) as exc:
             parser.error(str(exc))
 
+        # The generated input artifact may contain representative review text;
+        # print counts and filters, not artifact contents.
         summary_parts = [
             "Wrote review insight extraction input",
             f"output={review_insight_input_path}",
@@ -1465,6 +1469,8 @@ def _safe_review_insights_ollama_failure_message(exc: Exception) -> str:
 
 
 def _safe_review_insights_ollama_failure_reason(exc: Exception) -> str:
+    # Map parser/provider failures to fixed public messages so raw model output
+    # and source-derived review text never leak through argparse errors.
     message = str(exc)
     if message == MODEL_OUTPUT_EMPTY_MESSAGE:
         return "model output was empty."

@@ -56,6 +56,8 @@ def parse_review_insight_extraction_result(
     try:
         return ReviewInsightExtractionResult.model_validate(result_payload)
     except ValidationError:
+        # Keep parser failures fixed and content-free: raw model output can
+        # include prompt echoes or real review text.
         raise ValueError(MODEL_OUTPUT_SCHEMA_MESSAGE) from None
 
 

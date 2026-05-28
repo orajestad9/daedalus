@@ -347,11 +347,12 @@ See `docs/phase-10-rsr-source-db-adapter.md` for the Phase 10 adapter status.
 
 ### Phase 11: Local Ollama Review Insight Extraction Agent
 
-Phase 11 is the active next RSR pipeline phase. It should add a manual local
-Ollama `ReviewInsightExtractionAgent` that consumes
-`ReviewInsightExtractionInput`, calls the shared `ModelClient` boundary
-explicitly, parses model output into `ReviewInsightExtractionResult`, and writes
-`review_insights.json`.
+Phase 11 is the active RSR pipeline phase. The current implementation includes a
+manual local Ollama `ReviewInsightExtractionAgent`, a deterministic output
+parser, an `extract-review-insights-ollama` CLI path, and a
+`review_insights.json` artifact writer. The live Ollama path is still being
+hardened: JSON reliability, schema alignment, and safe failure diagnostics remain
+the immediate focus before the command is treated as complete.
 
 The planned Phase 11 path starts from the Phase 10 bridge:
 
@@ -363,10 +364,18 @@ rsr_source_extract.json
   -> review_insights.json
 ```
 
-Phase 11 should remain manual, local-first, and guarded. Ollama should not
-become a default provider, should not be wired into LangGraph or `run-workflow`
-yet, and should not run under `make check` through a live model dependency.
-Fake-client tests and deterministic parsing should come first.
+Phase 11 remains manual, local-first, and guarded. Ollama should not become a
+default provider, should not be wired into LangGraph or `run-workflow` yet, and
+should not run under `make check` through a live model dependency. Fake-client
+tests and deterministic parsing stay ahead of live-provider workflow wiring.
+
+Immediate Phase 11 follow-ups:
+
+- improve local Ollama JSON reliability for review insights
+- complete the manual `review_insights.json` generation path
+- add or complete review-insight evaluation and artifact recording where needed
+- keep raw prompt text, raw model output, and real review text out of CLI errors
+  and docs
 
 Still deferred beyond Phase 11 planning:
 

@@ -1,4 +1,8 @@
-"""Pure row mappers for ReadySetRentables source extraction results."""
+"""Pure row mappers for ReadySetRentables source extraction results.
+
+The repository owns SQL and field selection; this module validates already-shaped
+row dictionaries into the small sanitized contract Daedalus artifacts may carry.
+"""
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
