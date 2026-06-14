@@ -132,6 +132,10 @@ daedalus show-run --run-id <run-id>
 
 ## Project Notes
 
+- Demo architecture: [`docs/architecture.md`](docs/architecture.md)
+- Demo plan: [`docs/demo-plan.md`](docs/demo-plan.md)
+- Demo readiness checklist:
+  [`docs/demo-readiness-checklist.md`](docs/demo-readiness-checklist.md)
 - Roadmap: [`docs/roadmap.md`](docs/roadmap.md)
 - Observability and `show-run`: [`docs/observability.md`](docs/observability.md)
 - Model-client architecture: [`docs/model-client-architecture.md`](docs/model-client-architecture.md)
