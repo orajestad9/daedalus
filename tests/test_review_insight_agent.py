@@ -236,6 +236,34 @@ def test_review_insight_extraction_agent_error_does_not_expose_raw_model_output(
     assert "Synthetic private model output" not in error_message
 
 
+def test_review_insight_extraction_agent_preserves_safe_parser_message() -> None:
+    agent = ReviewInsightExtractionAgent(
+        model_client=CapturingReviewInsightModelClient(output_text="not json at all"),
+        model_name="synthetic-model",
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        agent.run(input_data=_input_data())
+
+    assert str(exc_info.value) == "Model output did not contain a valid JSON object."
+
+
+def test_review_insight_extraction_agent_error_does_not_expose_review_text() -> None:
+    agent = ReviewInsightExtractionAgent(
+        model_client=CapturingReviewInsightModelClient(output_text="not json at all"),
+        model_name="synthetic-model",
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        agent.run(
+            input_data=_input_data(
+                representative_reviews=["SYNTHETIC_REVIEW_TEXT_DO_NOT_LEAK"],
+            )
+        )
+
+    assert "SYNTHETIC_REVIEW_TEXT_DO_NOT_LEAK" not in str(exc_info.value)
+
+
 def test_review_insight_extraction_agent_does_not_print_prompt_text(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

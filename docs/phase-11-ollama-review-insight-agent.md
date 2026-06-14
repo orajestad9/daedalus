@@ -121,10 +121,14 @@ model name, prompt identity, theme count, token counts, and estimated cost when
 available. It does not print representative review text, raw prompt text, raw
 model output text, or artifact contents.
 
-When the model output cannot be parsed, the command reports a safe failure
-category, for example that the model output did not match the expected review
-insight JSON schema. It still does not print raw model output, prompt text, or
-representative review text.
+When extraction fails, the command reports a safe diagnostic category instead of
+a single generic error. Known categories include: the Ollama request timed out,
+the local Ollama request failed, the model output was empty, the model output
+did not contain a valid JSON object, the model output JSON could not be parsed,
+and the model output did not match the expected review insight JSON schema. An
+unrecognized failure falls back to a generic safe category. These diagnostics
+intentionally avoid prompt text, representative review text, parsed payload
+contents, and raw model output, so none of those can leak through the CLI error.
 
 Generated `review_insights.json` may contain AI-derived insights from real
 source data. When generated from real ReadySetRentables data, it should remain

@@ -38,7 +38,10 @@ from daedalus.model_clients.invocation_record import (
     ModelInvocationRecord,
     ModelInvocationStatus,
 )
-from daedalus.model_clients.ollama import OllamaModelClientError
+from daedalus.model_clients.ollama import (
+    OLLAMA_REQUEST_TIMEOUT_MESSAGE,
+    OllamaModelClientError,
+)
 from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
 from daedalus.model_clients.types import (
     ModelInvocationStatus as ModelResponseStatus,
@@ -2659,6 +2662,64 @@ def test_extract_review_insights_ollama_unknown_agent_failure_hides_raw_output(
     assert "model output could not be converted to review insights." in combined_output
     assert "Raw model output should not leak." not in combined_output
     assert "Synthetic review: hidden representative review." not in combined_output
+
+
+def test_extract_review_insights_ollama_timeout_reports_safe_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(
+        monkeypatch,
+        agent_error=OllamaModelClientError(OLLAMA_REQUEST_TIMEOUT_MESSAGE),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "Failed to extract review insights with local Ollama:" in combined_output
+    assert "Ollama request timed out." in combined_output
+
+
+def test_extract_review_insights_ollama_generic_client_error_reports_safe_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    _install_review_insights_ollama_cli_fakes(
+        monkeypatch,
+        agent_error=OllamaModelClientError("Ollama generate request failed with HTTP status 500."),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "local Ollama request failed." in combined_output
+    assert "HTTP status 500" not in combined_output
 
 
 def test_extract_review_insights_ollama_command_does_not_print_sensitive_text(

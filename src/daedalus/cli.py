@@ -91,7 +91,11 @@ from daedalus.memory.workflow_run_repository import (
 from daedalus.model_clients.client import ModelClient
 from daedalus.model_clients.fake import FakeModelClient
 from daedalus.model_clients.invocation_recorder import ModelInvocationRecorder
-from daedalus.model_clients.ollama import OllamaModelClient, OllamaModelClientError
+from daedalus.model_clients.ollama import (
+    OLLAMA_REQUEST_TIMEOUT_MESSAGE,
+    OllamaModelClient,
+    OllamaModelClientError,
+)
 from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
 from daedalus.model_clients.recording import RecordingModelClient
 from daedalus.model_clients.types import ModelBudget, ModelProvider, ModelRequest, ModelResponse
@@ -1481,6 +1485,8 @@ def _safe_review_insights_ollama_failure_reason(exc: Exception) -> str:
     if message == MODEL_OUTPUT_SCHEMA_MESSAGE:
         return "model output did not match the expected review insight JSON schema."
     if isinstance(exc, OllamaModelClientError):
+        if message == OLLAMA_REQUEST_TIMEOUT_MESSAGE:
+            return "Ollama request timed out."
         return "local Ollama request failed."
     return "model output could not be converted to review insights."
 

@@ -23,6 +23,9 @@ from daedalus.model_clients.types import ModelProvider, ModelRequest, ModelRespo
 OllamaTransport = Callable[[str, dict[str, object], float], dict[str, object]]
 
 
+OLLAMA_REQUEST_TIMEOUT_MESSAGE = "Ollama generate request timed out."
+
+
 class OllamaModelClientError(RuntimeError):
     """Raised for safe Ollama client configuration, transport, or parsing errors."""
 
@@ -101,8 +104,7 @@ def _default_ollama_generate_transport(
         msg = "Ollama generate request failed due to a network error."
         raise OllamaModelClientError(msg) from exc
     except TimeoutError as exc:
-        msg = "Ollama generate request timed out."
-        raise OllamaModelClientError(msg) from exc
+        raise OllamaModelClientError(OLLAMA_REQUEST_TIMEOUT_MESSAGE) from exc
 
     try:
         decoded_payload: Any = json.loads(response_body)
