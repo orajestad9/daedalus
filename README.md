@@ -103,6 +103,25 @@ make db-check
 Manual RSR source extract path:
 
 ```sh
+daedalus run-rsr-review-insights-pipeline \
+  --run-id <run-id> \
+  --market-name <market-name> \
+  --max-reviews 10 \
+  --model <local-ollama-model> \
+  --output-dir artifacts/readysetrentables
+```
+
+This writes `rsr_source_extract.json`,
+`review_insight_extraction_input.json`, `review_insights.json`,
+`review_insights.evaluation.json`, and `review_insights.evaluation.md` under
+the output directory. It records the `review_insights` artifact, records the
+JSON `evaluation_report` artifact, and records safe Ollama invocation metadata
+against the supplied run ID. CLI output is limited to paths, IDs, token counts,
+and aggregate evaluation counts.
+
+The individual manual commands remain available:
+
+```sh
 daedalus extract-rsr-source-data \
   --market-name <market-name> \
   --max-reviews 10 \

@@ -182,6 +182,41 @@ workflow run without reading or printing the artifact contents:
 This records the artifact as `review_insights`, so `show-run` displays a line
 like `review_insights: artifacts/readysetrentables/review_insights.json`.
 
+## Repeatable Pipeline Command
+
+The current manual demo path can also be run as one explicit command:
+
+```bash
+.venv/bin/daedalus run-rsr-review-insights-pipeline \
+  --run-id <workflow-run-uuid> \
+  --market-name san-diego \
+  --max-reviews 10 \
+  --model qwen2.5-coder:7b \
+  --output-dir artifacts/readysetrentables
+```
+
+The command creates `--output-dir` when needed and writes:
+
+- `rsr_source_extract.json`
+- `review_insight_extraction_input.json`
+- `review_insights.json`
+- `review_insights.evaluation.json`
+- `review_insights.evaluation.md`
+
+It then records `review_insights` for `review_insights.json`, records
+`evaluation_report` for `review_insights.evaluation.json`, and records the
+local Ollama model invocation against `--run-id`. The Markdown evaluation report
+is written as the local human-readable companion report.
+
+The pipeline keeps the same boundaries as the individual commands: RSR source
+DB access is read-only, there is no ReadySetRentables DB writeback, there is no
+LangGraph wiring, and there are no Claude/Anthropic/cloud provider calls.
+
+Progress and final CLI output are safe summaries only. They may include paths,
+run ID, model name, token counts, and aggregate evaluation counts. They must not
+include review text, generated insight contents, prompt text, raw model output,
+DSNs, passwords, `.env` values, or artifact contents.
+
 ## Evaluation Path
 
 `review_insights.json` now has a deterministic evaluator and manual CLI command.

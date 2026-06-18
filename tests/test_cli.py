@@ -71,6 +71,17 @@ def test_cli_help_includes_record_review_insights_artifact(
     assert "record-review-insights-artifact" in output
 
 
+def test_cli_help_includes_run_rsr_review_insights_pipeline(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+
+    output = capsys.readouterr().out
+    assert exc_info.value.code == 0
+    assert "run-rsr-review-insights-pipeline" in output
+
+
 def test_normalize_reviews_command_succeeds_with_sample_csv(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -3201,6 +3212,403 @@ def test_extract_review_insights_ollama_tests_do_not_call_real_ollama(
     assert exit_code == 0
     assert len(state.clients) == 1
     assert state.clients[0].settings.enabled is True
+
+
+def test_run_rsr_review_insights_pipeline_requires_run_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Pipeline dependencies should not be called without --run-id")
+
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--market-name",
+                "Synthetic Market",
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_run_rsr_review_insights_pipeline_invalid_run_id_fails_cleanly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Pipeline dependencies should not be called for invalid --run-id")
+
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--run-id",
+                "not-a-uuid",
+                "--market-name",
+                "Synthetic Market",
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_run_rsr_review_insights_pipeline_requires_market_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Pipeline dependencies should not be called without --market-name")
+
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--run-id",
+                str(uuid4()),
+                "--model",
+                "llama3.1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_run_rsr_review_insights_pipeline_requires_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Pipeline dependencies should not be called without --model")
+
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--run-id",
+                str(uuid4()),
+                "--market-name",
+                "Synthetic Market",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_run_rsr_review_insights_pipeline_happy_path_writes_expected_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_dir = tmp_path / "readysetrentables"
+    run_id = uuid4()
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    rsr_state = _install_rsr_source_cli_fakes(monkeypatch)
+    ollama_state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(run_id),
+            "--market-name",
+            "Synthetic Market",
+            "--max-reviews",
+            "10",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    source_extract_path = output_dir / "rsr_source_extract.json"
+    input_path = output_dir / "review_insight_extraction_input.json"
+    review_insights_path = output_dir / "review_insights.json"
+    evaluation_json_path = output_dir / "review_insights.evaluation.json"
+    evaluation_md_path = output_dir / "review_insights.evaluation.md"
+    assert exit_code == 0
+    assert source_extract_path.is_file()
+    assert input_path.is_file()
+    assert review_insights_path.is_file()
+    assert evaluation_json_path.is_file()
+    assert evaluation_md_path.is_file()
+    assert rsr_state.requests[0].market_name == "Synthetic Market"
+    assert rsr_state.requests[0].max_reviews == 10
+    assert rsr_state.connection.closed is True
+    assert ollama_state.clients[0].settings.model_name == "llama3.1"
+    assert ollama_state.inputs[0].run_id == run_id
+    assert ollama_state.inputs[0].source_artifact_path == source_extract_path
+    assert f"source_extract={source_extract_path}" in output
+    assert f"review_insight_input={input_path}" in output
+    assert f"review_insights={review_insights_path}" in output
+    assert f"evaluation_json={evaluation_json_path}" in output
+    assert f"evaluation_md={evaluation_md_path}" in output
+
+
+def test_run_rsr_review_insights_pipeline_records_review_insights_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "readysetrentables"
+    run_id = uuid4()
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_rsr_source_cli_fakes(monkeypatch)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(run_id),
+            "--market-name",
+            "Synthetic Market",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    artifact_params = [
+        params
+        for sql, params in zip(connection.executed_sql, connection.executed_params, strict=True)
+        if "insert into workflow_artifacts" in sql.lower()
+    ]
+    assert exit_code == 0
+    assert any(
+        params[1] == run_id
+        and params[2] == ArtifactType.REVIEW_INSIGHTS.value
+        and params[3] == str(output_dir / "review_insights.json")
+        for params in artifact_params
+    )
+
+
+def test_run_rsr_review_insights_pipeline_records_evaluation_report_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "readysetrentables"
+    run_id = uuid4()
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_rsr_source_cli_fakes(monkeypatch)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(run_id),
+            "--market-name",
+            "Synthetic Market",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    artifact_params = [
+        params
+        for sql, params in zip(connection.executed_sql, connection.executed_params, strict=True)
+        if "insert into workflow_artifacts" in sql.lower()
+    ]
+    assert exit_code == 0
+    assert any(
+        params[1] == run_id
+        and params[2] == ArtifactType.EVALUATION_REPORT.value
+        and params[3] == str(output_dir / "review_insights.evaluation.json")
+        for params in artifact_params
+    )
+
+
+def test_run_rsr_review_insights_pipeline_records_ollama_model_invocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "readysetrentables"
+    run_id = uuid4()
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_rsr_source_cli_fakes(monkeypatch)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(run_id),
+            "--market-name",
+            "Synthetic Market",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    invocation_params = [
+        params
+        for sql, params in zip(connection.executed_sql, connection.executed_params, strict=True)
+        if "insert into model_invocations" in sql.lower()
+    ]
+    assert exit_code == 0
+    assert len(invocation_params) == 1
+    params = invocation_params[0]
+    assert params[1] == run_id
+    assert params[3] == "review_insight_extraction_agent"
+    assert params[4] == ModelProvider.OLLAMA.value
+    assert params[5] == "llama3.1"
+    assert params[6] == "readysetrentables_review_insight_extraction"
+    assert params[7] == "v0"
+    assert params[8] == 11
+    assert params[9] == 7
+    assert params[10] == 18
+    assert params[12] == ModelInvocationStatus.SUCCEEDED.value
+    assert params[16] == str(output_dir / "review_insight_extraction_input.json")
+    assert params[17] == str(output_dir / "review_insights.json")
+
+
+def test_run_rsr_review_insights_pipeline_final_output_is_safe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_dir = tmp_path / "readysetrentables"
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_rsr_source_cli_fakes(monkeypatch)
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(uuid4()),
+            "--market-name",
+            "Synthetic Market",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    review_insights_body = (output_dir / "review_insights.json").read_text(encoding="utf-8")
+    evaluation_json_body = (output_dir / "review_insights.evaluation.json").read_text(
+        encoding="utf-8"
+    )
+    assert exit_code == 0
+    assert "Raw private review text" not in output
+    assert "Second raw private review text" not in output
+    assert "Synthetic guests value clear arrival details." not in output
+    assert "Clear synthetic arrival details" not in output
+    assert "Occasional synthetic street noise" not in output
+    assert "Send arrival details before check-in" not in output
+    assert "Raw model output should not be printed." not in output
+    assert "Compact review insight input" not in output
+    assert "postgresql://" not in output
+    assert "top-secret-password" not in output
+    assert "placeholder-password" not in output
+    assert review_insights_body not in output
+    assert evaluation_json_body not in output
+    assert "total_tokens=18" in output
+    assert "failed_count=" in output
+    assert "artifacts_recorded=review_insights,evaluation_report" in output
+
+
+def test_run_rsr_review_insights_pipeline_failure_exits_safely(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_rsr_source_cli_fakes(monkeypatch)
+    _install_review_insights_ollama_cli_fakes(
+        monkeypatch,
+        agent_error=ValueError("Raw model output should not leak."),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--run-id",
+                str(uuid4()),
+                "--market-name",
+                "Synthetic Market",
+                "--model",
+                "llama3.1",
+                "--output-dir",
+                str(tmp_path / "readysetrentables"),
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert "model output could not be converted to review insights." in combined_output
+    assert "Raw model output should not leak." not in combined_output
+    assert "Raw private review text" not in combined_output
+    assert "top-secret-password" not in combined_output
 
 
 def test_compare_review_theme_summaries_succeeds_for_valid_artifacts(

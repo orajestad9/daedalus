@@ -1,6 +1,7 @@
 import argparse
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -131,6 +132,7 @@ DEFAULT_REVIEW_INSIGHT_INPUT_PATH = Path(
     "artifacts/readysetrentables/review_insight_extraction_input.json"
 )
 DEFAULT_REVIEW_INSIGHTS_PATH = Path("artifacts/readysetrentables/review_insights.json")
+DEFAULT_RSR_REVIEW_INSIGHTS_OUTPUT_DIR = Path("artifacts/readysetrentables")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -329,6 +331,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"artifact_type={artifact_record.artifact_type.value} "
             f"artifact_path={artifact_record.artifact_path}"
         )
+        return 0
+
+    if args.command == "run-rsr-review-insights-pipeline":
+        try:
+            pipeline_result = _run_rsr_review_insights_pipeline(
+                run_id=args.run_id,
+                market_name=args.market_name,
+                max_reviews=args.max_reviews,
+                model_name=args.model,
+                output_dir=args.output_dir,
+                progress=print,
+            )
+        except (
+            FileNotFoundError,
+            ValueError,
+            ValidationError,
+            OllamaModelClientError,
+            WorkflowPersistenceError,
+        ) as exc:
+            parser.error(str(exc))
+
+        print(_format_rsr_review_insights_pipeline_summary(pipeline_result))
         return 0
 
     if args.command == "summarize-review-themes-fake":
@@ -971,6 +995,39 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to an existing rsr_source_extract.json artifact.",
     )
 
+    run_rsr_review_insights_pipeline = subparsers.add_parser(
+        "run-rsr-review-insights-pipeline",
+        help="Run the manual ReadySetRentables review insights demo path.",
+    )
+    run_rsr_review_insights_pipeline.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Existing workflow run UUID to attach artifacts and model invocation to.",
+    )
+    run_rsr_review_insights_pipeline.add_argument(
+        "--market-name",
+        required=True,
+        help="RSR market name to extract.",
+    )
+    run_rsr_review_insights_pipeline.add_argument(
+        "--max-reviews",
+        default=10,
+        type=_positive_int_arg,
+        help="Maximum number of source reviews to extract and pass to review insights.",
+    )
+    run_rsr_review_insights_pipeline.add_argument(
+        "--model",
+        required=True,
+        help="Local Ollama model name to use for review insight extraction.",
+    )
+    run_rsr_review_insights_pipeline.add_argument(
+        "--output-dir",
+        default=DEFAULT_RSR_REVIEW_INSIGHTS_OUTPUT_DIR,
+        type=Path,
+        help="Directory where pipeline artifacts should be written.",
+    )
+
     summarize_review_themes_fake = subparsers.add_parser(
         "summarize-review-themes-fake",
         help="Run the review theme summary agent locally with FakeModelClient.",
@@ -1580,6 +1637,283 @@ def _record_rsr_source_extract_artifact(
         connection.close()
 
     return artifact_record
+
+
+@dataclass(frozen=True)
+class RsrReviewInsightsPipelineResult:
+    run_id: UUID
+    market_name: str
+    max_reviews: int
+    model_name: str
+    output_dir: Path
+    source_extract_path: Path
+    review_insight_input_path: Path
+    review_insights_path: Path
+    evaluation_json_path: Path
+    evaluation_md_path: Path
+    review_count: int
+    listing_count: int
+    representative_review_count: int
+    theme_count: int
+    strengths_count: int
+    risks_count: int
+    guest_expectations_count: int
+    input_tokens: int | None
+    output_tokens: int | None
+    total_tokens: int | None
+    estimated_cost_usd: Decimal | None
+    evaluation_passed: bool
+    evaluation_failed_count: int
+    evaluation_warning_count: int
+    evaluation_error_count: int
+
+
+def _run_rsr_review_insights_pipeline(
+    *,
+    run_id: UUID,
+    market_name: str,
+    max_reviews: int,
+    model_name: str,
+    output_dir: Path,
+    progress: Callable[[str], None] | None = None,
+) -> RsrReviewInsightsPipelineResult:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    source_extract_path = output_dir / "rsr_source_extract.json"
+    review_insight_input_path = output_dir / "review_insight_extraction_input.json"
+    review_insights_path = output_dir / "review_insights.json"
+    evaluation_json_path = output_dir / "review_insights.evaluation.json"
+    evaluation_md_path = output_dir / "review_insights.evaluation.md"
+    _emit_progress(
+        progress,
+        f"Prepared RSR review insights pipeline run_id={run_id} output_dir={output_dir}",
+    )
+
+    request = RsrSourceExtractionRequest(
+        market_name=market_name,
+        max_reviews=max_reviews,
+    )
+    rsr_source_settings = load_rsr_source_postgres_settings()
+    source_connection = None
+    try:
+        source_connection = connect_rsr_source_postgres(rsr_source_settings)
+        rsr_source_repository = RsrSourceReadOnlyRepository(source_connection)
+        source_extract_result = rsr_source_repository.extract_source_data(request=request)
+        write_rsr_source_extract_json(
+            result=source_extract_result,
+            output_path=source_extract_path,
+        )
+    except Exception as exc:
+        msg = "Failed to extract RSR source data."
+        raise ValueError(msg) from exc
+    finally:
+        if source_connection is not None:
+            close = getattr(source_connection, "close", None)
+            if callable(close):
+                close()
+    _emit_progress(
+        progress,
+        "Wrote RSR source extract "
+        f"output={source_extract_path} "
+        f"market_name={market_name} "
+        f"max_reviews={max_reviews} "
+        f"review_count={len(source_extract_result.reviews)} "
+        f"listing_count={len(source_extract_result.listings)}",
+    )
+
+    review_insight_input = build_review_insight_extraction_input_from_source_extract(
+        source_extract=source_extract_result,
+        run_id=run_id,
+        source_artifact_path=source_extract_path,
+        max_representative_reviews=max_reviews,
+    )
+    _write_review_insight_input_json(
+        review_insight_input=review_insight_input,
+        output_path=review_insight_input_path,
+    )
+    _emit_progress(
+        progress,
+        "Wrote review insight extraction input "
+        f"output={review_insight_input_path} "
+        f"representative_review_count={len(review_insight_input.representative_reviews)}",
+    )
+
+    try:
+        model_client = OllamaModelClient(
+            settings=_ollama_settings_for_review_insights(
+                model_name=model_name,
+                base_url=None,
+                timeout_seconds=None,
+            )
+        )
+        review_insight_agent = ReviewInsightExtractionAgent(
+            model_client=model_client,
+            model_name=model_name,
+            prompt_name="readysetrentables_review_insight_extraction",
+            prompt_version="v0",
+        )
+        review_insight_result = review_insight_agent.run(input_data=review_insight_input)
+        write_review_insights_json(
+            result=review_insight_result,
+            output_path=review_insights_path,
+        )
+    except (ValueError, OllamaModelClientError) as exc:
+        raise ValueError(_safe_review_insights_ollama_failure_message(exc)) from exc
+    except Exception as exc:
+        msg = "Failed to extract review insights with local Ollama."
+        raise ValueError(msg) from exc
+    insight_progress_parts = [
+        "Wrote Ollama review insights",
+        f"output={review_insights_path}",
+        f"model_name={model_name}",
+        f"theme_count={len(review_insight_result.themes)}",
+        f"strengths_count={len(review_insight_result.strengths)}",
+        f"risks_count={len(review_insight_result.risks)}",
+        f"guest_expectations_count={len(review_insight_result.guest_expectations)}",
+    ]
+    _append_usage_parts(
+        input_tokens=review_insight_result.input_tokens,
+        output_tokens=review_insight_result.output_tokens,
+        total_tokens=review_insight_result.total_tokens,
+        estimated_cost_usd=review_insight_result.estimated_cost_usd,
+        summary_parts=insight_progress_parts,
+    )
+    _emit_progress(progress, " ".join(insight_progress_parts))
+
+    evaluation_report = evaluate_review_insights_json(
+        insights_path=review_insights_path,
+        run_id=run_id,
+    )
+    write_evaluation_report_json(
+        report=evaluation_report,
+        output_path=evaluation_json_path,
+    )
+    write_evaluation_report_markdown(
+        report=evaluation_report,
+        output_path=evaluation_md_path,
+    )
+    _emit_progress(
+        progress,
+        "Wrote review insights evaluation "
+        f"output_json={evaluation_json_path} "
+        f"output_md={evaluation_md_path} "
+        f"passed={evaluation_report.passed} "
+        f"failed_count={evaluation_report.failed_count} "
+        f"warning_count={evaluation_report.warning_count} "
+        f"error_count={evaluation_report.error_count}",
+    )
+
+    _record_review_insights_artifact(
+        run_id=run_id,
+        artifact_path=review_insights_path,
+    )
+    _record_evaluation_report_artifact(
+        run_id=run_id,
+        artifact_path=evaluation_json_path,
+    )
+    _record_review_insight_model_invocation(
+        run_id=run_id,
+        result=review_insight_result,
+        input_artifact_path=review_insight_input_path,
+        output_artifact_path=review_insights_path,
+    )
+    _emit_progress(
+        progress,
+        "Recorded pipeline metadata "
+        f"run_id={run_id} "
+        "artifacts=review_insights,evaluation_report "
+        "model_invocation=ollama",
+    )
+
+    return RsrReviewInsightsPipelineResult(
+        run_id=run_id,
+        market_name=market_name,
+        max_reviews=max_reviews,
+        model_name=model_name,
+        output_dir=output_dir,
+        source_extract_path=source_extract_path,
+        review_insight_input_path=review_insight_input_path,
+        review_insights_path=review_insights_path,
+        evaluation_json_path=evaluation_json_path,
+        evaluation_md_path=evaluation_md_path,
+        review_count=len(source_extract_result.reviews),
+        listing_count=len(source_extract_result.listings),
+        representative_review_count=len(review_insight_input.representative_reviews),
+        theme_count=len(review_insight_result.themes),
+        strengths_count=len(review_insight_result.strengths),
+        risks_count=len(review_insight_result.risks),
+        guest_expectations_count=len(review_insight_result.guest_expectations),
+        input_tokens=review_insight_result.input_tokens,
+        output_tokens=review_insight_result.output_tokens,
+        total_tokens=review_insight_result.total_tokens,
+        estimated_cost_usd=review_insight_result.estimated_cost_usd,
+        evaluation_passed=evaluation_report.passed,
+        evaluation_failed_count=evaluation_report.failed_count,
+        evaluation_warning_count=evaluation_report.warning_count,
+        evaluation_error_count=evaluation_report.error_count,
+    )
+
+
+def _emit_progress(progress: Callable[[str], None] | None, message: str) -> None:
+    if progress is not None:
+        progress(message)
+
+
+def _format_rsr_review_insights_pipeline_summary(
+    result: RsrReviewInsightsPipelineResult,
+) -> str:
+    summary_parts = [
+        "RSR review insights pipeline complete",
+        f"run_id={result.run_id}",
+        f"model={result.model_name}",
+        f"output_dir={result.output_dir}",
+        f"source_extract={result.source_extract_path}",
+        f"review_insight_input={result.review_insight_input_path}",
+        f"review_insights={result.review_insights_path}",
+        f"evaluation_json={result.evaluation_json_path}",
+        f"evaluation_md={result.evaluation_md_path}",
+        f"review_count={result.review_count}",
+        f"representative_review_count={result.representative_review_count}",
+        f"theme_count={result.theme_count}",
+        f"passed={result.evaluation_passed}",
+        f"failed_count={result.evaluation_failed_count}",
+        f"warning_count={result.evaluation_warning_count}",
+        f"error_count={result.evaluation_error_count}",
+        "artifacts_recorded=review_insights,evaluation_report",
+        "model_invocation_recorded=yes",
+    ]
+    _append_usage_summary_parts(result, summary_parts)
+    return " ".join(summary_parts)
+
+
+def _append_usage_summary_parts(
+    result: RsrReviewInsightsPipelineResult,
+    summary_parts: list[str],
+) -> None:
+    _append_usage_parts(
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        total_tokens=result.total_tokens,
+        estimated_cost_usd=result.estimated_cost_usd,
+        summary_parts=summary_parts,
+    )
+
+
+def _append_usage_parts(
+    *,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    total_tokens: int | None,
+    estimated_cost_usd: Decimal | None,
+    summary_parts: list[str],
+) -> None:
+    if input_tokens is not None:
+        summary_parts.append(f"input_tokens={input_tokens}")
+    if output_tokens is not None:
+        summary_parts.append(f"output_tokens={output_tokens}")
+    if total_tokens is not None:
+        summary_parts.append(f"total_tokens={total_tokens}")
+    if estimated_cost_usd is not None:
+        summary_parts.append(f"estimated_cost_usd={estimated_cost_usd}")
 
 
 def _run_ollama_smoke_check(
