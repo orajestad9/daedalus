@@ -23,6 +23,7 @@ from daedalus.domains.readysetrentables_reviews.review_insight_artifacts import 
 )
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
     ReviewInsightExtractionInput,
+    ReviewInsightExtractionResult,
 )
 from daedalus.domains.readysetrentables_reviews.review_insight_output_parser import (
     MODEL_OUTPUT_EMPTY_MESSAGE,
@@ -98,9 +99,16 @@ from daedalus.model_clients.ollama import (
 )
 from daedalus.model_clients.ollama_settings import OllamaModelClientSettings
 from daedalus.model_clients.recording import RecordingModelClient
-from daedalus.model_clients.types import ModelBudget, ModelProvider, ModelRequest, ModelResponse
+from daedalus.model_clients.types import (
+    ModelBudget,
+    ModelInvocationStatus as ModelResponseStatus,
+    ModelProvider,
+    ModelRequest,
+    ModelResponse,
+)
 from daedalus.orchestrator.artifact_record import ArtifactRecord
 from daedalus.orchestrator.artifact_type import ArtifactType
+from daedalus.orchestrator.run_lifecycle import utc_now
 from daedalus.orchestrator.run_inspection_formatter import format_run_inspection
 from daedalus.orchestrator.run_record import WorkflowRunRecord
 from daedalus.orchestrator.workflow_router import (
@@ -543,6 +551,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "extract-review-insights-ollama":
         try:
+            if args.record_model_invocation and args.run_id is None:
+                parser.error("--record-model-invocation requires --run-id")
             review_insight_input = _load_review_insight_input_json(args.input_json)
             ollama_settings = _ollama_settings_for_review_insights(
                 model_name=args.model,
@@ -565,8 +575,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result=review_insight_result,
                 output_path=args.output_json,
             )
+            if args.record_model_invocation:
+                _record_review_insight_model_invocation(
+                    run_id=args.run_id,
+                    result=review_insight_result,
+                    input_artifact_path=args.input_json,
+                    output_artifact_path=review_insights_path,
+                )
         except (ValueError, OllamaModelClientError) as exc:
             parser.error(_safe_review_insights_ollama_failure_message(exc))
+        except WorkflowPersistenceError as exc:
+            parser.error(str(exc))
         except Exception:
             parser.error("Failed to extract review insights with local Ollama.")
 
@@ -1121,6 +1140,17 @@ def _build_parser() -> argparse.ArgumentParser:
         type=_positive_float_arg,
         help="Optional timeout in seconds for the local Ollama request.",
     )
+    extract_review_insights_ollama.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Workflow run UUID to attach persisted model invocation metadata to.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--record-model-invocation",
+        action="store_true",
+        help="Persist safe Ollama model invocation metadata after writing review_insights.json.",
+    )
 
     evaluate_review_theme_summary = subparsers.add_parser(
         "evaluate-review-theme-summary",
@@ -1402,6 +1432,56 @@ def _record_review_insights_artifact(
         connection.close()
 
     return artifact_record
+
+
+def _record_review_insight_model_invocation(
+    *,
+    run_id: UUID,
+    result: ReviewInsightExtractionResult,
+    input_artifact_path: Path,
+    output_artifact_path: Path,
+) -> None:
+    started_at_utc = utc_now()
+    completed_at_utc = started_at_utc
+    request = ModelRequest(
+        run_id=run_id,
+        agent_name="review_insight_extraction_agent",
+        provider=result.provider,
+        model_name=result.model_name,
+        prompt_name=result.prompt_name,
+        prompt_version=result.prompt_version,
+        input_artifact_path=input_artifact_path,
+        output_artifact_path=output_artifact_path,
+    )
+    response = ModelResponse(
+        invocation_id=uuid4(),
+        status=ModelResponseStatus.COMPLETED,
+        provider=result.provider,
+        model_name=result.model_name,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+        total_tokens=result.total_tokens,
+        estimated_cost_usd=result.estimated_cost_usd,
+        output_artifact_path=output_artifact_path,
+    )
+
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+    try:
+        recorder = ModelInvocationRecorder(ModelInvocationRepository(connection))
+        recorder.record_success(
+            request=request,
+            response=response,
+            started_at_utc=started_at_utc,
+            completed_at_utc=completed_at_utc,
+        )
+        connection.commit()
+    except Exception as exc:
+        connection.rollback()
+        msg = "Failed to record review insight model invocation"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
 
 
 def _record_rsr_source_extract_artifact(

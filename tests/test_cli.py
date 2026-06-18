@@ -2497,6 +2497,117 @@ def test_extract_review_insights_ollama_succeeds_with_mocked_agent_path(
     assert "Wrote Ollama review insights" in output
 
 
+def test_extract_review_insights_ollama_record_model_invocation_requires_run_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Ollama should not be called without required run id")
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+                "--record-model-invocation",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_review_insights_ollama_record_model_invocation_invalid_run_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+                "--run-id",
+                "not-a-uuid",
+                "--record-model-invocation",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_review_insights_ollama_persists_model_invocation_when_enabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    output_path = tmp_path / "review_insights.json"
+    run_id = uuid4()
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    def fake_connect(_: object) -> FakeModelInvocationConnection:
+        assert output_path.is_file()
+        return connection
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fake_connect)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--output-json",
+            str(output_path),
+            "--run-id",
+            str(run_id),
+            "--record-model-invocation",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    params = connection.executed_params[0]
+    assert exit_code == 0
+    assert "Wrote Ollama review insights" in output
+    assert any("insert into model_invocations" in sql.lower() for sql in connection.executed_sql)
+    assert params[1] == run_id
+    assert params[3] == "review_insight_extraction_agent"
+    assert params[4] == ModelProvider.OLLAMA.value
+    assert params[5] == "llama3.1"
+    assert params[6] == "readysetrentables_review_insight_extraction"
+    assert params[7] == "v0"
+    assert params[8] == 11
+    assert params[9] == 7
+    assert params[10] == 18
+    assert params[11] == Decimal("0")
+    assert params[12] == ModelInvocationStatus.SUCCEEDED.value
+    assert params[16] == str(input_path)
+    assert params[17] == str(output_path)
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+
+
 def test_extract_review_insights_ollama_requires_input_json() -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(["extract-review-insights-ollama", "--model", "llama3.1"])
@@ -2891,6 +3002,51 @@ def test_extract_review_insights_ollama_command_does_not_print_sensitive_text(
     assert "Synthetic review: hidden representative review." not in output
     assert "Raw model output" not in output
     assert "Compact review insight input" not in output
+
+
+def test_extract_review_insights_ollama_persistence_output_does_not_print_sensitive_text(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    output_path = tmp_path / "review_insights.json"
+    artifact_body = "Artifact contents should not be printed."
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--output-json",
+            str(output_path),
+            "--run-id",
+            str(uuid4()),
+            "--record-model-invocation",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    artifact_body = output_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert "Synthetic review: hidden representative review." not in output
+    assert "Raw model output" not in output
+    assert "Compact review insight input" not in output
+    assert artifact_body not in output
 
 
 def test_extract_review_insights_ollama_does_not_connect_to_db(
@@ -4012,6 +4168,56 @@ def test_show_run_command_handles_no_model_invocations_cleanly(
     assert exit_code == 0
     assert "Model Invocations:" in output
     assert "No model invocations recorded." in output
+
+
+def test_show_run_command_displays_ollama_review_insight_model_invocation(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    details = _workflow_run_details(
+        run_id,
+        model_invocation_records=[
+            ModelInvocationRecord(
+                invocation_id=uuid4(),
+                run_id=run_id,
+                agent_name="review_insight_extraction_agent",
+                provider=ModelProvider.OLLAMA,
+                model_name="qwen2.5-coder:7b",
+                prompt_name="readysetrentables_review_insight_extraction",
+                prompt_version="v0",
+                input_tokens=349,
+                output_tokens=255,
+                total_tokens=604,
+                estimated_cost_usd=Decimal("0"),
+                status=ModelInvocationStatus.SUCCEEDED,
+                started_at_utc=datetime(2026, 5, 7, 10, 0, tzinfo=UTC),
+                completed_at_utc=datetime(2026, 5, 7, 10, 0, 1, tzinfo=UTC),
+                duration_ms=1_000,
+                input_artifact_path=Path(
+                    "artifacts/readysetrentables/review_insight_extraction_input.json"
+                ),
+                output_artifact_path=Path("artifacts/readysetrentables/review_insights.json"),
+            )
+        ],
+    )
+
+    monkeypatch.setattr("daedalus.cli.load_workflow_run_details", lambda _: details)
+
+    exit_code = main(["show-run", "--run-id", str(run_id)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "provider=ollama" in output
+    assert "model_name=qwen2.5-coder:7b" in output
+    assert "prompt_name=readysetrentables_review_insight_extraction" in output
+    assert "prompt_version=v0" in output
+    assert "status=succeeded" in output
+    assert "input_tokens=349" in output
+    assert "output_tokens=255" in output
+    assert "total_tokens=604" in output
+    assert "estimated_cost_usd=0" in output
+    assert "agent_name=review_insight_extraction_agent" in output
 
 
 def test_show_run_command_missing_run_fails_cleanly(

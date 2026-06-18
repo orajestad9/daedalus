@@ -121,6 +121,26 @@ model name, prompt identity, theme count, token counts, and estimated cost when
 available. It does not print representative review text, raw prompt text, raw
 model output text, or artifact contents.
 
+When a persisted workflow run already exists, the same manual extraction command
+can also record safe local Ollama invocation metadata after
+`review_insights.json` is written:
+
+```bash
+.venv/bin/daedalus extract-review-insights-ollama \
+  --input-json artifacts/readysetrentables/review_insight_extraction_input.json \
+  --model <ollama-model-name> \
+  --output-json artifacts/readysetrentables/review_insights.json \
+  --run-id <workflow-run-uuid> \
+  --record-model-invocation
+```
+
+`--record-model-invocation` requires `--run-id`. The persisted record uses
+`agent_name=review_insight_extraction_agent`,
+`prompt_name=readysetrentables_review_insight_extraction`, and
+`prompt_version=v0`, plus the provider, model, token, and cost metadata from the
+successful local Ollama result. `show-run` can then display the local Ollama
+model invocation metadata alongside the run artifacts.
+
 When extraction fails, the command reports a safe diagnostic category instead of
 a single generic error. Known categories include: the Ollama request timed out,
 the local Ollama request failed, the model output was empty, the model output
