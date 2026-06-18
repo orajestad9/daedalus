@@ -60,6 +60,17 @@ SAMPLE_CSV_PATH = Path("sample_data/readysetrentables_reviews/airbnb_reviews_sam
 SAMPLE_MANIFEST_PATH = Path("workflows/readysetrentables_review_normalization.yaml")
 
 
+def test_cli_help_includes_record_review_insights_artifact(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--help"])
+
+    output = capsys.readouterr().out
+    assert exc_info.value.code == 0
+    assert "record-review-insights-artifact" in output
+
+
 def test_normalize_reviews_command_succeeds_with_sample_csv(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -1020,6 +1031,141 @@ def test_record_evaluation_comparison_report_artifact_rolls_back_on_failure(
         main(
             [
                 "record-evaluation-comparison-report-artifact",
+                "--run-id",
+                str(uuid4()),
+                "--path",
+                str(artifact_path),
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert connection.committed is False
+    assert connection.rolled_back is True
+    assert connection.closed is True
+    assert artifact_body not in combined_output
+
+
+# ---------------------------------------------------------------------------
+# record-review-insights-artifact
+# ---------------------------------------------------------------------------
+
+
+def test_record_review_insights_artifact_command_succeeds_with_mocked_postgres(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    run_id = uuid4()
+    artifact_path = tmp_path / "review_insights.json"
+    artifact_body = "Sensitive synthetic review insight body must not be printed."
+    artifact_path.write_text(artifact_body, encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "record-review-insights-artifact",
+            "--run-id",
+            str(run_id),
+            "--path",
+            str(artifact_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Recorded review insights artifact" in output
+    assert str(run_id) in output
+    assert "artifact_type=review_insights" in output
+    assert f"artifact_path={artifact_path}" in output
+    assert artifact_body not in output
+    assert connection.committed is True
+    assert connection.rolled_back is False
+    assert connection.closed is True
+    assert any("insert into workflow_artifacts" in sql.lower() for sql in connection.executed_sql)
+    assert connection.executed_params[0][1] == run_id
+    assert connection.executed_params[0][2] == ArtifactType.REVIEW_INSIGHTS.value
+    assert connection.executed_params[0][3] == str(artifact_path)
+
+
+def test_record_review_insights_artifact_missing_path_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_connect(_: object) -> object:
+        raise AssertionError("Postgres should not be opened for a missing artifact path")
+
+    monkeypatch.setattr("daedalus.cli.connect_postgres", fail_connect)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "record-review-insights-artifact",
+                "--run-id",
+                str(uuid4()),
+                "--path",
+                str(tmp_path / "missing_review_insights.json"),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_record_review_insights_artifact_invalid_run_id_fails_cleanly(
+    tmp_path: Path,
+) -> None:
+    artifact_path = tmp_path / "review_insights.json"
+    artifact_path.write_text("safe synthetic artifact body", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "record-review-insights-artifact",
+                "--run-id",
+                "not-a-uuid",
+                "--path",
+                str(artifact_path),
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_record_review_insights_artifact_rolls_back_without_printing_contents(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    connection = FailingArtifactConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    artifact_path = tmp_path / "review_insights.json"
+    artifact_body = "Sensitive failed review insight body must not be printed."
+    artifact_path.write_text(artifact_body, encoding="utf-8")
+
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "record-review-insights-artifact",
                 "--run-id",
                 str(uuid4()),
                 "--path",
@@ -3808,6 +3954,31 @@ def test_show_run_command_succeeds_with_mocked_persistence(
     assert "status=succeeded" in output
 
 
+def test_show_run_command_displays_review_insights_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_id = uuid4()
+    details = _workflow_run_details(
+        run_id,
+        artifact_records=[
+            ArtifactRecord.create(
+                run_id=run_id,
+                artifact_type=ArtifactType.REVIEW_INSIGHTS,
+                artifact_path=Path("artifacts/readysetrentables/review_insights.json"),
+            )
+        ],
+    )
+
+    monkeypatch.setattr("daedalus.cli.load_workflow_run_details", lambda _: details)
+
+    exit_code = main(["show-run", "--run-id", str(run_id)])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "- review_insights: artifacts/readysetrentables/review_insights.json" in output
+
+
 def test_show_run_command_handles_no_steps_cleanly(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -4238,6 +4409,7 @@ def _rsr_source_extraction_result(
 
 def _workflow_run_details(
     run_id: UUID,
+    artifact_records: list[ArtifactRecord] | None = None,
     step_records: list[WorkflowStepRecord] | None = None,
     model_invocation_records: list[ModelInvocationRecord] | None = None,
 ) -> WorkflowRunDetails:
@@ -4260,7 +4432,9 @@ def _workflow_run_details(
     )
     return WorkflowRunDetails(
         run_record=run_record,
-        artifact_records=[
+        artifact_records=artifact_records
+        if artifact_records is not None
+        else [
             ArtifactRecord.create(
                 run_id=run_record.run_id,
                 artifact_type=ArtifactType.NORMALIZED_REVIEWS,

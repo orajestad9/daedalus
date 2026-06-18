@@ -286,6 +286,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "record-review-insights-artifact":
+        try:
+            artifact_record = _record_review_insights_artifact(
+                run_id=args.run_id,
+                artifact_path=args.path,
+            )
+        except (FileNotFoundError, ValueError, WorkflowPersistenceError) as exc:
+            parser.error(str(exc))
+
+        print(
+            "Recorded review insights artifact "
+            f"run_id={artifact_record.run_id} "
+            f"artifact_type={artifact_record.artifact_type.value} "
+            f"artifact_path={artifact_record.artifact_path}"
+        )
+        return 0
+
     if args.command == "record-rsr-source-extract-artifact":
         try:
             artifact_record = _record_rsr_source_extract_artifact(
@@ -861,6 +878,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to an existing evaluation comparison report artifact.",
     )
 
+    record_review_insights_artifact = subparsers.add_parser(
+        "record-review-insights-artifact",
+        help="Record a review_insights.json artifact for a persisted workflow run.",
+    )
+    record_review_insights_artifact.add_argument(
+        "--run-id",
+        required=True,
+        type=_uuid_arg,
+        help="Workflow run UUID to attach the review insights artifact to.",
+    )
+    record_review_insights_artifact.add_argument(
+        "--path",
+        required=True,
+        type=Path,
+        help="Path to an existing review_insights.json artifact.",
+    )
+
     record_rsr_source_extract_artifact = subparsers.add_parser(
         "record-rsr-source-extract-artifact",
         help="Record an RSR source extract JSON artifact for a persisted workflow run.",
@@ -1334,6 +1368,35 @@ def _record_evaluation_comparison_report_artifact(
     except Exception as exc:
         connection.rollback()
         msg = "Failed to record evaluation comparison report artifact"
+        raise WorkflowPersistenceError(msg) from exc
+    finally:
+        connection.close()
+
+    return artifact_record
+
+
+def _record_review_insights_artifact(
+    *,
+    run_id: UUID,
+    artifact_path: Path,
+) -> ArtifactRecord:
+    if not artifact_path.is_file():
+        msg = f"Review insights artifact path does not exist: {artifact_path}"
+        raise FileNotFoundError(msg)
+
+    settings = load_postgres_settings()
+    connection = connect_postgres(settings)
+    try:
+        artifact_record = ArtifactRecord.create(
+            run_id=run_id,
+            artifact_type=ArtifactType.REVIEW_INSIGHTS,
+            artifact_path=artifact_path,
+        )
+        ArtifactRepository(connection).save(artifact_record)
+        connection.commit()
+    except Exception as exc:
+        connection.rollback()
+        msg = "Failed to record review insights artifact"
         raise WorkflowPersistenceError(msg) from exc
     finally:
         connection.close()

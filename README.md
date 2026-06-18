@@ -39,6 +39,8 @@ writing back to the source application.
 - Source extract to `review_insight_extraction_input.json` bridge.
 - Review insight extraction agent, output parser, artifact writer, and CLI work
   in progress.
+- Existing `review_insights.json` artifacts can be recorded against persisted
+  workflow runs for `show-run` inspection.
 
 ## ReadySetRentables Status
 
@@ -113,6 +115,10 @@ daedalus extract-review-insights-ollama \
   --input-json artifacts/readysetrentables/review_insight_extraction_input.json \
   --model <local-ollama-model> \
   --output-json artifacts/readysetrentables/review_insights.json
+
+daedalus record-review-insights-artifact \
+  --run-id <run-id> \
+  --path artifacts/readysetrentables/review_insights.json
 ```
 
 Inspect a persisted run:
@@ -125,7 +131,7 @@ daedalus show-run --run-id <run-id>
 
 - Fix/improve Ollama review insight JSON reliability.
 - Complete manual `review_insights.json` generation.
-- Add or complete the `review_insights` evaluation/recording path.
+- Complete the `review_insights` evaluation path.
 - Later wire source extraction and review insights into LangGraph.
 - Later add Claude/Anthropic neighborhood profile generation.
 - Later add human approval gates and optional RSR writeback/export.

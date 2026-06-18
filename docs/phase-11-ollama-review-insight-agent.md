@@ -135,6 +135,18 @@ source data. When generated from real ReadySetRentables data, it should remain
 local and untracked unless a later guarded workflow explicitly scopes
 publication or persistence.
 
+The generated artifact can now be attached to an existing persisted Daedalus
+workflow run without reading or printing the artifact contents:
+
+```bash
+.venv/bin/daedalus record-review-insights-artifact \
+  --run-id <workflow-run-uuid> \
+  --path artifacts/readysetrentables/review_insights.json
+```
+
+This records the artifact as `review_insights`, so `show-run` displays a line
+like `review_insights: artifacts/readysetrentables/review_insights.json`.
+
 ## Evaluation Path
 
 Phase 7 already includes a deterministic `review_insights.json` evaluator shell.
@@ -168,7 +180,7 @@ model behind the `ModelClient` boundary.
    preservation.
 4. Add a manual local Ollama CLI command. Done.
 5. Add a file-only local check that uses synthetic input and a fake model path.
-6. Add optional DB-backed artifact and invocation recording later.
+6. Add optional DB-backed artifact recording for `review_insights.json`. Done.
 7. Wire source-derived review insight extraction into LangGraph later.
 
 ## Explicitly Deferred

@@ -43,7 +43,10 @@ def _format_artifacts(artifacts: list[ArtifactRecord]) -> list[str]:
     if not artifacts:
         return ["No artifact records found."]
 
-    return [f"- {artifact.artifact_type.value}: {artifact.artifact_path}" for artifact in artifacts]
+    return [
+        f"- {artifact.artifact_type.value}: {artifact.artifact_path.as_posix()}"
+        for artifact in artifacts
+    ]
 
 
 def _format_steps(steps: list[WorkflowStepRecord]) -> list[str]:
