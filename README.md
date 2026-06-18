@@ -108,7 +108,8 @@ daedalus run-rsr-review-insights-pipeline \
   --market-name <market-name> \
   --max-reviews 10 \
   --model <local-ollama-model> \
-  --output-dir artifacts/readysetrentables
+  --output-dir artifacts/readysetrentables \
+  --ollama-timeout-seconds 240
 ```
 
 This writes `rsr_source_extract.json`,
@@ -134,7 +135,8 @@ daedalus build-review-insight-input \
 daedalus extract-review-insights-ollama \
   --input-json artifacts/readysetrentables/review_insight_extraction_input.json \
   --model <local-ollama-model> \
-  --output-json artifacts/readysetrentables/review_insights.json
+  --output-json artifacts/readysetrentables/review_insights.json \
+  --ollama-timeout-seconds 240
 
 daedalus evaluate-review-insights \
   --review-insights artifacts/readysetrentables/review_insights.json \

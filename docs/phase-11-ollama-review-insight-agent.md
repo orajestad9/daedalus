@@ -108,13 +108,19 @@ The manual command for the local Ollama review insight extraction step is:
 .venv/bin/daedalus extract-review-insights-ollama \
   --input-json artifacts/readysetrentables/review_insight_extraction_input.json \
   --model <ollama-model-name> \
-  --output-json artifacts/readysetrentables/review_insights.json
+  --output-json artifacts/readysetrentables/review_insights.json \
+  --ollama-timeout-seconds 240
 ```
 
 This command is implemented as a manual, explicit local-only step. It requires
 the operator to choose the Ollama model name and requires local Ollama to be
 running. It does not run under `make check`, does not wire Ollama into LangGraph
 or `run-workflow`, and does not call Claude/Anthropic.
+
+`--ollama-timeout-seconds` is optional. When omitted, the command preserves the
+existing `OllamaModelClientSettings` timeout behavior, including the default or
+`DAEDALUS_OLLAMA_TIMEOUT_SECONDS` environment value. When provided, it must be a
+positive integer and is passed into the local Ollama client request timeout.
 
 The command prints only safe metadata such as output path, provider,
 model name, prompt identity, theme count, token counts, and estimated cost when
@@ -192,7 +198,8 @@ The current manual demo path can also be run as one explicit command:
   --market-name san-diego \
   --max-reviews 10 \
   --model qwen2.5-coder:7b \
-  --output-dir artifacts/readysetrentables
+  --output-dir artifacts/readysetrentables \
+  --ollama-timeout-seconds 240
 ```
 
 The command creates `--output-dir` when needed and writes:
@@ -207,6 +214,12 @@ It then records `review_insights` for `review_insights.json`, records
 `evaluation_report` for `review_insights.evaluation.json`, and records the
 local Ollama model invocation against `--run-id`. The Markdown evaluation report
 is written as the local human-readable companion report.
+
+`--ollama-timeout-seconds` is optional here as well. When omitted, the pipeline
+uses the same Ollama timeout settings path as the standalone extraction command.
+When provided, the positive integer is forwarded to the local Ollama client only;
+it does not change source extraction, prompt construction, evaluation, or
+persistence behavior.
 
 The pipeline keeps the same boundaries as the individual commands: RSR source
 DB access is read-only, there is no ReadySetRentables DB writeback, there is no

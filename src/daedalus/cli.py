@@ -341,6 +341,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 max_reviews=args.max_reviews,
                 model_name=args.model,
                 output_dir=args.output_dir,
+                ollama_timeout_seconds=args.ollama_timeout_seconds,
                 progress=print,
             )
         except (
@@ -1027,6 +1028,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Directory where pipeline artifacts should be written.",
     )
+    run_rsr_review_insights_pipeline.add_argument(
+        "--ollama-timeout-seconds",
+        default=None,
+        type=_positive_int_arg,
+        help="Optional positive integer timeout in seconds for local Ollama requests.",
+    )
 
     summarize_review_themes_fake = subparsers.add_parser(
         "summarize-review-themes-fake",
@@ -1236,6 +1243,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         type=_positive_float_arg,
         help="Optional timeout in seconds for the local Ollama request.",
+    )
+    extract_review_insights_ollama.add_argument(
+        "--ollama-timeout-seconds",
+        default=None,
+        dest="timeout_seconds",
+        type=_positive_int_arg,
+        help="Optional positive integer timeout in seconds for local Ollama requests.",
     )
     extract_review_insights_ollama.add_argument(
         "--run-id",
@@ -1658,6 +1672,7 @@ class RsrReviewInsightsPipelineResult:
     strengths_count: int
     risks_count: int
     guest_expectations_count: int
+    ollama_timeout_seconds: int | None
     input_tokens: int | None
     output_tokens: int | None
     total_tokens: int | None
@@ -1675,6 +1690,7 @@ def _run_rsr_review_insights_pipeline(
     max_reviews: int,
     model_name: str,
     output_dir: Path,
+    ollama_timeout_seconds: int | None,
     progress: Callable[[str], None] | None = None,
 ) -> RsrReviewInsightsPipelineResult:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1742,7 +1758,7 @@ def _run_rsr_review_insights_pipeline(
             settings=_ollama_settings_for_review_insights(
                 model_name=model_name,
                 base_url=None,
-                timeout_seconds=None,
+                timeout_seconds=ollama_timeout_seconds,
             )
         )
         review_insight_agent = ReviewInsightExtractionAgent(
@@ -1842,6 +1858,7 @@ def _run_rsr_review_insights_pipeline(
         strengths_count=len(review_insight_result.strengths),
         risks_count=len(review_insight_result.risks),
         guest_expectations_count=len(review_insight_result.guest_expectations),
+        ollama_timeout_seconds=ollama_timeout_seconds,
         input_tokens=review_insight_result.input_tokens,
         output_tokens=review_insight_result.output_tokens,
         total_tokens=review_insight_result.total_tokens,
@@ -1881,6 +1898,8 @@ def _format_rsr_review_insights_pipeline_summary(
         "artifacts_recorded=review_insights,evaluation_report",
         "model_invocation_recorded=yes",
     ]
+    if result.ollama_timeout_seconds is not None:
+        summary_parts.append(f"ollama_timeout_seconds={result.ollama_timeout_seconds}")
     _append_usage_summary_parts(result, summary_parts)
     return " ".join(summary_parts)
 

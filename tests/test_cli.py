@@ -2814,6 +2814,132 @@ def test_extract_review_insights_ollama_passes_model_name_to_agent(
     assert state.clients[0].settings.model_name == "llama3.1"
 
 
+def test_extract_review_insights_ollama_accepts_ollama_timeout_seconds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+            "--ollama-timeout-seconds",
+            "180",
+        ]
+    )
+
+    assert exit_code == 0
+    assert state.clients[0].settings.request_timeout_seconds == 180
+
+
+def test_extract_review_insights_ollama_omitted_timeout_preserves_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DAEDALUS_OLLAMA_TIMEOUT_SECONDS", raising=False)
+    input_path = _write_review_insight_input_artifact(tmp_path)
+    state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+
+    exit_code = main(
+        [
+            "extract-review-insights-ollama",
+            "--input-json",
+            str(input_path),
+            "--model",
+            "llama3.1",
+        ]
+    )
+
+    assert exit_code == 0
+    assert state.clients[0].settings.request_timeout_seconds == 30.0
+
+
+def test_extract_review_insights_ollama_zero_timeout_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Ollama should not be called for invalid timeout")
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+                "--ollama-timeout-seconds",
+                "0",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_review_insights_ollama_negative_timeout_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Ollama should not be called for invalid timeout")
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+                "--ollama-timeout-seconds",
+                "-1",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
+def test_extract_review_insights_ollama_non_integer_timeout_fails_cleanly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    input_path = _write_review_insight_input_artifact(tmp_path)
+
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Ollama should not be called for invalid timeout")
+
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "extract-review-insights-ollama",
+                "--input-json",
+                str(input_path),
+                "--model",
+                "llama3.1",
+                "--ollama-timeout-seconds",
+                "1.5",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
 def test_extract_review_insights_ollama_writes_valid_result_json(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -3370,6 +3496,113 @@ def test_run_rsr_review_insights_pipeline_happy_path_writes_expected_paths(
     assert f"evaluation_md={evaluation_md_path}" in output
 
 
+def test_run_rsr_review_insights_pipeline_accepts_ollama_timeout_seconds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    output_dir = tmp_path / "readysetrentables"
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_rsr_source_cli_fakes(monkeypatch)
+    ollama_state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(uuid4()),
+            "--market-name",
+            "Synthetic Market",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+            "--ollama-timeout-seconds",
+            "240",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert ollama_state.clients[0].settings.request_timeout_seconds == 240
+    assert "ollama_timeout_seconds=240" in output
+
+
+def test_run_rsr_review_insights_pipeline_omitted_timeout_preserves_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DAEDALUS_OLLAMA_TIMEOUT_SECONDS", raising=False)
+    output_dir = tmp_path / "readysetrentables"
+    connection = FakeModelInvocationConnection()
+    settings = PostgresSettings(
+        host="placeholder-host",
+        port=5433,
+        database="placeholder-db",
+        user="placeholder-user",
+        password="placeholder-password",
+    )
+    _install_rsr_source_cli_fakes(monkeypatch)
+    ollama_state = _install_review_insights_ollama_cli_fakes(monkeypatch)
+    monkeypatch.setattr("daedalus.cli.load_postgres_settings", lambda: settings)
+    monkeypatch.setattr("daedalus.cli.connect_postgres", lambda _: connection)
+
+    exit_code = main(
+        [
+            "run-rsr-review-insights-pipeline",
+            "--run-id",
+            str(uuid4()),
+            "--market-name",
+            "Synthetic Market",
+            "--model",
+            "llama3.1",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert exit_code == 0
+    assert ollama_state.clients[0].settings.request_timeout_seconds == 30.0
+
+
+@pytest.mark.parametrize("timeout_value", ["0", "-1", "1.5"])
+def test_run_rsr_review_insights_pipeline_invalid_timeout_fails_cleanly(
+    timeout_value: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_if_called(*_: object, **__: object) -> object:
+        raise AssertionError("Pipeline dependencies should not be called for invalid timeout")
+
+    monkeypatch.setattr("daedalus.cli.connect_rsr_source_postgres", fail_if_called)
+    monkeypatch.setattr("daedalus.cli.OllamaModelClient", fail_if_called)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--run-id",
+                str(uuid4()),
+                "--market-name",
+                "Synthetic Market",
+                "--model",
+                "llama3.1",
+                "--ollama-timeout-seconds",
+                timeout_value,
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+
 def test_run_rsr_review_insights_pipeline_records_review_insights_artifact(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -3607,6 +3840,45 @@ def test_run_rsr_review_insights_pipeline_failure_exits_safely(
     assert exc_info.value.code == 2
     assert "model output could not be converted to review insights." in combined_output
     assert "Raw model output should not leak." not in combined_output
+    assert "Raw private review text" not in combined_output
+    assert "top-secret-password" not in combined_output
+
+
+def test_run_rsr_review_insights_pipeline_timeout_failure_message_is_safe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _install_rsr_source_cli_fakes(monkeypatch)
+    _install_review_insights_ollama_cli_fakes(
+        monkeypatch,
+        agent_error=OllamaModelClientError(OLLAMA_REQUEST_TIMEOUT_MESSAGE),
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(
+            [
+                "run-rsr-review-insights-pipeline",
+                "--run-id",
+                str(uuid4()),
+                "--market-name",
+                "Synthetic Market",
+                "--model",
+                "llama3.1",
+                "--output-dir",
+                str(tmp_path / "readysetrentables"),
+                "--ollama-timeout-seconds",
+                "240",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    combined_output = captured.out + captured.err
+    assert exc_info.value.code == 2
+    assert (
+        "Failed to extract review insights with local Ollama: Ollama request timed out."
+        in combined_output
+    )
     assert "Raw private review text" not in combined_output
     assert "top-secret-password" not in combined_output
 
