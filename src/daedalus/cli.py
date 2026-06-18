@@ -21,6 +21,9 @@ from daedalus.domains.readysetrentables_reviews.review_insight_agent import (
 from daedalus.domains.readysetrentables_reviews.review_insight_artifacts import (
     write_review_insights_json,
 )
+from daedalus.domains.readysetrentables_reviews.review_insight_evaluator import (
+    evaluate_review_insights_json,
+)
 from daedalus.domains.readysetrentables_reviews.review_insight_models import (
     ReviewInsightExtractionInput,
     ReviewInsightExtractionResult,
@@ -686,6 +689,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
+    if args.command == "evaluate-review-insights":
+        review_insights_output_json = args.output_json
+        review_insights_output_md = args.output_md
+        if review_insights_output_json is None and review_insights_output_md is None:
+            review_insights_output_json = _default_evaluation_json_path(args.review_insights)
+
+        review_insights_report = evaluate_review_insights_json(
+            insights_path=args.review_insights,
+            run_id=args.run_id,
+        )
+        review_insights_written_paths: list[Path] = []
+        if review_insights_output_json is not None:
+            review_insights_written_paths.append(
+                write_evaluation_report_json(
+                    report=review_insights_report,
+                    output_path=review_insights_output_json,
+                )
+            )
+        if review_insights_output_md is not None:
+            review_insights_written_paths.append(
+                write_evaluation_report_markdown(
+                    report=review_insights_report,
+                    output_path=review_insights_output_md,
+                )
+            )
+
+        print(
+            "Wrote review insights evaluation "
+            f"target_name={review_insights_report.target_name} "
+            f"passed={review_insights_report.passed} "
+            f"failed_count={review_insights_report.failed_count} "
+            f"warning_count={review_insights_report.warning_count} "
+            f"error_count={review_insights_report.error_count} "
+            f"outputs={','.join(str(path) for path in review_insights_written_paths)}"
+        )
+        return 0
+
     if args.command == "compare-review-theme-summaries":
         output_json_path = args.output_json
         output_md_path = args.output_md
@@ -1204,6 +1244,35 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional path for the JSON evaluation report artifact.",
     )
     evaluate_rsr_source_extract.add_argument(
+        "--output-md",
+        default=None,
+        type=Path,
+        help="Optional path for the Markdown evaluation report artifact.",
+    )
+
+    evaluate_review_insights = subparsers.add_parser(
+        "evaluate-review-insights",
+        help="Evaluate a review_insights.json artifact with deterministic local checks.",
+    )
+    evaluate_review_insights.add_argument(
+        "--review-insights",
+        required=True,
+        type=Path,
+        help="Path to a review_insights.json artifact.",
+    )
+    evaluate_review_insights.add_argument(
+        "--run-id",
+        default=None,
+        type=_uuid_arg,
+        help="Optional workflow run UUID to associate with the evaluation report.",
+    )
+    evaluate_review_insights.add_argument(
+        "--output-json",
+        default=None,
+        type=Path,
+        help="Optional path for the JSON evaluation report artifact.",
+    )
+    evaluate_review_insights.add_argument(
         "--output-md",
         default=None,
         type=Path,

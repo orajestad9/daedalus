@@ -2140,6 +2140,92 @@ def test_evaluate_rsr_source_extract_command_does_not_print_artifact_contents(
     assert "Sample Neighborhood" not in output
 
 
+def test_evaluate_review_insights_writes_json_and_markdown_reports(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    review_insights_path = _write_review_insights_artifact(tmp_path)
+    output_json_path = tmp_path / "review_insights.evaluation.json"
+    output_md_path = tmp_path / "review_insights.evaluation.md"
+
+    exit_code = main(
+        [
+            "evaluate-review-insights",
+            "--review-insights",
+            str(review_insights_path),
+            "--output-json",
+            str(output_json_path),
+            "--output-md",
+            str(output_md_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    data = _read_json(output_json_path)
+    markdown = output_md_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert data["target_type"] == "review_insights"
+    assert data["evaluator_name"] == "readysetrentables_review_insights_basic"
+    assert "Evaluation Report" in markdown
+    assert "Target name: `review_insights.json`" in markdown
+    assert "Wrote review insights evaluation" in output
+    assert "target_name=review_insights.json" in output
+
+
+def test_evaluate_review_insights_command_output_is_safe_summary_only(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    review_insights_path = _write_review_insights_artifact(tmp_path)
+
+    exit_code = main(
+        [
+            "evaluate-review-insights",
+            "--review-insights",
+            str(review_insights_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "Synthetic guests value clear arrival details." not in output
+    assert "Clear synthetic arrival details" not in output
+    assert "Occasional synthetic street noise" not in output
+    assert "Send arrival details before check-in" not in output
+    assert "Raw model output should not be printed." not in output
+    assert "passed=" in output
+    assert "failed_count=" in output
+    assert "warning_count=" in output
+    assert "error_count=" in output
+
+
+def test_evaluate_review_insights_missing_artifact_writes_failed_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    review_insights_path = tmp_path / "missing_review_insights.json"
+    output_json_path = tmp_path / "evaluation.json"
+
+    exit_code = main(
+        [
+            "evaluate-review-insights",
+            "--review-insights",
+            str(review_insights_path),
+            "--output-json",
+            str(output_json_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    data = _read_json(output_json_path)
+    assert exit_code == 0
+    assert "passed=False" in output
+    assert any(
+        check["check_name"] == "artifact_exists" and check["status"] == "failed"
+        for check in data["checks"]
+    )
+
+
 def test_build_review_insight_input_succeeds_for_valid_source_extract_artifact(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -4438,6 +4524,14 @@ def _write_review_insight_input_artifact(tmp_path: Path) -> Path:
         representative_reviews=["Synthetic review: hidden representative review."],
     )
     payload = json.loads(input_data.model_dump_json())
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return output_path
+
+
+def _write_review_insights_artifact(tmp_path: Path) -> Path:
+    output_path = tmp_path / "review_insights.json"
+    result = _review_insight_extraction_result(run_id=uuid4())
+    payload = json.loads(result.model_dump_json())
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return output_path
 

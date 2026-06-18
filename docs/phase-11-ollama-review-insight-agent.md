@@ -141,6 +141,21 @@ can also record safe local Ollama invocation metadata after
 successful local Ollama result. `show-run` can then display the local Ollama
 model invocation metadata alongside the run artifacts.
 
+Generated `review_insights.json` artifacts can be evaluated with deterministic
+local checks:
+
+```bash
+.venv/bin/daedalus evaluate-review-insights \
+  --review-insights artifacts/readysetrentables/review_insights.json \
+  --output-json artifacts/readysetrentables/review_insights.evaluation.json \
+  --output-md artifacts/readysetrentables/review_insights.evaluation.md
+```
+
+The command writes JSON and Markdown evaluation reports and prints only safe
+aggregate metadata such as pass/fail counts and output paths. It does not print
+themes, strengths, risks, guest expectations, raw insight summaries,
+representative review text, prompt text, or raw model output.
+
 When extraction fails, the command reports a safe diagnostic category instead of
 a single generic error. Known categories include: the Ollama request timed out,
 the local Ollama request failed, the model output was empty, the model output
@@ -169,9 +184,11 @@ like `review_insights: artifacts/readysetrentables/review_insights.json`.
 
 ## Evaluation Path
 
-Phase 7 already includes a deterministic `review_insights.json` evaluator shell.
-Phase 11 can use that evaluator once a CLI or file path is available for the
-generated `review_insights.json` artifact.
+`review_insights.json` now has a deterministic evaluator and manual CLI command.
+It validates the artifact against `ReviewInsightExtractionResult`, checks
+provider/model/prompt lineage, theme shape, allowed sentiment values, evidence
+counts, strengths, risks, guest expectations, raw insight summary presence,
+available token/cost metadata, and obvious placeholder text.
 
 No evaluator-model scoring is part of Phase 11. Quality checks should remain
 deterministic and structural unless a later phase explicitly scopes an evaluator
@@ -201,7 +218,8 @@ model behind the `ModelClient` boundary.
 4. Add a manual local Ollama CLI command. Done.
 5. Add a file-only local check that uses synthetic input and a fake model path.
 6. Add optional DB-backed artifact recording for `review_insights.json`. Done.
-7. Wire source-derived review insight extraction into LangGraph later.
+7. Add deterministic `review_insights.json` evaluation. Done.
+8. Wire source-derived review insight extraction into LangGraph later.
 
 ## Explicitly Deferred
 
